@@ -128,7 +128,7 @@ for feature_w in $(seq 0.2 0.002 0.3); do
                 --output_w $output_w \
                 --bestmodel \
                 --use_amp \
-                --gpt2_path /mnt/data/gpt2/ \
+                --gpt2_path /mnt/data/gpt2 \
                 --task_loss smooth_l1 \
                 --feature_loss smooth_l1 \
                 --output_loss smooth_l1 \

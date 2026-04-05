@@ -5,6 +5,8 @@ model=CALF
 data_name=Solar
 set -o pipefail
 
+
+
 # 记录文件和签名
 ROOT_LOG_DIR=logs/$model/$data_name
 COMPLETED_FILE=$ROOT_LOG_DIR/completed_combos.txt
