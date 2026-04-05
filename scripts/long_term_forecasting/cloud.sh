@@ -9,7 +9,7 @@ GPU=0
 model=CALF
 data_name=Solar
 set -o pipefail
-
+mkdir -p /mnt/data/logs/$model/$data_name
 # ==================== 找到可用的 python ====================
 if command -v python >/dev/null 2>&1; then
     PY=python
