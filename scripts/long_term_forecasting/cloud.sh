@@ -69,7 +69,7 @@ seq_len=96
 
 $PY -u pca.py 
 
-for feature_w in $(seq 0.2 0.002 0.3); do
+for feature_w in $(seq 0.3 0.001 0.4); do
   for output_w in 1.3; do
     combo="${feature_w}_${output_w}"
     skip=false
