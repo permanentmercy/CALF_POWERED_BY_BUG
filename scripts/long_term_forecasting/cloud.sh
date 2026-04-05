@@ -97,7 +97,7 @@ for feature_w in $(seq 0.2 0.002 0.3); do
               LOG_FILE="/mnt/data/logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs"
               CUDA_VISIBLE_DEVICES=$GPU \
               $PY -u run.py \
-                --root_path ./datasets/Solar/ \
+                --root_path /mnt/data/ \
                 --data_path solar_AL.txt \
                 --is_training 1 \
                 --task_name long_term_forecast \

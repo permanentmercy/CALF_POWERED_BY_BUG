@@ -46,14 +46,17 @@ class Encoder_PCA(nn.Module):
 
         self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads)
         
-        self.word_embedding = word_embedding.T
+        # 注册为buffer，避免显存泄露
+        self.register_buffer('word_embedding', word_embedding.T, persistent=True)
 
     def forward(self, x):
         B = x.shape[0]
-        if self.word_embedding.ndim == 2:
-            self.word_embedding = self.word_embedding.repeat(B, 1, 1)
-        elif self.word_embedding.shape[0] != B:
-            self.word_embedding = self.word_embedding[0].repeat(B, 1, 1)
+        # 直接使用buffer，避免在forward中重复分配新张量
+        word_emb = self.word_embedding
+        if word_emb.ndim == 2:
+            word_emb = word_emb.unsqueeze(0).expand(B, -1, -1)
+        elif word_emb.shape[0] != B:
+            word_emb = word_emb[0].unsqueeze(0).expand(B, -1, -1)
 
         x = self.linear(x)
 
@@ -62,10 +65,12 @@ class Encoder_PCA(nn.Module):
         x_time = x
 
         q = x.transpose(0, 1)
-        k = v = self.word_embedding.transpose(0, 1)
+        k = v = word_emb.transpose(0, 1)
         x, _ = self.cross_attention(q, k, v)
 
         x = x.transpose(0, 1)
+        # 显式清除中间变量
+        del q, k, v
 
         return x_time, x
 
@@ -91,6 +96,12 @@ class Model(nn.Module):
 
         self.gpt2.h = self.gpt2.h[:configs.gpt_layers]#通过gpt_layers裁剪层数
         self.gpt2_text.h = self.gpt2_text.h[:configs.gpt_layers]
+        
+        # 启用梯度检查点以节省显存（在训练时生效）
+        if getattr(configs, 'use_gradient_checkpointing', False):
+            self.gpt2.gradient_checkpointing_enable()
+            self.gpt2_text.gradient_checkpointing_enable()
+        
         self.gpt2 = get_peft_model(self.gpt2, peft_config)#LORA微调参数传入
         
         word_embedding = torch.tensor(torch.load(configs.word_embedding_path)).to(device=device)
@@ -152,9 +163,6 @@ class Model(nn.Module):
         # residue connection
         outputs_time += outputs_time1
         outputs_text += outputs_text1
-        
-        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
-        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
         outputs_time = self.out_layer(outputs_time[:, -M:, :])
         outputs_text = self.out_layer(outputs_text[:, -M:, :])
@@ -164,12 +172,16 @@ class Model(nn.Module):
 
         outputs_text = outputs_text * stdev + means
         outputs_time = outputs_time * stdev + means
+        
+        # 处理中间特征（始终进行投影以保持一致性）
+        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
+        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
         return {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
+            'intermidiate_time': intermidiate_feat_time,
+            'intermidiate_text': intermidiate_feat_text,
         }
 
 
@@ -186,20 +198,21 @@ class Model(nn.Module):
         outputs_time += outputs_time1
         outputs_text += outputs_text1
         
-        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
-        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
-        
         outputs_time = outputs_time.reshape(B, -1)
         outputs_text = outputs_text.reshape(B, -1)
         
         outputs_time = self.out_layer(outputs_time)
         outputs_text = self.out_layer(outputs_text)
         
+        # 处理中间特征
+        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
+        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
+        
         return {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
+            'intermidiate_time': intermidiate_feat_time,
+            'intermidiate_text': intermidiate_feat_text,
         }
     
 
@@ -223,9 +236,6 @@ class Model(nn.Module):
         # residue connection
         outputs_time += outputs_time1
         outputs_text += outputs_text1
-        
-        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
-        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
         outputs_time = self.out_layer(outputs_time)
         outputs_text = self.out_layer(outputs_text)
@@ -236,11 +246,15 @@ class Model(nn.Module):
         outputs_text = outputs_text * stdev + means
         outputs_time = outputs_time * stdev + means
 
+        # 处理中间特征
+        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
+        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
+
         return {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
+            'intermidiate_time': intermidiate_feat_time,
+            'intermidiate_text': intermidiate_feat_text,
         }
 
     def anomaly_detection(self, x):
@@ -260,9 +274,6 @@ class Model(nn.Module):
         # residue connection
         outputs_time += outputs_time1
         outputs_text += outputs_text1
-        
-        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
-        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
         outputs_time = self.out_layer(outputs_time)
         outputs_text = self.out_layer(outputs_text)
@@ -273,12 +284,18 @@ class Model(nn.Module):
         outputs_text = outputs_text * stdev + means
         outputs_time = outputs_time * stdev + means
 
-        return {
+        result = {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
         }
+        
+        # 处理中间特征
+        intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
+        intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
+        result['intermidiate_time'] = intermidiate_feat_time
+        result['intermidiate_text'] = intermidiate_feat_text
+        
+        return result
 
 
     def forward(self, x, mask=None):

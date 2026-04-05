@@ -153,6 +153,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     model_optim.step()
                     loss_optim.step()
                 
+                # 及时清理不再使用的张量
+                del batch_x, batch_y, outputs_dict, loss
+                torch.cuda.empty_cache() 
+                
                 current_memory = torch.cuda.max_memory_allocated() / 1024 ** 2
                 max_memory = max(max_memory, current_memory)
             
@@ -259,6 +263,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 loss = F.mse_loss(pred, true)
 
                 total_loss.append(loss)
+                
+                # 及时清理中间特征和临时张量以节省显存
+                if 'intermidiate_time' in outputs:
+                    del outputs['intermidiate_time']
+                if 'intermidiate_text' in outputs:
+                    del outputs['intermidiate_text']
+                del outputs, outputs_ensemble, batch_x, batch_y, batch_x_mark, batch_y_mark, pred, true, loss
 
         total_loss = np.average(total_loss)
 
