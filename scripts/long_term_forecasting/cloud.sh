@@ -106,7 +106,7 @@ for feature_w in $(seq 0.3 0.001 0.4); do
                 --seq_len $seq_len \
                 --label_len 0 \
                 --pred_len $pred_len \
-                --batch_size 128 \
+                --batch_size 160 \
                 --learning_rate $learning_rate \
                 --train_epochs 3 \
                 --d_model $d_model \
