@@ -67,6 +67,8 @@ mkdir -p "./logs/$model/$data_name"
 SKIP_COMBOS=("")
 seq_len=96
 
+$PY -u pca.py 
+
 for feature_w in $(seq 0.2 0.002 0.3); do
   for output_w in 1.3; do
     combo="${feature_w}_${output_w}"
