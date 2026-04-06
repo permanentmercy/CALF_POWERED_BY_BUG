@@ -16,9 +16,9 @@ fi
 
 # 待加入调整的参数：2个loss系数
 seq_len=96
-for feature_w in  0.03
+for feature_w in  0.0007
 do
-for output_w in 1.1
+for output_w in 1.2
 do 
 for learning_rate in   0.0001
 do
@@ -56,13 +56,14 @@ do
     --cos 1 \
     --tmax 10 \
     --r 8 \
-    --lora_alpha 32 \
+    --lora_alpha 48 \
     --lora_dropout 0.1 \
     --patience 5 \
     --feature_w $feature_w \
     --output_w $output_w \
     --bestmodel \
     --use_amp \
+    --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
     --output_loss smooth_l1 \

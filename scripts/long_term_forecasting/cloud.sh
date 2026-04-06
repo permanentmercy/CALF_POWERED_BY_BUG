@@ -69,7 +69,7 @@ seq_len=96
 
 $PY -u pca.py 
 
-for feature_w in $(seq 0.3 0.001 0.4); do
+for feature_w in 0.00007; do
   for output_w in 1.3; do
     combo="${feature_w}_${output_w}"
     skip=false
@@ -91,7 +91,7 @@ for feature_w in $(seq 0.3 0.001 0.4); do
 
     for learning_rate in 0.0001; do
       for d_model in 768; do
-        for n_heads in 4; do
+        for n_heads in 8; do
           for random_seed in 2026; do
             for pred_len in 96; do
               LOG_FILE="/mnt/data/logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs"
@@ -106,24 +106,24 @@ for feature_w in $(seq 0.3 0.001 0.4); do
                 --seq_len $seq_len \
                 --label_len 0 \
                 --pred_len $pred_len \
-                --batch_size 160 \
+                --batch_size 256 \
                 --learning_rate $learning_rate \
-                --train_epochs 3 \
+                --train_epochs 100 \
                 --d_model $d_model \
                 --n_heads $n_heads \
                 --d_ff $((d_model * 4)) \
                 --dropout 0.2 \
                 --enc_in 137 \
                 --c_out 137 \
-                --gpt_layers 3 \
+                --gpt_layers 12 \
                 --itr 1 \
                 --model $model \
                 --cos 1 \
                 --tmax 10 \
                 --r 8 \
-                --lora_alpha 48 \
+                --lora_alpha 32 \
                 --lora_dropout 0.1 \
-                --patience 1 \
+                --patience 5 \
                 --feature_w $feature_w \
                 --output_w $output_w \
                 --bestmodel \
