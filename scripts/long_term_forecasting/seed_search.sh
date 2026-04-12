@@ -54,7 +54,7 @@ SKIP_COMBOS=("")
 
 # 待加入调整的参数：2个loss系数
 seq_len=96
-for feature_w in  $(seq 0.214 0.002 0.3)
+for feature_w in  $(seq 0.00005 0.000001 0.00008)
 do
 for output_w in 1.3
 do 
@@ -115,7 +115,7 @@ do
     --cos 1 \
     --tmax 10 \
     --r 8 \
-    --lora_alpha 48 \
+    --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 1 \
     --feature_w $feature_w \

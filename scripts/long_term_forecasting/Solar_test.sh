@@ -16,19 +16,19 @@ fi
 
 # 待加入调整的参数：2个loss系数
 seq_len=96
-for feature_w in  0.0007
+for feature_w in   0.00007
 do
-for output_w in 1.2
+for output_w in 1.3
 do 
-for learning_rate in   0.0001
+for learning_rate in   0.0002
 do
 for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in 2025 2026 2027
+for random_seed in  2026 
 do
-for pred_len in 96
+for pred_len in 192 336 720
 do
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
@@ -41,7 +41,7 @@ do
     --seq_len $seq_len \
     --label_len 0 \
     --pred_len $pred_len \
-    --batch_size 16 \
+    --batch_size 32 \
     --learning_rate $learning_rate \
     --train_epochs 100 \
     --d_model $d_model \
@@ -56,7 +56,7 @@ do
     --cos 1 \
     --tmax 10 \
     --r 8 \
-    --lora_alpha 48 \
+    --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 5 \
     --feature_w $feature_w \
