@@ -47,23 +47,27 @@ if [ ! -d "./logs/$model/$data_name" ]; then
 fi
 
 # 待加入调整的参数：2个loss系数
+batch_size=32
 seq_len=96
-for task_w in 0.5
+for task_w in 0.6
 do
 for output_w in 0.3
 do 
-for learning_rate in   0.0002
-do
 for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in  2026 2027
+for random_seed in  2025
 do
-for pred_len in 96
+for pred_len in 96 
 do
-  
+  learning_rate=$(python - <<PY
+b=$batch_size
+print("{:.8f}".format(0.00000625*b))
+PY
+)
   if python - <<PY
+  
 o=$output_w
 t=$task_w
 import sys
@@ -81,6 +85,8 @@ t=$task_w
 print("{:.6f}".format(1 - o - t))
 PY
 )
+  
+
   combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
 
   # 检查是否是显式跳过的组合
@@ -102,7 +108,7 @@ PY
     echo "already completed: $combo"
     continue
   fi
-
+  
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
@@ -114,7 +120,7 @@ PY
     --seq_len $seq_len \
     --label_len 0 \
     --pred_len $pred_len \
-    --batch_size 32 \
+    --batch_size $batch_size \
     --learning_rate $learning_rate \
     --train_epochs 100 \
     --d_model $d_model \
@@ -123,7 +129,7 @@ PY
     --dropout 0.2 \
     --enc_in 137 \
     --c_out 137 \
-    --gpt_layers 6 \
+    --gpt_layers 2 \
     --itr 1 \
     --model $model \
     --cos 1 \
@@ -131,7 +137,7 @@ PY
     --r 8 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    --patience 5 \
+    --patience 3 \
     --feature_w $feature_w \
     --output_w $output_w \
     --task_w $task_w \
@@ -156,5 +162,5 @@ done
 done
 done
 done
-done
+
 
