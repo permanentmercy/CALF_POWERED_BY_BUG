@@ -18,6 +18,7 @@ Loss functions for PyTorch.
 
 import torch as t
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import pdb
 
@@ -87,3 +88,44 @@ class mase_loss(nn.Module):
         masep = t.mean(t.abs(insample[:, freq:] - insample[:, :-freq]), dim=1)
         masked_masep_inv = divide_no_nan(mask, masep[:, None])
         return t.mean(t.abs(target - forecast) * masked_masep_inv)
+
+
+class Log1pTweedieLoss(nn.Module):
+    """
+    Tweedie loss for long-tailed positive data, with built-in log1p transform.
+
+    Expects:
+        - y_pred: model output, should be in log1p space (i.e., model predicts ln(1 + y_original))
+        - y_true: target, also in log1p space (i.e., already transformed by torch.log1p)
+    Automatically inverts the log1p transform via expm1 before computing the loss,
+    ensuring numerical stability and proper handling of zeros.
+
+    Args:
+        p: Tweedie variance power (1 < p < 2). Default 1.5.
+        reduction: 'mean', 'sum', or 'none'.
+    """
+    def __init__(self, p=1.5, reduction='mean'):
+        super().__init__()
+        if not (1 < p < 2):
+            raise ValueError(f"TweedieLoss requires 1 < p < 2, but got p={p}")
+        self.p = p
+        self.reduction = reduction
+
+    def forward(self, y_pred, y_true):
+        # 1. Inverse log1p: map back to original positive domain
+        y_pred_orig = t.expm1(y_pred)   # expm1(x) = exp(x) - 1, the inverse of log1p
+        y_true_orig = t.expm1(y_true)
+
+        # 2. Ensure positivity (avoid numerical issues from tiny negative values)
+        y_pred_orig = F.softplus(y_pred_orig)
+
+        # 3. Tweedie deviance
+        a = y_true_orig * t.pow(y_pred_orig, 1 - self.p) / (1 - self.p)
+        b = t.pow(y_pred_orig, 2 - self.p) / (2 - self.p)
+        loss = -a + b
+
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        return loss

@@ -46,46 +46,36 @@ if [ ! -d "./logs/$model/$data_name" ]; then
     mkdir ./logs/$model/$data_name
 fi
 
-# 待加入调整的参数：2个loss系数
-batch_size=32
+# 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
+batch_size=16
 seq_len=96
-for task_w in 0.6
+for task_w in 0.9
 do
-for output_w in 0.3
-do 
+for feature_w in 0.0005
+do
 for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in  2025
+for random_seed in  2026
 do
 for pred_len in 96 
 do
-  learning_rate=$(python - <<PY
-b=$batch_size
-print("{:.8f}".format(0.00000625*b))
-PY
-)
-  if python - <<PY
-  
-o=$output_w
-t=$task_w
-import sys
-sys.exit(0 if o + t > 1.0 else 1)
-PY
-  then
-    echo "skip specific hyperparameters: output_w=$output_w, task_w=$task_w"
+  learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size))")
+
+  # 由 task_w 和 feature_w 计算 output_w
+  output_w=$(python -c "
+o = 1.0 - $task_w - $feature_w
+if o < 0:
+    print(-1)
+else:
+    print('{:.6f}'.format(o))
+")
+  # 如果 output_w <= 0 则跳过该组合
+  if python -c "import sys; sys.exit(0 if $output_w < 0 else 1)"; then
+    echo "skip (output_w<=0): task_w=$task_w, feature_w=$feature_w -> output_w=$output_w"
     continue
   fi
-
-  # 计算 feature_w 并形成唯一组合标识（使用 Python 避免依赖 bc）
-  feature_w=$(python - <<PY
-o=$output_w
-t=$task_w
-print("{:.6f}".format(1 - o - t))
-PY
-)
-  
 
   combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
 
@@ -99,7 +89,7 @@ PY
     fi
   done
   if [ "$skip" == true ]; then
-    echo "skip specific hyperparameters: output_w=$output_w, task_w=$task_w"
+    echo "skip specific hyperparameters: output_w=$output_w, task_w=$task_w, feature_w=$feature_w"
     continue
   fi
 
@@ -126,10 +116,10 @@ PY
     --d_model $d_model \
     --n_heads $n_heads \
     --d_ff $((d_model*4)) \
-    --dropout 0.2 \
+    --dropout 0.1 \
     --enc_in 137 \
     --c_out 137 \
-    --gpt_layers 2 \
+    --gpt_layers 3 \
     --itr 1 \
     --model $model \
     --cos 1 \
@@ -138,11 +128,13 @@ PY
     --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 3 \
+    --num_workers 0 \
     --feature_w $feature_w \
     --output_w $output_w \
     --task_w $task_w \
     --bestmodel \
     --use_amp \
+    --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \

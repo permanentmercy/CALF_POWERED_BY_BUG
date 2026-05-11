@@ -85,7 +85,8 @@ def data_provider(args, flag, vali=False):
             timeenc=timeenc,
             freq=freq,
             seasonal_patterns=args.seasonal_patterns,
-            percent=args.percent
+            percent=args.percent,
+            **({'task_loss': args.task_loss} if args.data == 'Solar' else {})
         )
         print(flag, len(data_set))
         
@@ -97,4 +98,4 @@ def data_provider(args, flag, vali=False):
             drop_last=drop_last)
         
         return data_set, data_loader
-    
+

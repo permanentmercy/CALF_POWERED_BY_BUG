@@ -13,7 +13,7 @@ import warnings
 import numpy as np
 import torch.nn.functional as F
 from copy import deepcopy
-
+import pandas as pd
 warnings.filterwarnings('ignore')
 
 
@@ -357,5 +357,67 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         # np.save(folder_path + 'pred.npy', preds)
         # np.save(folder_path + 'true.npy', trues)
+
+        # ---- Save predictions and ground truth to CSV (memory-friendly) ----
+        def to_numpy(arr):
+            if hasattr(arr, 'cpu'):          # PyTorch tensor
+                arr = arr.detach().cpu().numpy()
+            elif hasattr(arr, 'numpy'):      # TensorFlow tensor
+                arr = arr.numpy()
+            return np.ascontiguousarray(arr)
+
+        preds_np = to_numpy(preds)
+        trues_np = to_numpy(trues)
+
+        if preds_np.ndim != 3 or trues_np.ndim != 3:
+            raise ValueError("preds and trues must be 3D arrays")
+
+        num_windows, pred_len, n_features = preds_np.shape
+        pred_cols = [f'station_{f}_pred' for f in range(n_features)]
+        true_cols = [f'station_{f}_true' for f in range(n_features)]
+        columns = ['window', 'step'] + pred_cols + true_cols
+
+        os.makedirs(folder_path, exist_ok=True)
+        csv_path = os.path.join(folder_path, 'predictions.csv')
+
+        steps_template = np.arange(pred_len)
+        chunk_size = 100
+        first_chunk = True
+
+        for start in range(0, num_windows, chunk_size):
+            end = min(start + chunk_size, num_windows)
+            batch_windows = slice(start, end)
+            batch_num = end - start
+            total_rows = batch_num * pred_len
+
+            p_flat = preds_np[batch_windows].reshape(total_rows, n_features)
+            t_flat = trues_np[batch_windows].reshape(total_rows, n_features)
+
+            windows_arr = np.repeat(np.arange(start, end), pred_len)
+            steps_arr = np.tile(steps_template, batch_num)
+
+            df_chunk = pd.DataFrame(
+                dict(
+                    window=windows_arr,
+                    step=steps_arr,
+                    **{col: p_flat[:, f] for f, col in enumerate(pred_cols)},
+                    **{col: t_flat[:, f] for f, col in enumerate(true_cols)},
+                ),
+                columns=columns,
+            )
+
+            df_chunk.to_csv(
+                csv_path,
+                mode='w' if first_chunk else 'a',
+                header=first_chunk,
+                index=False,
+            )
+            first_chunk = False
+
+        print(f'Predictions saved to {csv_path}')
+        print(f"openning{csv_path}stathion_5")
+        from plot_predictions import plot_predictions
+        plot_predictions(csv_path, station_id=5, n_windows=3, max_windows=1)
+        # ---- End CSV save ----
 
         return

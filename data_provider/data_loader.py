@@ -310,7 +310,8 @@ class Dataset_Custom(Dataset):
 class Dataset_Solar(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100):
+                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100,
+                 task_loss='l1'):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -333,6 +334,7 @@ class Dataset_Solar(Dataset):
         self.timeenc = timeenc
         self.freq = freq
         self.percent = percent
+        self.task_loss = task_loss
         
         self.root_path = root_path
         self.data_path = data_path
@@ -402,7 +404,13 @@ class Dataset_Solar(Dataset):
         # self.data_stamp = data_stamp
         
         df_data = df_raw.values
-        if self.scale:
+        
+        # For Tweedie loss: skip standardization entirely.
+        # log1p requires non-negative raw values; StandardScaler produces negative values
+        # which would cause NaN in log1p and break Tweedie assumptions.
+        use_scale = self.scale and self.task_loss != 'log1p_tweedie'
+        
+        if use_scale:
             train_data = df_data[border1s[0]:border2s[0]]
             self.scaler.fit(train_data)
             data = self.scaler.transform(df_data)
@@ -421,6 +429,10 @@ class Dataset_Solar(Dataset):
         seq_x = self.data_x[s_begin:s_end]
         seq_y = self.data_y[r_begin:r_end]
         
+        # Apply log1p transformation if using Tweedie loss
+        if self.task_loss == 'log1p_tweedie':
+            seq_y = np.log1p(seq_y)
+        
         # seq_x_mark = self.data_stamp[s_begin:s_end]
         # seq_y_mark = self.data_stamp[r_begin:r_end]
         seq_x_mark = torch.zeros((seq_x.shape[0], 1))
@@ -432,6 +444,9 @@ class Dataset_Solar(Dataset):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
 
     def inverse_transform(self, data):
+        if self.task_loss == 'log1p_tweedie':
+            # Scaling was skipped for Tweedie loss; return data as-is
+            return data
         return self.scaler.inverse_transform(data)
 
 

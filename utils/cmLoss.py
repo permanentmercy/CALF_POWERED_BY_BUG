@@ -4,7 +4,7 @@ import torch.nn as nn
 from .similar_utils import *
 from copy import deepcopy
 
-from .losses import mape_loss, mase_loss, smape_loss
+from .losses import mape_loss, mase_loss, smape_loss, Log1pTweedieLoss
 
 loss_dict = {
     "l1": nn.L1Loss(),
@@ -14,6 +14,7 @@ loss_dict = {
     "smape": smape_loss(),
     "mape": mape_loss(),
     "mase": mase_loss(),
+    "log1p_tweedie": Log1pTweedieLoss(p=1.5, reduction='mean')  # Add new loss
 }
 
 
@@ -74,6 +75,6 @@ class cmLoss(nn.Module):
             task_loss = self.task_loss(outputs_time, batch_y)
         elif self.task_name == "anomaly_detection":
             task_loss = self.task_loss(outputs_time, batch_y)
-
+        
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
         return total_loss
