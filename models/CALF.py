@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from einops import rearrange
 from peft import LoraConfig, TaskType, get_peft_model
 from models.GPT2_arch import AccustumGPT2Model
@@ -111,6 +112,31 @@ class Model(nn.Module):
         
         self.text_proj = nn.ModuleList([nn.Linear(configs.d_model, configs.d_model, bias=False) for _ in range(configs.gpt_layers+1)])
 
+        # time→self-attn→cross-attn→pos_enc→残差到文本层最后自注意力
+        self.time_to_text_self_attn = nn.MultiheadAttention(
+            embed_dim=configs.d_model, num_heads=configs.n_heads, batch_first=True, dropout=configs.dropout
+        )
+        self.time_to_text_cross_attn = nn.MultiheadAttention(
+            embed_dim=configs.d_model, num_heads=configs.n_heads, batch_first=True, dropout=configs.dropout
+        )
+        self.time_to_text_ln = nn.LayerNorm(configs.d_model)
+        self.time_to_text_dropout = nn.Dropout(configs.dropout)
+        # 可学习的残差缩放系数，初始化为较小值防止过拟合
+        self.time_to_text_scale = nn.Parameter(torch.tensor(0.1))
+
+        # 新增：从文本层输入到时间层输出的变换链路
+        self.text_to_time_link = nn.Sequential(
+            nn.Linear(configs.d_model, configs.d_model),
+            nn.LayerNorm(configs.d_model)
+        )
+        
+        # 门控标量初始化为 -3.0，使初始 sigmoid(gate) ≈ 0.047
+        self.text_to_time_gate = nn.Parameter(torch.tensor(-3.0))
+        
+        # 恒等映射初始化：将线性层权重和偏置置零，确保初期注入几乎为 0
+        nn.init.zeros_(self.text_to_time_link[0].weight)
+        nn.init.zeros_(self.text_to_time_link[0].bias)
+
         # 把 configs.d_ff 传进 Encoder_PCA，让 --d_ff 生效
         self.in_layer = Encoder_PCA(
             configs.seq_len,                  # 输入维度（线性层输入）
@@ -128,7 +154,9 @@ class Model(nn.Module):
         elif self.task_name == 'anomaly_detection':
             self.out_layer = nn.Linear(configs.d_model, configs.seq_len)
 
-        for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
+        for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj,
+                       self.time_to_text_self_attn, self.time_to_text_cross_attn, self.time_to_text_ln,
+                       self.time_to_text_dropout):
             layer.to(device=device)
             layer.train()
         
@@ -147,8 +175,41 @@ class Model(nn.Module):
 
         outputs_time1, outputs_text1 = self.in_layer(x)
 
+        # ---- time→self-attn→cross-attn(与text)→pos_enc→残差到文本层最后自注意力 ----
+        time_self, _ = self.time_to_text_self_attn(outputs_time1, outputs_time1, outputs_time1)
+        time_cross, _ = self.time_to_text_cross_attn(time_self, outputs_text1, outputs_text1)
+        seq_len_t = time_cross.shape[1]
+        position_ids = torch.arange(seq_len_t, dtype=torch.long, device=x.device).unsqueeze(0)
+        pos_embeds = self.gpt2_text.wpe(position_ids)
+        time_residual = time_cross + pos_embeds
+        time_residual = self.time_to_text_ln(time_residual)
+        time_residual = self.time_to_text_dropout(time_residual)
+        time_residual = time_residual * self.time_to_text_scale
+        # ----
+
+        # 获取文本层经过位置编码后的初始信息
+        pos_ids = torch.arange(M, dtype=torch.long, device=x.device).unsqueeze(0)
+        text_with_pos = outputs_text1 + self.gpt2_text.wpe(pos_ids)
+        
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
-        outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
+        
+        # 1. 计算门控值
+        gate = torch.sigmoid(self.text_to_time_gate)
+        text_bias = self.text_to_time_link(text_with_pos)
+
+        # 2. 诊断信号：计算相加前后的余弦相似度（监控融合剧烈程度）
+        with torch.no_grad():
+            # 展平后计算每条样本的余弦相似度再取平均
+            cos_sim = F.cosine_similarity(outputs_time.reshape(B, -1), 
+                                          (outputs_time + gate * text_bias).reshape(B, -1)).mean()
+            bias_norm = torch.norm(gate * text_bias)
+
+        # 3. 带门控的残差注入
+        outputs_time = outputs_time + gate * text_bias
+
+        outputs_text, intermidiate_feat_text = self.gpt2_text(
+            inputs_embeds=outputs_text1, external_residual=time_residual
+        )
         # residue connection
         outputs_time += outputs_time1
         outputs_text += outputs_text1
@@ -178,9 +239,15 @@ class Model(nn.Module):
 
         x = rearrange(x, 'b l m -> b m l')
 
-        outputs_time1, outputs_text1 = self.in_layer(x)
-        
+        # 获取文本层经过位置编码后的初始信息
+        pos_ids = torch.arange(M, dtype=torch.long, device=x.device).unsqueeze(0)
+        text_with_pos = outputs_text1 + self.gpt2_text.wpe(pos_ids)
+
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
+        
+        # 加入变换后的文本信息
+        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
         
         outputs_time += outputs_time1
@@ -217,7 +284,15 @@ class Model(nn.Module):
 
         outputs_time1, outputs_text1 = self.in_layer(x)
 
+        # 获取文本层经过位置编码后的初始信息
+        pos_ids = torch.arange(M, dtype=torch.long, device=x.device).unsqueeze(0)
+        text_with_pos = outputs_text1 + self.gpt2_text.wpe(pos_ids)
+
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
+        
+        # 加入变换后的文本信息
+        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
         
         # residue connection
@@ -255,8 +330,17 @@ class Model(nn.Module):
 
         outputs_time1, outputs_text1 = self.in_layer(x)
 
+        # 获取文本层经过位置编码后的初始信息
+        pos_ids = torch.arange(M, dtype=torch.long, device=x.device).unsqueeze(0)
+        text_with_pos = outputs_text1 + self.gpt2_text.wpe(pos_ids)
+
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
+        
+        # 加入变换后的文本信息
+        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
+        
         # residue connection
         outputs_time += outputs_time1
         outputs_text += outputs_text1

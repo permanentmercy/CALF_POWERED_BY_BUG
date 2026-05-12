@@ -62,12 +62,17 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
-        param_dict = [
-            {"params": [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n], "lr": 1e-4},
-            {"params": [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' not in n], "lr": self.args.learning_rate}
+        # 分离出门控参数，使用 0.1 倍的学习率
+        gate_params = [p for n, p in self.model.named_parameters() if 'text_to_time_gate' in n]
+        other_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 'text_to_time_gate' not in n]
+        
+        param_groups = [
+            {"params": other_params, "lr": self.args.learning_rate},
+            {"params": gate_params, "lr": self.args.learning_rate * 0.1}
         ]
-        model_optim = optim.Adam([param_dict[1]], lr=self.args.learning_rate)
-        loss_optim = optim.Adam([param_dict[0]], lr=self.args.learning_rate)
+        
+        model_optim = optim.Adam(param_groups)
+        loss_optim = optim.Adam([p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n], lr=self.args.learning_rate)
 
         return model_optim, loss_optim
 
@@ -127,15 +132,19 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with autocast():
                         outputs_dict = self.model(batch_x)
-                        loss = criterion(outputs_dict, batch_y)
+                        loss, task_loss, output_loss, feature_loss = criterion(outputs_dict, batch_y)
                 else:
                     outputs_dict = self.model(batch_x)
-                    loss = criterion(outputs_dict, batch_y)
+                    loss, task_loss, output_loss, feature_loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    # 打印门控状态和诊断信号
+                    gate_val = outputs_dict.get('gate_value', 0)
+                    cos_sim = outputs_dict.get('cos_sim', 0)
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f} | Gate: {3:.4f} | CosSim: {4:.4f}".format(
+                        i + 1, epoch + 1, loss.item(), gate_val, cos_sim))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
@@ -170,6 +179,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             else:
                 test_loss = None
 
+            # 打印各分量损失
+            avg_task_loss = task_loss.item() if isinstance(task_loss, torch.Tensor) else 0
+            avg_output_loss = output_loss.item() if isinstance(output_loss, torch.Tensor) else 0
+            avg_feature_loss = feature_loss.item() if isinstance(feature_loss, torch.Tensor) else 0
+
             # save best model (to memory or disk)
             if vali_loss < best_val:
                 best_val = vali_loss
@@ -191,11 +205,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             # Print training progress with or without test loss
             if test_loss is not None:
-                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f} | task:{5:.6f} output:{6:.6f} feature:{7:.6f}".format(
+                    epoch + 1, train_steps, train_loss, vali_loss, test_loss,
+                    avg_task_loss, avg_output_loss, avg_feature_loss))
             else:
-                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss))
+                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} | task:{4:.6f} output:{5:.6f} feature:{6:.6f}".format(
+                    epoch + 1, train_steps, train_loss, vali_loss,
+                    avg_task_loss, avg_output_loss, avg_feature_loss))
 
             if self.args.cos:
                 scheduler.step()
@@ -358,11 +374,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # np.save(folder_path + 'pred.npy', preds)
         # np.save(folder_path + 'true.npy', trues)
 
-        # ---- Save predictions and ground truth to CSV (memory-friendly) ----
+        # ---- Save predictions CSV (前10个站点 × 间隔pred_len的10个窗口) ----
+        csv_path = f"./results/feature{self.args.feature_w}_output{self.args.output_w}_mse{mse:.6f}.csv"
         def to_numpy(arr):
-            if hasattr(arr, 'cpu'):          # PyTorch tensor
+            if hasattr(arr, 'cpu'):
                 arr = arr.detach().cpu().numpy()
-            elif hasattr(arr, 'numpy'):      # TensorFlow tensor
+            elif hasattr(arr, 'numpy'):
                 arr = arr.numpy()
             return np.ascontiguousarray(arr)
 
@@ -373,39 +390,24 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             raise ValueError("preds and trues must be 3D arrays")
 
         num_windows, pred_len, n_features = preds_np.shape
-        pred_cols = [f'station_{f}_pred' for f in range(n_features)]
-        true_cols = [f'station_{f}_true' for f in range(n_features)]
-        columns = ['window', 'step'] + pred_cols + true_cols
+        # 前10个站点
+        n_stations = min(10, n_features)
+        # 等间隔取10个窗口，起点相隔 pred_len
+        n_windows_save = min(10, num_windows // pred_len)
+        window_indices = [i * pred_len for i in range(n_windows_save)]
 
-        os.makedirs(folder_path, exist_ok=True)
-        csv_path = os.path.join(folder_path, 'predictions.csv')
-
-        steps_template = np.arange(pred_len)
-        chunk_size = 100
         first_chunk = True
 
-        for start in range(0, num_windows, chunk_size):
-            end = min(start + chunk_size, num_windows)
-            batch_windows = slice(start, end)
-            batch_num = end - start
-            total_rows = batch_num * pred_len
+        for idx, w in enumerate(window_indices):
+            rows = []
+            for s in range(pred_len):
+                row = {'window': idx, 'step': s}
+                for f in range(n_stations):
+                    row[f'station_{f}_pred'] = preds_np[w, s, f]
+                    row[f'station_{f}_true'] = trues_np[w, s, f]
+                rows.append(row)
 
-            p_flat = preds_np[batch_windows].reshape(total_rows, n_features)
-            t_flat = trues_np[batch_windows].reshape(total_rows, n_features)
-
-            windows_arr = np.repeat(np.arange(start, end), pred_len)
-            steps_arr = np.tile(steps_template, batch_num)
-
-            df_chunk = pd.DataFrame(
-                dict(
-                    window=windows_arr,
-                    step=steps_arr,
-                    **{col: p_flat[:, f] for f, col in enumerate(pred_cols)},
-                    **{col: t_flat[:, f] for f, col in enumerate(true_cols)},
-                ),
-                columns=columns,
-            )
-
+            df_chunk = pd.DataFrame(rows)
             df_chunk.to_csv(
                 csv_path,
                 mode='w' if first_chunk else 'a',
@@ -414,10 +416,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             )
             first_chunk = False
 
-        print(f'Predictions saved to {csv_path}')
-        print(f"openning{csv_path}stathion_5")
-        from plot_predictions import plot_predictions
-        plot_predictions(csv_path, station_id=5, n_windows=3, max_windows=1)
+        print(f'Predictions saved to {csv_path} (stations=0..{n_stations-1}, windows={window_indices})')
+
         # ---- End CSV save ----
 
         return

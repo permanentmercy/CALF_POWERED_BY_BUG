@@ -20,6 +20,7 @@ class AccustumGPT2Model(GPT2Model):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        external_residual: Optional[torch.FloatTensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPastAndCrossAttentions]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -131,6 +132,10 @@ class AccustumGPT2Model(GPT2Model):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
+            # 外部残差连接到最后一层自注意力之前
+            if external_residual is not None and i == len(self.h) - 1:
+                hidden_states = hidden_states + external_residual
+
             if self.gradient_checkpointing and self.training:
 
                 def create_custom_forward(module):
@@ -198,12 +203,6 @@ class AccustumGPT2Model(GPT2Model):
             cross_attentions=all_cross_attentions,
         )
 
-    def forward(self, input_ids=None, labels=None, **kwargs):
-        outputs = self.accustum_forward(input_ids, **kwargs)
-        return outputs.last_hidden_state, outputs.hidden_states # final feat, intermidiate feat
-
-
-
-
-
-
+    def forward(self, input_ids=None, labels=None, external_residual=None, **kwargs):
+        outputs = self.accustum_forward(input_ids, external_residual=external_residual, **kwargs)
+        return outputs.last_hidden_state, outputs.hidden_states

@@ -1,1 +1,1 @@
-python plot_predictions.py ./results/long_term_forecast_CALF_96_96_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el2_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt3_rl0.0001_2026_0_feature0.0_output0.0_train_epochs100_bs16_dr0.1_ld0.1_r8/predictions.csv --station 5 --n_windows 3 --max_windows 1
+python plot_predictions.py ./results/feature0.01_output0.39_mse0.191826.csv --station 0 --n_windows 10  --concat 0
