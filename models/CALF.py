@@ -199,7 +199,6 @@ class Model(nn.Module):
 
         # 2. 诊断信号：计算相加前后的余弦相似度（监控融合剧烈程度）
         with torch.no_grad():
-            # 展平后计算每条样本的余弦相似度再取平均
             cos_sim = F.cosine_similarity(outputs_time.reshape(B, -1), 
                                           (outputs_time + gate * text_bias).reshape(B, -1)).mean()
             bias_norm = torch.norm(gate * text_bias)
@@ -228,9 +227,12 @@ class Model(nn.Module):
 
         return {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
+            'intermidiate_time': intermidiate_feat_time,
+            'intermidiate_text': intermidiate_feat_text,
+            'gate_value': gate.item(),
+            'cos_sim': cos_sim.item(),
+            'bias_norm': bias_norm.item()
         }
 
 
