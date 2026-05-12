@@ -150,8 +150,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     # 打印门控状态和诊断信号
                     gate_val = outputs_dict.get('gate_value', 0)
                     cos_sim = outputs_dict.get('cos_sim', 0)
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f} | Gate: {3:.4f} | CosSim: {4:.4f}".format(
-                        i + 1, epoch + 1, loss.item(), gate_val, cos_sim))
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f} | task: {3:.7f} | Gate: {4:.4f} | CosSim: {5:.4f}".format(
+                        i + 1, epoch + 1, loss.item(), task_loss.item(), gate_val, cos_sim))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
