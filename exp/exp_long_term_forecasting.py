@@ -63,19 +63,26 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
-        # 分离出门控参数，使用 0.1 倍的学习率
-        gate_params = [p for n, p in self.model.named_parameters() if 'text_to_time_gate' in n]
-        other_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 'text_to_time_gate' not in n]
+        # 参数分组：
+        # 1. 门控参数 (text_to_time_gate) - 使用缩减后的学习率
+        # 2. 投影层参数 (_proj) - 使用标准学习率
+        # 3. 其他所有参数 - 使用标准学习率
+        gate_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 'text_to_time_gate' in n]
+        proj_params = [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n]
+        
+        # 排除掉上述已经分类的参数，剩下的作为 other_params
+        gate_ids = set(map(id, gate_params))
+        proj_ids = set(map(id, proj_params))
+        other_params = [p for p in self.model.parameters() if p.requires_grad and id(p) not in gate_ids and id(p) not in proj_ids]
         
         param_groups = [
             {"params": other_params, "lr": self.args.learning_rate},
+            {"params": proj_params, "lr": self.args.learning_rate},
             {"params": gate_params, "lr": self.args.learning_rate * self.args.gate_lr_factor}
         ]
         
         model_optim = optim.Adam(param_groups)
-        loss_optim = optim.Adam([p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n], lr=self.args.learning_rate)
-
-        return model_optim, loss_optim
+        return model_optim
 
     def _select_criterion(self):
         criterion = cmLoss(self.args.feature_loss, 
@@ -101,7 +108,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
 
-        model_optim, loss_optim = self._select_optimizer()
+        model_optim = self._select_optimizer()
         criterion = self._select_criterion()
         
         # Initialize GradScaler for AMP
@@ -162,12 +169,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     scaler.scale(loss).backward()
                     scaler.step(model_optim)
-                    scaler.step(loss_optim)
                     scaler.update()
                 else:
                     loss.backward()
                     model_optim.step()
-                    loss_optim.step()
                 
                 current_memory = torch.cuda.max_memory_allocated() / 1024 ** 2
                 max_memory = max(max_memory, current_memory)
