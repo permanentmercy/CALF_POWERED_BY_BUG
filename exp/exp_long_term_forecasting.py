@@ -224,7 +224,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             early_stopping(vali_loss, self.model, path)
 
             if self.args.lradj == 'TST':
-                adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args, printout=False)
+                adjust_learning_rate(model_optim, epoch + 1, self.args)
                 scheduler.step()
             else:
                 if self.args.use_swa:
@@ -253,9 +253,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         swa_model.update_parameters(self.model)
                         swa_scheduler.step()
                     else:
-                        adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args)
+                        adjust_learning_rate(model_optim, epoch + 1, self.args)
                 else:
-                    adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args)
+                    adjust_learning_rate(model_optim, epoch + 1, self.args)
 
             if early_stopping.early_stop:
                 print("Early stopping")
