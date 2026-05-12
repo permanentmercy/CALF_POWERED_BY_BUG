@@ -85,6 +85,14 @@ if __name__ == '__main__':
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
     
+    parser.add_argument('--gate_dropout', type=float, default=0.1, help='dropout for gate path')
+    parser.add_argument('--gate_lr_factor', type=float, default=0.1, help='learning rate multiplier for gate')
+    
+    # SWA params
+    parser.add_argument('--use_swa', action='store_true', help='use SWA', default=False)
+    parser.add_argument('--swa_start_epoch', type=int, default=-1, help='SWA start epoch, -1 for auto-trigger on validation plateau')
+    parser.add_argument('--swa_lr', type=float, default=0.00005, help='SWA learning rate')
+    
     parser.add_argument('--task_loss', type=str, default='l1', help='task loss function')
     parser.add_argument('--feature_loss', type=str, default='l1', help='distillation loss function')
     parser.add_argument('--output_loss', type=str, default='l1', help='logits loss function')

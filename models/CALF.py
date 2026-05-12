@@ -129,6 +129,7 @@ class Model(nn.Module):
             nn.Linear(configs.d_model, configs.d_model),
             nn.LayerNorm(configs.d_model)
         )
+        self.text_to_time_dropout = nn.Dropout(configs.gate_dropout)
         
         # 门控标量初始化为 -3.0，使初始 sigmoid(gate) ≈ 0.047
         self.text_to_time_gate = nn.Parameter(torch.tensor(-3.0))
@@ -156,7 +157,7 @@ class Model(nn.Module):
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj,
                        self.time_to_text_self_attn, self.time_to_text_cross_attn, self.time_to_text_ln,
-                       self.time_to_text_dropout):
+                       self.time_to_text_dropout, self.text_to_time_dropout):
             layer.to(device=device)
             layer.train()
         
@@ -196,6 +197,7 @@ class Model(nn.Module):
         # 1. 计算门控值
         gate = torch.sigmoid(self.text_to_time_gate)
         text_bias = self.text_to_time_link(text_with_pos)
+        text_bias = self.text_to_time_dropout(text_bias)
 
         # 2. 诊断信号：计算相加前后的余弦相似度（监控融合剧烈程度）
         with torch.no_grad():

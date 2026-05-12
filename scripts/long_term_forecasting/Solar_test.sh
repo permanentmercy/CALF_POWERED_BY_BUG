@@ -49,6 +49,9 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
 seq_len=96
+gate_dropout=0.1
+gate_lr_factor=0.6
+swa_lr=0.00005
 for task_w in 0.601
 do
 for feature_w in 0.01
@@ -77,7 +80,7 @@ else:
     continue
   fi
 
-  combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
+  combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}_${gate_dropout}_${gate_lr_factor}"
 
   # 检查是否是显式跳过的组合
   SKIP_COMBOS=("")
@@ -139,10 +142,15 @@ else:
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
     --output_loss smooth_l1 \
+    --gate_dropout $gate_dropout \
+    --gate_lr_factor $gate_lr_factor \
+    --use_swa \
+    --swa_lr $swa_lr \
     --random_seed $random_seed \
      | tee logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
+
   EXIT_CODE=${PIPESTATUS[0]}
-  if [ $EXIT_CODE -eq 0 ]; then
+  if [ "$EXIT_CODE" -eq 0 ]; then
     echo "$combo" >> "$COMPLETED_FILE"
     echo "recorded completed combo: $combo"
   else

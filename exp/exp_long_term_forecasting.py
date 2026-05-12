@@ -14,6 +14,7 @@ import numpy as np
 import torch.nn.functional as F
 from copy import deepcopy
 import pandas as pd
+from torch.optim.swa_utils import AveragedModel, SWALR, update_bn
 warnings.filterwarnings('ignore')
 
 
@@ -68,7 +69,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         
         param_groups = [
             {"params": other_params, "lr": self.args.learning_rate},
-            {"params": gate_params, "lr": self.args.learning_rate * 0.1}
+            {"params": gate_params, "lr": self.args.learning_rate * self.args.gate_lr_factor}
         ]
         
         model_optim = optim.Adam(param_groups)
@@ -109,6 +110,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             print("Mixed Precision Training (AMP) Enabled")
         
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=self.args.tmax, eta_min=1e-8)
+        
+        if self.args.use_swa:
+            swa_model = None
+            swa_scheduler = None
+            swa_active = False
+            print(f"SWA enabled in auto-trigger mode (waiting for validation plateau)...")
         
         epoch_times = []
         best_val = np.Inf
@@ -213,13 +220,43 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     epoch + 1, train_steps, train_loss, vali_loss,
                     avg_task_loss, avg_output_loss, avg_feature_loss))
 
-            if self.args.cos:
-                scheduler.step()
-                print("lr = {:.10f}".format(model_optim.param_groups[0]['lr']))
-            else:
-                adjust_learning_rate(model_optim, epoch + 1, self.args)
-
+            # 先执行 EarlyStopping 判定，获取最新的 counter
             early_stopping(vali_loss, self.model, path)
+
+            if self.args.lradj == 'TST':
+                adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args, printout=False)
+                scheduler.step()
+            else:
+                if self.args.use_swa:
+                    # 动态 SWA 逻辑：如果找到更好的模型，则重置 SWA；如果开始停滞，则开启/继续 SWA
+                    if early_stopping.counter == 0:
+                        if swa_active:
+                            print(f"\n>>> New best model found at Epoch {epoch + 1}! Resetting SWA average...")
+                            # 显存回收，确保在模型较大时不发生 OOM
+                            del swa_model
+                            if torch.cuda.is_available():
+                                torch.cuda.empty_cache()
+                        swa_active = False
+                        swa_model = None
+                        swa_scheduler = None
+                    
+                    if not swa_active and (
+                        (self.args.swa_start_epoch != -1 and epoch >= self.args.swa_start_epoch) or \
+                        (self.args.swa_start_epoch == -1 and early_stopping.counter >= 1)
+                    ):
+                        swa_active = True
+                        swa_model = AveragedModel(self.model)
+                        swa_scheduler = SWALR(model_optim, swa_lr=self.args.swa_lr)
+                        print(f"\n>>> SWA (Re)Triggered at Epoch {epoch + 1}! Starting weight averaging...")
+
+                    if swa_active:
+                        swa_model.update_parameters(self.model)
+                        swa_scheduler.step()
+                    else:
+                        adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args)
+                else:
+                    adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args)
+
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -227,11 +264,18 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         print("average training time: {:4f} s".format(np.average(epoch_times)))
         
         # load best model: prefer in-memory if available
-        if getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
+        # 修正：如果开启了 SWA 且已触发，则优先使用 SWA 权重；否则再使用单体最优
+        if self.args.use_swa and swa_active:
+            print("Applying SWA: Updating BN statistics and swapping model weights...")
+            update_bn(train_loader, swa_model, device=self.device)
+            self.model.load_state_dict(swa_model.module.state_dict())
+        elif getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
+            print("Loading best model from memory...")
             self.model.load_state_dict(self.best_model_state)
         else:
             best_model_path = path + '/' + 'checkpoint.pth'
             if os.path.exists(best_model_path):
+                print(f"Loading best model from {best_model_path}...")
                 self.model.load_state_dict(torch.load(best_model_path))
             else:
                 if early_stopping.verbose:
