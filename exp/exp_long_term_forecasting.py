@@ -77,8 +77,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         
         param_groups = [
             {"params": other_params, "lr": self.args.learning_rate},
-            {"params": proj_params, "lr": self.args.learning_rate},
-            {"params": gate_params, "lr": self.args.learning_rate * self.args.gate_lr_factor}
+            {"params": proj_params, "lr": self.args.learning_rate * 2.0}, # 恢复双倍更新的强度
+            {"params": gate_params, "lr": self.args.learning_rate}        # 恢复门控的学习强度
         ]
         
         model_optim = optim.Adam(param_groups)
