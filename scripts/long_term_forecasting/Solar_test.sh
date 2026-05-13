@@ -50,9 +50,10 @@ fi
 batch_size=8
 seq_len=96
 gate_dropout=0.15
-gate_lr_factor=4
+gate_lr_factor=10
 accumulation_steps=8
 swa_loss_threshold=0.04
+e_layers=3
 for task_w in 0.5601
 do
 for feature_w in 0.01
@@ -81,7 +82,7 @@ else:
     continue
   fi
 
-  combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}_${gate_dropout}_${gate_lr_factor}"
+  combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}_${gate_dropout}_${gate_lr_factor}_${e_layers}"
 
   # 检查是否是显式跳过的组合
   SKIP_COMBOS=("")
@@ -128,7 +129,7 @@ else:
     --model $model \
     --cos 1 \
     --tmax 10 \
-    --r 8 \
+    --r 16 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 3 \
@@ -140,6 +141,7 @@ else:
     --use_amp \
     --t2t_conn 1 \
     --eval_test_every_epoch \
+    --e_layers  $e_layers \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
