@@ -52,9 +52,9 @@ seq_len=96
 gate_dropout=0.15
 gate_lr_factor=0.6
 swa_lr=0.00005
-for task_w in 0.75
+for task_w in 0.55
 do
-for feature_w in 0.01
+for feature_w in 0.3
 do
 for d_model in 768
 do
@@ -137,7 +137,7 @@ else:
     --task_w $task_w \
     --bestmodel \
     --use_amp \
-    --t2t_conn 1 \
+    --t2t_conn 0 \
     --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \

@@ -128,6 +128,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         
         epoch_times = []
         best_val = np.Inf
+        
+        accumulation_steps = self.args.accumulation_steps
+        
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
@@ -136,9 +139,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             epoch_time = time.time()
             
             max_memory = 0
+            
+            # Running totals for logging/averaging
+            running_loss = 0.0
+            running_task_loss = 0.0
+            
+            model_optim.zero_grad() # Ensure gradients are zeroed at start of epoch
+            
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
-                model_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
@@ -153,28 +162,45 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     loss, task_loss, output_loss, feature_loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
+                running_loss += loss.item()
+                running_task_loss += task_loss.item()
+
+                # Backward pass with AMP if enabled
+                if self.args.use_amp:
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+                
+                # Optimizer step with gradient accumulation
+                if (i + 1) % accumulation_steps == 0 or (i + 1) == train_steps:
+                    if self.args.use_amp:
+                        scaler.step(model_optim)
+                        scaler.update()
+                    else:
+                        model_optim.step()
+                    model_optim.zero_grad()
 
                 if (i + 1) % 100 == 0:
                     # 打印门控状态和诊断信号
                     gate_val = outputs_dict.get('gate_value', 0)
                     cos_sim = outputs_dict.get('cos_sim', 0)
+                    
+                    # Compute average loss over the logging interval (100 steps)
+                    avg_loss = running_loss / 100
+                    avg_task_loss_log = running_task_loss / 100
+                    
                     print("\titers: {0}, epoch: {1} | loss: {2:.7f} | task: {3:.7f} | Gate: {4:.4f} | CosSim: {5:.4f}".format(
-                        i + 1, epoch + 1, loss.item(), task_loss.item(), gate_val, cos_sim))
+                        i + 1, epoch + 1, avg_loss, avg_task_loss_log, gate_val, cos_sim))
+                    
+                    running_loss = 0.0
+                    running_task_loss = 0.0
+                    
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
                     iter_count = 0
                     time_now = time.time()
 
-                # Backward pass with AMP if enabled
-                if self.args.use_amp:
-                    scaler.scale(loss).backward()
-                    scaler.step(model_optim)
-                    scaler.update()
-                else:
-                    loss.backward()
-                    model_optim.step()
-                
                 current_memory = torch.cuda.max_memory_allocated() / 1024 ** 2
                 max_memory = max(max_memory, current_memory)
             
@@ -252,8 +278,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     ):
                         swa_active = True
                         swa_model = AveragedModel(self.model)
-                        swa_scheduler = SWALR(model_optim, swa_lr=self.args.swa_lr)
-                        print(f"\n>>> SWA (Re)Triggered at Epoch {epoch + 1}! Starting weight averaging...")
+                        swa_scheduler = SWALR(model_optim, swa_lr=self.args.learning_rate)
+                        print(f"\n>>> SWA (Re)Triggered at Epoch {epoch + 1}! Starting weight averaging using global LR {self.args.learning_rate}...")
 
                     if swa_active:
                         # SWA 限制：如果当前 validation loss 与最佳 loss 差距大于阈值 (默认 6%)，则跳过本次 SWA 更新

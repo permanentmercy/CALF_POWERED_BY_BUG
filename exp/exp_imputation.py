@@ -70,15 +70,21 @@ class Exp_Imputation(Exp_Basic):
         model_optim, loss_optim = self._select_optimizer()
         criterion = self._select_criterion()
 
+        accumulation_steps = self.args.accumulation_steps
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
 
             self.model.train()
             epoch_time = time.time()
+            
+            running_loss = 0.0
+            
+            model_optim.zero_grad()
+            loss_optim.zero_grad()
+            
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
-                model_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
 
@@ -96,18 +102,27 @@ class Exp_Imputation(Exp_Basic):
             
                 loss = criterion(outputs, batch_x[mask == 0])
                 train_loss.append(loss.item())
+                running_loss += loss.item()
+
+                loss.backward()
+                
+                # Optimizer step with gradient accumulation
+                if (i + 1) % accumulation_steps == 0 or (i + 1) == train_steps:
+                    model_optim.step()
+                    loss_optim.step()
+                    model_optim.zero_grad()
+                    loss_optim.zero_grad()
 
                 if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    avg_loss = running_loss / 100
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, avg_loss))
+                    running_loss = 0.0
+                    
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
                     iter_count = 0
                     time_now = time.time()
-
-                loss.backward()
-                model_optim.step()
-                loss_optim.step()
 
             print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
