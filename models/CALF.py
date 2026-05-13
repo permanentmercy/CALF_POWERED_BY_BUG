@@ -85,6 +85,7 @@ class Model(nn.Module):
         )
     
         self.task_name = configs.task_name
+        self.t2t_conn = getattr(configs, 't2t_conn', 1)
         # 支持从外部传入模型路径/ID（优先）
         model_path = getattr(configs, 'gpt2_path', None)
         self.gpt2 = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
@@ -137,6 +138,11 @@ class Model(nn.Module):
         # 恒等映射初始化：将线性层权重和偏置置零，确保初期注入几乎为 0
         nn.init.zeros_(self.text_to_time_link[0].weight)
         nn.init.zeros_(self.text_to_time_link[0].bias)
+
+        if not self.t2t_conn:
+            for param in self.text_to_time_link.parameters():
+                param.requires_grad = False
+            self.text_to_time_gate.requires_grad = False
 
         # 把 configs.d_ff 传进 Encoder_PCA，让 --d_ff 生效
         self.in_layer = Encoder_PCA(
@@ -194,19 +200,24 @@ class Model(nn.Module):
         
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         
-        # 1. 计算门控值
-        gate = torch.sigmoid(self.text_to_time_gate)
-        text_bias = self.text_to_time_link(text_with_pos)
-        text_bias = self.text_to_time_dropout(text_bias)
-
-        # 2. 诊断信号：计算相加前后的余弦相似度（监控融合剧烈程度）
-        with torch.no_grad():
-            cos_sim = F.cosine_similarity(outputs_time.reshape(B, -1), 
-                                          (outputs_time + gate * text_bias).reshape(B, -1)).mean()
-            bias_norm = torch.norm(gate * text_bias)
-
         # 3. 带门控的残差注入
-        outputs_time = outputs_time + gate * text_bias
+        if self.t2t_conn:
+            # 1. 计算门控值
+            gate = torch.sigmoid(self.text_to_time_gate)
+            text_bias = self.text_to_time_link(text_with_pos)
+            text_bias = self.text_to_time_dropout(text_bias)
+
+            # 2. 诊断信号：计算相加前后的余弦相似度（监控融合剧烈程度）
+            with torch.no_grad():
+                cos_sim = F.cosine_similarity(outputs_time.reshape(B, -1), 
+                                            (outputs_time + gate * text_bias).reshape(B, -1)).mean()
+                bias_norm = torch.norm(gate * text_bias)
+
+            outputs_time = outputs_time + gate * text_bias
+        else:
+            gate = torch.tensor(0.0)
+            cos_sim = torch.tensor(1.0)
+            bias_norm = torch.tensor(0.0)
 
         outputs_text, intermidiate_feat_text = self.gpt2_text(
             inputs_embeds=outputs_text1, external_residual=time_residual
@@ -243,6 +254,8 @@ class Model(nn.Module):
 
         x = rearrange(x, 'b l m -> b m l')
 
+        outputs_time1, outputs_text1 = self.in_layer(x)
+
         # 获取文本层经过位置编码后的初始信息
         pos_ids = torch.arange(M, dtype=torch.long, device=x.device).unsqueeze(0)
         text_with_pos = outputs_text1 + self.gpt2_text.wpe(pos_ids)
@@ -250,7 +263,8 @@ class Model(nn.Module):
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         
         # 加入变换后的文本信息
-        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+        if self.t2t_conn:
+            outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
 
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
         
@@ -295,7 +309,8 @@ class Model(nn.Module):
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         
         # 加入变换后的文本信息
-        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+        if self.t2t_conn:
+            outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
 
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
         
@@ -341,7 +356,8 @@ class Model(nn.Module):
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         
         # 加入变换后的文本信息
-        outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
+        if self.t2t_conn:
+            outputs_time = outputs_time + self.text_to_time_link(text_with_pos)
 
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
         

@@ -12,7 +12,7 @@ SIGN_FILE=$ROOT_LOG_DIR/Solar_test.signature
 # 计算当前脚本签名（用于判断参数或脚本是否改动）
 CUR_SIG=$(python - <<'PY'
 import hashlib,sys,re
-fn=r"f:/DOWNLOAD/参考文献-大模型/CALF-main/CALF-main/scripts/long_term_forecasting/Solar_test.sh"
+fn=r"./scripts/long_term_forecasting/Solar_test.sh"
 text=open(fn,'rb').read().decode('utf-8',errors='ignore')
 # 移除命令行中的 --batch_size <value> 以及任何 batch_size=... 赋值，视为无变化
 text=re.sub(r'--batch_size\s+\S+','',text)
@@ -49,10 +49,10 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
 seq_len=96
-gate_dropout=0.1
+gate_dropout=0.15
 gate_lr_factor=0.6
 swa_lr=0.00005
-for task_w in 0.602
+for task_w in 0.75
 do
 for feature_w in 0.01
 do
@@ -127,8 +127,8 @@ else:
     --model $model \
     --cos 1 \
     --tmax 10 \
-    --r 16 \
-    --lora_alpha 16 \
+    --r 8 \
+    --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 3 \
     --num_workers 0 \
@@ -137,6 +137,7 @@ else:
     --task_w $task_w \
     --bestmodel \
     --use_amp \
+    --t2t_conn 1 \
     --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
