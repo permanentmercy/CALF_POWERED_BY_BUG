@@ -1,1 +1,1 @@
-python plot_predictions.py ./results/feature0.01_output0.389_mse0.198877.csv --station 5 --n_windows 10  --concat 0
+python  plot_predictions.py ./results/feature0.01_output0.389_mse0.202592.csv --station 0 --n_windows 10  --concat 0

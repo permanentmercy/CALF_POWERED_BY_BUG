@@ -52,7 +52,7 @@ seq_len=96
 gate_dropout=0.1
 gate_lr_factor=0.6
 swa_lr=0.00005
-for task_w in 0.601
+for task_w in 0.602
 do
 for feature_w in 0.01
 do

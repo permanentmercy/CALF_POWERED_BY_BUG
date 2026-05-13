@@ -254,8 +254,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         print(f"\n>>> SWA (Re)Triggered at Epoch {epoch + 1}! Starting weight averaging...")
 
                     if swa_active:
-                        swa_model.update_parameters(self.model)
-                        swa_scheduler.step()
+                        # SWA 限制：如果当前 validation loss 与最佳 loss 差距大于阈值 (默认 6%)，则跳过本次 SWA 更新
+                        if (vali_loss - best_val) / best_val <= self.args.swa_loss_threshold:
+                            swa_model.update_parameters(self.model)
+                            swa_scheduler.step()
+                        else:
+                            print(f">>> Epoch {epoch+1}: Vali Loss ({vali_loss:.6f}) is > {self.args.swa_loss_threshold*100:.1f}% higher than Best ({best_val:.6f}). Skipping SWA update.")
                     else:
                         adjust_learning_rate(model_optim, epoch + 1, self.args)
                 else:

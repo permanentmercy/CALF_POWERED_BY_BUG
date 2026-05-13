@@ -92,6 +92,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_swa', action='store_true', help='use SWA', default=False)
     parser.add_argument('--swa_start_epoch', type=int, default=-1, help='SWA start epoch, -1 for auto-trigger on validation plateau')
     parser.add_argument('--swa_lr', type=float, default=0.00005, help='SWA learning rate')
+    parser.add_argument('--swa_loss_threshold', type=float, default=0.06, help='Skip SWA update if current loss > (1 + threshold) * best_loss')
     
     parser.add_argument('--task_loss', type=str, default='l1', help='task loss function')
     parser.add_argument('--feature_loss', type=str, default='l1', help='distillation loss function')
