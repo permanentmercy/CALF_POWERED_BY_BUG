@@ -47,14 +47,15 @@ if [ ! -d "./logs/$model/$data_name" ]; then
 fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
-batch_size=16
+batch_size=8
 seq_len=96
 gate_dropout=0.15
-gate_lr_factor=0.6
-swa_lr=0.00005
-for task_w in 0.55
+gate_lr_factor=4
+accumulation_steps=8
+swa_loss_threshold=0.04
+for task_w in 0.5601
 do
-for feature_w in 0.3
+for feature_w in 0.01
 do
 for d_model in 768
 do
@@ -64,7 +65,7 @@ for random_seed in  2026
 do
 for pred_len in 96 
 do
-  learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size))")
+  learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps*0.5))")
 
   # 由 task_w 和 feature_w 计算 output_w
   output_w=$(python -c "
@@ -137,7 +138,7 @@ else:
     --task_w $task_w \
     --bestmodel \
     --use_amp \
-    --t2t_conn 0 \
+    --t2t_conn 1 \
     --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
@@ -146,7 +147,8 @@ else:
     --gate_dropout $gate_dropout \
     --gate_lr_factor $gate_lr_factor \
     --use_swa \
-    --swa_lr $swa_lr \
+    --swa_loss_threshold $swa_loss_threshold \
+    --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
      | tee logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
 

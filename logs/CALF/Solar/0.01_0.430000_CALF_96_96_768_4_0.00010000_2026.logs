@@ -1,0 +1,1067 @@
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96          Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_AL.txt        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             137                 Dec In:             7                   
+  C Out:              137                 d model:            768                 
+  n heads:            4                   e layers:           2                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         16                  
+  Patience:           3                   Learning Rate:      0.0001              
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            1                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.01                Output Weight:      0.43                Task Weight:        0.56                
+
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 3
+actual gpt2.h length: 3
+config.gpt_layers: 12
+Total parameters: 141,080,930
+Trainable parameters: 21,366,626
+time_proj length: 4
+text_proj length: 4
+============================================================
+
+>>>>>>>start training : long_term_forecast_CALF_96_96_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el2_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt3_rl0.0001_2026_0_feature0.01_output0.43_train_epochs100_bs16_dr0.1_ld0.1_r16>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 36601
+val 5161
+test 10417
+Mixed Precision Training (AMP) Enabled
+SWA enabled in auto-trigger mode (waiting for validation plateau)...
+	iters: 100, epoch: 1 | loss: 0.3332394 | task: 0.3324119 | Gate: 0.0474 | CosSim: 0.9933
+	speed: 0.1203s/iter; left time: 27492.7450s
+	iters: 200, epoch: 1 | loss: 0.1392124 | task: 0.1836713 | Gate: 0.0474 | CosSim: 0.9933
+	speed: 0.1003s/iter; left time: 22919.1683s
+	iters: 300, epoch: 1 | loss: 0.1059032 | task: 0.1478494 | Gate: 0.0474 | CosSim: 0.9945
+	speed: 0.1003s/iter; left time: 22897.5506s
+	iters: 400, epoch: 1 | loss: 0.0903264 | task: 0.1291627 | Gate: 0.0475 | CosSim: 0.9936
+	speed: 0.0833s/iter; left time: 19023.0703s
+	iters: 500, epoch: 1 | loss: 0.0832205 | task: 0.1239327 | Gate: 0.0475 | CosSim: 0.9943
+	speed: 0.0814s/iter; left time: 18570.4011s
+	iters: 600, epoch: 1 | loss: 0.0775174 | task: 0.1166051 | Gate: 0.0475 | CosSim: 0.9935
+	speed: 0.0934s/iter; left time: 21306.4317s
+	iters: 700, epoch: 1 | loss: 0.0749173 | task: 0.1140743 | Gate: 0.0475 | CosSim: 0.9932
+	speed: 0.0986s/iter; left time: 22482.9798s
+	iters: 800, epoch: 1 | loss: 0.0747010 | task: 0.1140167 | Gate: 0.0476 | CosSim: 0.9940
+	speed: 0.0982s/iter; left time: 22369.5336s
+	iters: 900, epoch: 1 | loss: 0.0731280 | task: 0.1133501 | Gate: 0.0476 | CosSim: 0.9939
+	speed: 0.0948s/iter; left time: 21603.8353s
+	iters: 1000, epoch: 1 | loss: 0.0711677 | task: 0.1108522 | Gate: 0.0476 | CosSim: 0.9931
+	speed: 0.0810s/iter; left time: 18449.7487s
+	iters: 1100, epoch: 1 | loss: 0.0691162 | task: 0.1088127 | Gate: 0.0476 | CosSim: 0.9934
+	speed: 0.0906s/iter; left time: 20618.8484s
+	iters: 1200, epoch: 1 | loss: 0.0700525 | task: 0.1108721 | Gate: 0.0476 | CosSim: 0.9936
+	speed: 0.0978s/iter; left time: 22240.3600s
+	iters: 1300, epoch: 1 | loss: 0.0676295 | task: 0.1063921 | Gate: 0.0477 | CosSim: 0.9926
+	speed: 0.0834s/iter; left time: 18957.6350s
+	iters: 1400, epoch: 1 | loss: 0.0665657 | task: 0.1061761 | Gate: 0.0477 | CosSim: 0.9936
+	speed: 0.0849s/iter; left time: 19295.5479s
+	iters: 1500, epoch: 1 | loss: 0.0678237 | task: 0.1080628 | Gate: 0.0477 | CosSim: 0.9933
+	speed: 0.0898s/iter; left time: 20397.1744s
+	iters: 1600, epoch: 1 | loss: 0.0685296 | task: 0.1100325 | Gate: 0.0477 | CosSim: 0.9937
+	speed: 0.0892s/iter; left time: 20249.5832s
+	iters: 1700, epoch: 1 | loss: 0.0671741 | task: 0.1086094 | Gate: 0.0477 | CosSim: 0.9936
+	speed: 0.0919s/iter; left time: 20866.8475s
+	iters: 1800, epoch: 1 | loss: 0.0722447 | task: 0.1185616 | Gate: 0.0478 | CosSim: 0.9943
+	speed: 0.0976s/iter; left time: 22150.8635s
+	iters: 1900, epoch: 1 | loss: 0.0661617 | task: 0.1077741 | Gate: 0.0478 | CosSim: 0.9934
+	speed: 0.0966s/iter; left time: 21912.8068s
+	iters: 2000, epoch: 1 | loss: 0.0626314 | task: 0.1022829 | Gate: 0.0478 | CosSim: 0.9933
+	speed: 0.0978s/iter; left time: 22167.4748s
+	iters: 2100, epoch: 1 | loss: 0.0631595 | task: 0.1033541 | Gate: 0.0478 | CosSim: 0.9935
+	speed: 0.0956s/iter; left time: 21668.1425s
+	iters: 2200, epoch: 1 | loss: 0.0621691 | task: 0.1015069 | Gate: 0.0478 | CosSim: 0.9926
+	speed: 0.0899s/iter; left time: 20353.3082s
+Epoch: 1 cost time: 212.164676 s
+Best model stored in memory (Vali Loss: 0.193167)
+Epoch: 1, Steps: 2287 | Train Loss: 0.0866536 Vali Loss: 0.1931673 Test Loss: 0.2572203 | task:0.102052 output:0.009734 feature:0.163013
+Validation loss decreased (inf --> 0.193167).  Saving model ...
+lr_adjust = {1: 0.0001}
+Updating learning rate to 0.0001
+	iters: 100, epoch: 2 | loss: 0.0626019 | task: 0.1037717 | Gate: 0.0479 | CosSim: 0.9933
+	speed: 0.5845s/iter; left time: 132280.6858s
+	iters: 200, epoch: 2 | loss: 0.0608831 | task: 0.1013221 | Gate: 0.0479 | CosSim: 0.9924
+	speed: 0.0981s/iter; left time: 22182.7487s
+	iters: 300, epoch: 2 | loss: 0.0607933 | task: 0.1010826 | Gate: 0.0480 | CosSim: 0.9934
+	speed: 0.0981s/iter; left time: 22179.2355s
+	iters: 400, epoch: 2 | loss: 0.0618844 | task: 0.1030268 | Gate: 0.0480 | CosSim: 0.9934
+	speed: 0.0942s/iter; left time: 21292.2719s
+	iters: 500, epoch: 2 | loss: 0.0613025 | task: 0.1022099 | Gate: 0.0480 | CosSim: 0.9941
+	speed: 0.0958s/iter; left time: 21641.3324s
+	iters: 600, epoch: 2 | loss: 0.0629860 | task: 0.1054091 | Gate: 0.0480 | CosSim: 0.9923
+	speed: 0.1003s/iter; left time: 22656.2971s
+	iters: 700, epoch: 2 | loss: 0.0598798 | task: 0.0999255 | Gate: 0.0480 | CosSim: 0.9936
+	speed: 0.0830s/iter; left time: 18735.7359s
+	iters: 800, epoch: 2 | loss: 0.0593171 | task: 0.0990529 | Gate: 0.0480 | CosSim: 0.9929
+	speed: 0.0813s/iter; left time: 18347.9772s
+	iters: 900, epoch: 2 | loss: 0.0573590 | task: 0.0958833 | Gate: 0.0481 | CosSim: 0.9927
+	speed: 0.0808s/iter; left time: 18220.5987s
+	iters: 1000, epoch: 2 | loss: 0.0613378 | task: 0.1030945 | Gate: 0.0481 | CosSim: 0.9926
+	speed: 0.0818s/iter; left time: 18446.3447s
+	iters: 1100, epoch: 2 | loss: 0.0573249 | task: 0.0959902 | Gate: 0.0481 | CosSim: 0.9923
+	speed: 0.0829s/iter; left time: 18685.4399s
+	iters: 1200, epoch: 2 | loss: 0.0594918 | task: 0.0994615 | Gate: 0.0481 | CosSim: 0.9932
+	speed: 0.0820s/iter; left time: 18463.0066s
+	iters: 1300, epoch: 2 | loss: 0.0578583 | task: 0.0967431 | Gate: 0.0481 | CosSim: 0.9937
+	speed: 0.0827s/iter; left time: 18611.6234s
+	iters: 1400, epoch: 2 | loss: 0.0555691 | task: 0.0933285 | Gate: 0.0482 | CosSim: 0.9930
+	speed: 0.0837s/iter; left time: 18844.6543s
+	iters: 1500, epoch: 2 | loss: 0.0590490 | task: 0.0992864 | Gate: 0.0482 | CosSim: 0.9929
+	speed: 0.0811s/iter; left time: 18248.7832s
+	iters: 1600, epoch: 2 | loss: 0.0573178 | task: 0.0960395 | Gate: 0.0482 | CosSim: 0.9933
+	speed: 0.0949s/iter; left time: 21330.8302s
+	iters: 1700, epoch: 2 | loss: 0.0573497 | task: 0.0965398 | Gate: 0.0482 | CosSim: 0.9932
+	speed: 0.0982s/iter; left time: 22075.5661s
+	iters: 1800, epoch: 2 | loss: 0.0535908 | task: 0.0894963 | Gate: 0.0482 | CosSim: 0.9936
+	speed: 0.1000s/iter; left time: 22470.7256s
+	iters: 1900, epoch: 2 | loss: 0.0598448 | task: 0.1008456 | Gate: 0.0482 | CosSim: 0.9925
+	speed: 0.0825s/iter; left time: 18520.8216s
+	iters: 2000, epoch: 2 | loss: 0.0560032 | task: 0.0942305 | Gate: 0.0483 | CosSim: 0.9922
+	speed: 0.0823s/iter; left time: 18479.0277s
+	iters: 2100, epoch: 2 | loss: 0.0553210 | task: 0.0932790 | Gate: 0.0483 | CosSim: 0.9925
+	speed: 0.0816s/iter; left time: 18311.3403s
+	iters: 2200, epoch: 2 | loss: 0.0584293 | task: 0.0989654 | Gate: 0.0483 | CosSim: 0.9925
+	speed: 0.0818s/iter; left time: 18330.9650s
+Epoch: 2 cost time: 201.839457 s
+Best model stored in memory (Vali Loss: 0.174083)
+Epoch: 2, Steps: 2287 | Train Loss: 0.0587863 Vali Loss: 0.1740826 Test Loss: 0.2337019 | task:0.087624 output:0.003382 feature:0.082028
+Validation loss decreased (0.193167 --> 0.174083).  Saving model ...
+lr_adjust = {2: 0.0001}
+Updating learning rate to 0.0001
+	iters: 100, epoch: 3 | loss: 0.0567653 | task: 0.0960133 | Gate: 0.0483 | CosSim: 0.9937
+	speed: 0.5004s/iter; left time: 112108.6821s
+	iters: 200, epoch: 3 | loss: 0.0560532 | task: 0.0948636 | Gate: 0.0484 | CosSim: 0.9933
+	speed: 0.0851s/iter; left time: 19066.2695s
+	iters: 300, epoch: 3 | loss: 0.0566102 | task: 0.0955936 | Gate: 0.0484 | CosSim: 0.9921
+	speed: 0.0831s/iter; left time: 18599.3192s
+	iters: 400, epoch: 3 | loss: 0.0533872 | task: 0.0905570 | Gate: 0.0484 | CosSim: 0.9922
+	speed: 0.0860s/iter; left time: 19235.6646s
+	iters: 500, epoch: 3 | loss: 0.0564329 | task: 0.0958740 | Gate: 0.0484 | CosSim: 0.9924
+	speed: 0.0915s/iter; left time: 20468.2394s
+	iters: 600, epoch: 3 | loss: 0.0559323 | task: 0.0948597 | Gate: 0.0484 | CosSim: 0.9928
+	speed: 0.0851s/iter; left time: 19029.3923s
+	iters: 700, epoch: 3 | loss: 0.0536205 | task: 0.0909908 | Gate: 0.0485 | CosSim: 0.9932
+	speed: 0.0909s/iter; left time: 20305.0406s
+	iters: 800, epoch: 3 | loss: 0.0536978 | task: 0.0910685 | Gate: 0.0485 | CosSim: 0.9921
+	speed: 0.0878s/iter; left time: 19599.6919s
+	iters: 900, epoch: 3 | loss: 0.0572078 | task: 0.0974020 | Gate: 0.0485 | CosSim: 0.9926
+	speed: 0.0813s/iter; left time: 18148.5470s
+	iters: 1000, epoch: 3 | loss: 0.0551551 | task: 0.0936877 | Gate: 0.0485 | CosSim: 0.9933
+	speed: 0.0809s/iter; left time: 18049.2659s
+	iters: 1100, epoch: 3 | loss: 0.0557783 | task: 0.0947709 | Gate: 0.0485 | CosSim: 0.9923
+	speed: 0.0811s/iter; left time: 18088.3636s
+	iters: 1200, epoch: 3 | loss: 0.0558483 | task: 0.0948196 | Gate: 0.0485 | CosSim: 0.9924
+	speed: 0.0839s/iter; left time: 18707.5575s
+	iters: 1300, epoch: 3 | loss: 0.0537233 | task: 0.0911847 | Gate: 0.0485 | CosSim: 0.9930
+	speed: 0.0813s/iter; left time: 18108.9114s
+	iters: 1400, epoch: 3 | loss: 0.0513022 | task: 0.0873216 | Gate: 0.0486 | CosSim: 0.9926
+	speed: 0.0818s/iter; left time: 18214.4977s
+	iters: 1500, epoch: 3 | loss: 0.0539968 | task: 0.0920722 | Gate: 0.0486 | CosSim: 0.9932
+	speed: 0.0964s/iter; left time: 21464.9150s
+	iters: 1600, epoch: 3 | loss: 0.0568149 | task: 0.0971127 | Gate: 0.0486 | CosSim: 0.9930
+	speed: 0.0995s/iter; left time: 22135.8261s
+	iters: 1700, epoch: 3 | loss: 0.0535925 | task: 0.0909934 | Gate: 0.0486 | CosSim: 0.9930
+	speed: 0.0966s/iter; left time: 21493.1934s
+	iters: 1800, epoch: 3 | loss: 0.0551736 | task: 0.0938503 | Gate: 0.0486 | CosSim: 0.9921
+	speed: 0.1008s/iter; left time: 22401.5476s
+	iters: 1900, epoch: 3 | loss: 0.0520285 | task: 0.0886213 | Gate: 0.0487 | CosSim: 0.9926
+	speed: 0.1000s/iter; left time: 22212.4393s
+	iters: 2000, epoch: 3 | loss: 0.0547674 | task: 0.0936264 | Gate: 0.0487 | CosSim: 0.9921
+	speed: 0.0947s/iter; left time: 21038.8216s
+	iters: 2100, epoch: 3 | loss: 0.0535235 | task: 0.0911614 | Gate: 0.0487 | CosSim: 0.9929
+	speed: 0.0970s/iter; left time: 21527.0913s
+	iters: 2200, epoch: 3 | loss: 0.0554265 | task: 0.0942025 | Gate: 0.0487 | CosSim: 0.9926
+	speed: 0.0962s/iter; left time: 21351.1550s
+Epoch: 3 cost time: 205.229148 s
+Best model stored in memory (Vali Loss: 0.165605)
+Epoch: 3, Steps: 2287 | Train Loss: 0.0547820 Vali Loss: 0.1656055 Test Loss: 0.2186939 | task:0.053151 output:0.004802 feature:0.060086
+Validation loss decreased (0.174083 --> 0.165605).  Saving model ...
+lr_adjust = {3: 0.0001}
+Updating learning rate to 0.0001
+	iters: 100, epoch: 4 | loss: 0.0543662 | task: 0.0923148 | Gate: 0.0487 | CosSim: 0.9920
+	speed: 0.5390s/iter; left time: 119511.3671s
+	iters: 200, epoch: 4 | loss: 0.0531609 | task: 0.0900007 | Gate: 0.0488 | CosSim: 0.9926
+	speed: 0.0817s/iter; left time: 18104.7827s
+	iters: 300, epoch: 4 | loss: 0.0523348 | task: 0.0891155 | Gate: 0.0488 | CosSim: 0.9927
+	speed: 0.0820s/iter; left time: 18171.4934s
+	iters: 400, epoch: 4 | loss: 0.0533210 | task: 0.0911465 | Gate: 0.0488 | CosSim: 0.9932
+	speed: 0.0831s/iter; left time: 18396.3511s
+	iters: 500, epoch: 4 | loss: 0.0532968 | task: 0.0906486 | Gate: 0.0488 | CosSim: 0.9925
+	speed: 0.0826s/iter; left time: 18273.3941s
+	iters: 600, epoch: 4 | loss: 0.0538788 | task: 0.0914257 | Gate: 0.0488 | CosSim: 0.9928
+	speed: 0.0815s/iter; left time: 18020.6636s
+	iters: 700, epoch: 4 | loss: 0.0519426 | task: 0.0882596 | Gate: 0.0488 | CosSim: 0.9924
+	speed: 0.0818s/iter; left time: 18089.9681s
+	iters: 800, epoch: 4 | loss: 0.0537731 | task: 0.0921387 | Gate: 0.0489 | CosSim: 0.9925
+	speed: 0.0832s/iter; left time: 18395.2745s
+	iters: 900, epoch: 4 | loss: 0.0532715 | task: 0.0909191 | Gate: 0.0489 | CosSim: 0.9920
+	speed: 0.0848s/iter; left time: 18726.3114s
+	iters: 1000, epoch: 4 | loss: 0.0538032 | task: 0.0913075 | Gate: 0.0489 | CosSim: 0.9929
+	speed: 0.0873s/iter; left time: 19275.1035s
+	iters: 1100, epoch: 4 | loss: 0.0540480 | task: 0.0923477 | Gate: 0.0489 | CosSim: 0.9930
+	speed: 0.0860s/iter; left time: 18993.2771s
+	iters: 1200, epoch: 4 | loss: 0.0550222 | task: 0.0942061 | Gate: 0.0489 | CosSim: 0.9930
+	speed: 0.0847s/iter; left time: 18685.0449s
+	iters: 1300, epoch: 4 | loss: 0.0539514 | task: 0.0919030 | Gate: 0.0489 | CosSim: 0.9924
+	speed: 0.0844s/iter; left time: 18603.4475s
+	iters: 1400, epoch: 4 | loss: 0.0494597 | task: 0.0844572 | Gate: 0.0489 | CosSim: 0.9919
+	speed: 0.0836s/iter; left time: 18424.2518s
+	iters: 1500, epoch: 4 | loss: 0.0515609 | task: 0.0882289 | Gate: 0.0490 | CosSim: 0.9924
+	speed: 0.0884s/iter; left time: 19484.8678s
+	iters: 1600, epoch: 4 | loss: 0.0506546 | task: 0.0866334 | Gate: 0.0490 | CosSim: 0.9919
+	speed: 0.0839s/iter; left time: 18475.7318s
+	iters: 1700, epoch: 4 | loss: 0.0509663 | task: 0.0871967 | Gate: 0.0490 | CosSim: 0.9917
+	speed: 0.0872s/iter; left time: 19191.9704s
+	iters: 1800, epoch: 4 | loss: 0.0549611 | task: 0.0942650 | Gate: 0.0490 | CosSim: 0.9930
+	speed: 0.0839s/iter; left time: 18457.2459s
+	iters: 1900, epoch: 4 | loss: 0.0527963 | task: 0.0900990 | Gate: 0.0490 | CosSim: 0.9928
+	speed: 0.0836s/iter; left time: 18378.2198s
+	iters: 2000, epoch: 4 | loss: 0.0500367 | task: 0.0855324 | Gate: 0.0490 | CosSim: 0.9926
+	speed: 0.0844s/iter; left time: 18548.7023s
+	iters: 2100, epoch: 4 | loss: 0.0506777 | task: 0.0868432 | Gate: 0.0490 | CosSim: 0.9928
+	speed: 0.0840s/iter; left time: 18455.8839s
+	iters: 2200, epoch: 4 | loss: 0.0536934 | task: 0.0921620 | Gate: 0.0490 | CosSim: 0.9920
+	speed: 0.0830s/iter; left time: 18236.9657s
+Epoch: 4 cost time: 191.876256 s
+Best model stored in memory (Vali Loss: 0.162496)
+Epoch: 4, Steps: 2287 | Train Loss: 0.0527375 Vali Loss: 0.1624961 Test Loss: 0.2148918 | task:0.082959 output:0.003576 feature:0.041958
+Validation loss decreased (0.165605 --> 0.162496).  Saving model ...
+lr_adjust = {4: 9e-05}
+Updating learning rate to 9e-05
+	iters: 100, epoch: 5 | loss: 0.0515566 | task: 0.0886991 | Gate: 0.0491 | CosSim: 0.9923
+	speed: 0.5137s/iter; left time: 112742.0470s
+	iters: 200, epoch: 5 | loss: 0.0508748 | task: 0.0876931 | Gate: 0.0491 | CosSim: 0.9923
+	speed: 0.0827s/iter; left time: 18137.8029s
+	iters: 300, epoch: 5 | loss: 0.0508243 | task: 0.0871552 | Gate: 0.0491 | CosSim: 0.9924
+	speed: 0.0837s/iter; left time: 18341.3838s
+	iters: 400, epoch: 5 | loss: 0.0515044 | task: 0.0885495 | Gate: 0.0491 | CosSim: 0.9924
+	speed: 0.0861s/iter; left time: 18865.6899s
+	iters: 500, epoch: 5 | loss: 0.0495801 | task: 0.0852419 | Gate: 0.0491 | CosSim: 0.9926
+	speed: 0.0857s/iter; left time: 18764.5380s
+	iters: 600, epoch: 5 | loss: 0.0493402 | task: 0.0848621 | Gate: 0.0491 | CosSim: 0.9920
+	speed: 0.0843s/iter; left time: 18453.4475s
+	iters: 700, epoch: 5 | loss: 0.0508821 | task: 0.0878659 | Gate: 0.0491 | CosSim: 0.9925
+	speed: 0.0837s/iter; left time: 18308.5677s
+	iters: 800, epoch: 5 | loss: 0.0518136 | task: 0.0891918 | Gate: 0.0491 | CosSim: 0.9927
+	speed: 0.0841s/iter; left time: 18390.1998s
+	iters: 900, epoch: 5 | loss: 0.0505621 | task: 0.0871890 | Gate: 0.0491 | CosSim: 0.9921
+	speed: 0.0838s/iter; left time: 18313.0015s
+	iters: 1000, epoch: 5 | loss: 0.0501082 | task: 0.0864202 | Gate: 0.0491 | CosSim: 0.9927
+	speed: 0.0820s/iter; left time: 17920.0278s
+	iters: 1100, epoch: 5 | loss: 0.0519221 | task: 0.0895299 | Gate: 0.0492 | CosSim: 0.9922
+	speed: 0.0815s/iter; left time: 17798.7963s
+	iters: 1200, epoch: 5 | loss: 0.0501231 | task: 0.0863007 | Gate: 0.0492 | CosSim: 0.9931
+	speed: 0.0815s/iter; left time: 17805.6292s
+	iters: 1300, epoch: 5 | loss: 0.0538107 | task: 0.0928193 | Gate: 0.0492 | CosSim: 0.9924
+	speed: 0.0828s/iter; left time: 18067.3426s
+	iters: 1400, epoch: 5 | loss: 0.0519847 | task: 0.0890549 | Gate: 0.0492 | CosSim: 0.9923
+	speed: 0.0836s/iter; left time: 18226.9869s
+	iters: 1500, epoch: 5 | loss: 0.0486008 | task: 0.0832404 | Gate: 0.0492 | CosSim: 0.9919
+	speed: 0.0847s/iter; left time: 18468.5137s
+	iters: 1600, epoch: 5 | loss: 0.0514665 | task: 0.0884386 | Gate: 0.0492 | CosSim: 0.9929
+	speed: 0.0882s/iter; left time: 19226.8124s
+	iters: 1700, epoch: 5 | loss: 0.0507894 | task: 0.0875112 | Gate: 0.0492 | CosSim: 0.9918
+	speed: 0.0837s/iter; left time: 18223.8844s
+	iters: 1800, epoch: 5 | loss: 0.0497547 | task: 0.0853876 | Gate: 0.0492 | CosSim: 0.9925
+	speed: 0.0825s/iter; left time: 17961.1130s
+	iters: 1900, epoch: 5 | loss: 0.0500650 | task: 0.0863518 | Gate: 0.0492 | CosSim: 0.9921
+	speed: 0.0831s/iter; left time: 18082.2772s
+	iters: 2000, epoch: 5 | loss: 0.0501315 | task: 0.0866741 | Gate: 0.0492 | CosSim: 0.9926
+	speed: 0.0835s/iter; left time: 18158.6875s
+	iters: 2100, epoch: 5 | loss: 0.0521181 | task: 0.0901828 | Gate: 0.0492 | CosSim: 0.9919
+	speed: 0.0820s/iter; left time: 17824.7490s
+	iters: 2200, epoch: 5 | loss: 0.0499744 | task: 0.0862786 | Gate: 0.0492 | CosSim: 0.9923
+	speed: 0.0834s/iter; left time: 18130.5835s
+Epoch: 5 cost time: 191.178479 s
+Best model stored in memory (Vali Loss: 0.158516)
+Epoch: 5, Steps: 2287 | Train Loss: 0.0508407 Vali Loss: 0.1585164 Test Loss: 0.2053404 | task:0.079092 output:0.002905 feature:0.028808
+Validation loss decreased (0.162496 --> 0.158516).  Saving model ...
+lr_adjust = {5: 8.1e-05}
+Updating learning rate to 8.1e-05
+	iters: 100, epoch: 6 | loss: 0.0521764 | task: 0.0900498 | Gate: 0.0492 | CosSim: 0.9924
+	speed: 0.5060s/iter; left time: 109886.2490s
+	iters: 200, epoch: 6 | loss: 0.0487666 | task: 0.0842789 | Gate: 0.0492 | CosSim: 0.9919
+	speed: 0.0852s/iter; left time: 18490.2411s
+	iters: 300, epoch: 6 | loss: 0.0462520 | task: 0.0798019 | Gate: 0.0492 | CosSim: 0.9925
+	speed: 0.0844s/iter; left time: 18312.9485s
+	iters: 400, epoch: 6 | loss: 0.0492388 | task: 0.0850525 | Gate: 0.0493 | CosSim: 0.9919
+	speed: 0.0843s/iter; left time: 18284.2403s
+	iters: 500, epoch: 6 | loss: 0.0505354 | task: 0.0872124 | Gate: 0.0493 | CosSim: 0.9923
+	speed: 0.1002s/iter; left time: 21723.9269s
+	iters: 600, epoch: 6 | loss: 0.0498373 | task: 0.0861585 | Gate: 0.0493 | CosSim: 0.9918
+	speed: 0.0946s/iter; left time: 20505.0527s
+	iters: 700, epoch: 6 | loss: 0.0498169 | task: 0.0862334 | Gate: 0.0493 | CosSim: 0.9922
+	speed: 0.1009s/iter; left time: 21843.3837s
+	iters: 800, epoch: 6 | loss: 0.0491594 | task: 0.0848507 | Gate: 0.0493 | CosSim: 0.9921
+	speed: 0.1029s/iter; left time: 22271.7285s
+	iters: 900, epoch: 6 | loss: 0.0481218 | task: 0.0831290 | Gate: 0.0493 | CosSim: 0.9914
+	speed: 0.1024s/iter; left time: 22146.0813s
+	iters: 1000, epoch: 6 | loss: 0.0511108 | task: 0.0880745 | Gate: 0.0493 | CosSim: 0.9914
+	speed: 0.0847s/iter; left time: 18324.0909s
+	iters: 1100, epoch: 6 | loss: 0.0500416 | task: 0.0859858 | Gate: 0.0493 | CosSim: 0.9920
+	speed: 0.0821s/iter; left time: 17736.5217s
+	iters: 1200, epoch: 6 | loss: 0.0484935 | task: 0.0835655 | Gate: 0.0493 | CosSim: 0.9918
+	speed: 0.0934s/iter; left time: 20173.5928s
+	iters: 1300, epoch: 6 | loss: 0.0497556 | task: 0.0863226 | Gate: 0.0493 | CosSim: 0.9934
+	speed: 0.0966s/iter; left time: 20871.5331s
+	iters: 1400, epoch: 6 | loss: 0.0504224 | task: 0.0873848 | Gate: 0.0493 | CosSim: 0.9930
+	speed: 0.0924s/iter; left time: 19941.8260s
+	iters: 1500, epoch: 6 | loss: 0.0491207 | task: 0.0849148 | Gate: 0.0493 | CosSim: 0.9928
+	speed: 0.0833s/iter; left time: 17978.6397s
+	iters: 1600, epoch: 6 | loss: 0.0504828 | task: 0.0873097 | Gate: 0.0493 | CosSim: 0.9935
+	speed: 0.0861s/iter; left time: 18569.6934s
+	iters: 1700, epoch: 6 | loss: 0.0490541 | task: 0.0848482 | Gate: 0.0493 | CosSim: 0.9922
+	speed: 0.1000s/iter; left time: 21547.9533s
+	iters: 1800, epoch: 6 | loss: 0.0508901 | task: 0.0879034 | Gate: 0.0493 | CosSim: 0.9919
+	speed: 0.0982s/iter; left time: 21163.9454s
+	iters: 1900, epoch: 6 | loss: 0.0481915 | task: 0.0834497 | Gate: 0.0493 | CosSim: 0.9929
+	speed: 0.1026s/iter; left time: 22105.6657s
+	iters: 2000, epoch: 6 | loss: 0.0465749 | task: 0.0805645 | Gate: 0.0493 | CosSim: 0.9915
+	speed: 0.0963s/iter; left time: 20729.0880s
+	iters: 2100, epoch: 6 | loss: 0.0510750 | task: 0.0881831 | Gate: 0.0493 | CosSim: 0.9925
+	speed: 0.0921s/iter; left time: 19814.7316s
+	iters: 2200, epoch: 6 | loss: 0.0487007 | task: 0.0837199 | Gate: 0.0493 | CosSim: 0.9923
+	speed: 0.0822s/iter; left time: 17674.8370s
+Epoch: 6 cost time: 210.501554 s
+Best model stored in memory (Vali Loss: 0.153403)
+Epoch: 6, Steps: 2287 | Train Loss: 0.0496399 Vali Loss: 0.1534028 Test Loss: 0.2030100 | task:0.075402 output:0.003317 feature:0.024894
+Validation loss decreased (0.158516 --> 0.153403).  Saving model ...
+lr_adjust = {6: 7.290000000000001e-05}
+Updating learning rate to 7.290000000000001e-05
+	iters: 100, epoch: 7 | loss: 0.0488354 | task: 0.0846731 | Gate: 0.0493 | CosSim: 0.9925
+	speed: 0.5075s/iter; left time: 109057.0379s
+	iters: 200, epoch: 7 | loss: 0.0480801 | task: 0.0833468 | Gate: 0.0494 | CosSim: 0.9915
+	speed: 0.0826s/iter; left time: 17744.7713s
+	iters: 300, epoch: 7 | loss: 0.0468198 | task: 0.0811923 | Gate: 0.0494 | CosSim: 0.9924
+	speed: 0.0828s/iter; left time: 17769.0493s
+	iters: 400, epoch: 7 | loss: 0.0516539 | task: 0.0896237 | Gate: 0.0494 | CosSim: 0.9917
+	speed: 0.0827s/iter; left time: 17741.0359s
+	iters: 500, epoch: 7 | loss: 0.0491660 | task: 0.0850656 | Gate: 0.0494 | CosSim: 0.9923
+	speed: 0.0813s/iter; left time: 17430.0770s
+	iters: 600, epoch: 7 | loss: 0.0488755 | task: 0.0847647 | Gate: 0.0494 | CosSim: 0.9913
+	speed: 0.0825s/iter; left time: 17693.9956s
+	iters: 700, epoch: 7 | loss: 0.0496185 | task: 0.0857964 | Gate: 0.0494 | CosSim: 0.9915
+	speed: 0.0852s/iter; left time: 18255.4509s
+	iters: 800, epoch: 7 | loss: 0.0485095 | task: 0.0841830 | Gate: 0.0494 | CosSim: 0.9919
+	speed: 0.0827s/iter; left time: 17718.1815s
+	iters: 900, epoch: 7 | loss: 0.0498641 | task: 0.0865982 | Gate: 0.0494 | CosSim: 0.9923
+	speed: 0.0827s/iter; left time: 17707.2028s
+	iters: 1000, epoch: 7 | loss: 0.0489444 | task: 0.0847810 | Gate: 0.0494 | CosSim: 0.9919
+	speed: 0.0829s/iter; left time: 17746.5283s
+	iters: 1100, epoch: 7 | loss: 0.0489556 | task: 0.0848274 | Gate: 0.0494 | CosSim: 0.9925
+	speed: 0.0823s/iter; left time: 17605.3457s
+	iters: 1200, epoch: 7 | loss: 0.0480561 | task: 0.0832183 | Gate: 0.0494 | CosSim: 0.9937
+	speed: 0.0818s/iter; left time: 17476.7772s
+	iters: 1300, epoch: 7 | loss: 0.0482506 | task: 0.0834543 | Gate: 0.0494 | CosSim: 0.9924
+	speed: 0.0824s/iter; left time: 17605.5652s
+	iters: 1400, epoch: 7 | loss: 0.0485178 | task: 0.0841897 | Gate: 0.0494 | CosSim: 0.9925
+	speed: 0.0829s/iter; left time: 17702.7955s
+	iters: 1500, epoch: 7 | loss: 0.0482544 | task: 0.0838857 | Gate: 0.0494 | CosSim: 0.9916
+	speed: 0.0837s/iter; left time: 17865.6090s
+	iters: 1600, epoch: 7 | loss: 0.0479205 | task: 0.0831486 | Gate: 0.0494 | CosSim: 0.9913
+	speed: 0.0850s/iter; left time: 18130.9911s
+	iters: 1700, epoch: 7 | loss: 0.0495307 | task: 0.0858895 | Gate: 0.0494 | CosSim: 0.9933
+	speed: 0.0849s/iter; left time: 18108.8577s
+	iters: 1800, epoch: 7 | loss: 0.0467733 | task: 0.0812155 | Gate: 0.0494 | CosSim: 0.9924
+	speed: 0.0846s/iter; left time: 18039.1310s
+	iters: 1900, epoch: 7 | loss: 0.0493896 | task: 0.0857649 | Gate: 0.0494 | CosSim: 0.9926
+	speed: 0.0840s/iter; left time: 17893.7094s
+	iters: 2000, epoch: 7 | loss: 0.0484800 | task: 0.0839384 | Gate: 0.0494 | CosSim: 0.9917
+	speed: 0.0837s/iter; left time: 17824.4171s
+	iters: 2100, epoch: 7 | loss: 0.0461511 | task: 0.0799762 | Gate: 0.0494 | CosSim: 0.9917
+	speed: 0.0846s/iter; left time: 18008.2718s
+	iters: 2200, epoch: 7 | loss: 0.0494370 | task: 0.0859447 | Gate: 0.0494 | CosSim: 0.9922
+	speed: 0.0851s/iter; left time: 18111.1592s
+Epoch: 7 cost time: 190.539920 s
+Epoch: 7, Steps: 2287 | Train Loss: 0.0486798 Vali Loss: 0.1595158 Test Loss: 0.2072591 | task:0.071215 output:0.002541 feature:0.018442
+EarlyStopping counter: 1 out of 3
+
+>>> SWA (Re)Triggered at Epoch 7! Starting weight averaging using global LR 0.0001...
+	iters: 100, epoch: 8 | loss: 0.0463654 | task: 0.0804263 | Gate: 0.0494 | CosSim: 0.9942
+	speed: 0.5138s/iter; left time: 109233.2373s
+	iters: 200, epoch: 8 | loss: 0.0487507 | task: 0.0844980 | Gate: 0.0494 | CosSim: 0.9922
+	speed: 0.0868s/iter; left time: 18445.8788s
+	iters: 300, epoch: 8 | loss: 0.0484093 | task: 0.0839924 | Gate: 0.0494 | CosSim: 0.9918
+	speed: 0.0834s/iter; left time: 17709.2922s
+	iters: 400, epoch: 8 | loss: 0.0484294 | task: 0.0839368 | Gate: 0.0494 | CosSim: 0.9923
+	speed: 0.0834s/iter; left time: 17695.7854s
+	iters: 500, epoch: 8 | loss: 0.0481228 | task: 0.0832198 | Gate: 0.0494 | CosSim: 0.9918
+	speed: 0.0820s/iter; left time: 17398.9235s
+	iters: 600, epoch: 8 | loss: 0.0469175 | task: 0.0814267 | Gate: 0.0494 | CosSim: 0.9927
+	speed: 0.0823s/iter; left time: 17455.5802s
+	iters: 700, epoch: 8 | loss: 0.0473155 | task: 0.0821859 | Gate: 0.0495 | CosSim: 0.9917
+	speed: 0.0825s/iter; left time: 17482.7972s
+	iters: 800, epoch: 8 | loss: 0.0493334 | task: 0.0856346 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0838s/iter; left time: 17759.8745s
+	iters: 900, epoch: 8 | loss: 0.0495694 | task: 0.0860388 | Gate: 0.0495 | CosSim: 0.9913
+	speed: 0.0835s/iter; left time: 17690.7331s
+	iters: 1000, epoch: 8 | loss: 0.0514618 | task: 0.0893406 | Gate: 0.0495 | CosSim: 0.9924
+	speed: 0.0832s/iter; left time: 17611.8839s
+	iters: 1100, epoch: 8 | loss: 0.0476382 | task: 0.0827860 | Gate: 0.0495 | CosSim: 0.9918
+	speed: 0.0828s/iter; left time: 17526.2657s
+	iters: 1200, epoch: 8 | loss: 0.0473539 | task: 0.0823030 | Gate: 0.0495 | CosSim: 0.9924
+	speed: 0.0834s/iter; left time: 17635.2917s
+	iters: 1300, epoch: 8 | loss: 0.0489250 | task: 0.0851794 | Gate: 0.0495 | CosSim: 0.9928
+	speed: 0.0834s/iter; left time: 17628.6340s
+	iters: 1400, epoch: 8 | loss: 0.0485952 | task: 0.0843077 | Gate: 0.0495 | CosSim: 0.9924
+	speed: 0.0836s/iter; left time: 17668.6259s
+	iters: 1500, epoch: 8 | loss: 0.0467255 | task: 0.0811214 | Gate: 0.0495 | CosSim: 0.9913
+	speed: 0.0819s/iter; left time: 17296.9487s
+	iters: 1600, epoch: 8 | loss: 0.0490450 | task: 0.0852044 | Gate: 0.0495 | CosSim: 0.9922
+	speed: 0.0849s/iter; left time: 17931.7075s
+	iters: 1700, epoch: 8 | loss: 0.0491380 | task: 0.0852635 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0840s/iter; left time: 17716.0064s
+	iters: 1800, epoch: 8 | loss: 0.0487264 | task: 0.0845269 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0839s/iter; left time: 17684.0710s
+	iters: 1900, epoch: 8 | loss: 0.0492516 | task: 0.0855499 | Gate: 0.0495 | CosSim: 0.9926
+	speed: 0.0834s/iter; left time: 17570.2485s
+	iters: 2000, epoch: 8 | loss: 0.0485222 | task: 0.0841243 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0847s/iter; left time: 17846.4242s
+	iters: 2100, epoch: 8 | loss: 0.0481621 | task: 0.0834600 | Gate: 0.0495 | CosSim: 0.9918
+	speed: 0.0868s/iter; left time: 18287.0717s
+	iters: 2200, epoch: 8 | loss: 0.0468097 | task: 0.0810171 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0817s/iter; left time: 17191.7309s
+Epoch: 8 cost time: 191.284395 s
+Epoch: 8, Steps: 2287 | Train Loss: 0.0482364 Vali Loss: 0.1537550 Test Loss: 0.2005470 | task:0.057738 output:0.002553 feature:0.012488
+EarlyStopping counter: 2 out of 3
+	iters: 100, epoch: 9 | loss: 0.0474084 | task: 0.0823218 | Gate: 0.0495 | CosSim: 0.9928
+	speed: 0.5047s/iter; left time: 106148.0871s
+	iters: 200, epoch: 9 | loss: 0.0459091 | task: 0.0798795 | Gate: 0.0495 | CosSim: 0.9933
+	speed: 0.0813s/iter; left time: 17080.6983s
+	iters: 300, epoch: 9 | loss: 0.0481501 | task: 0.0837180 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0828s/iter; left time: 17406.9450s
+	iters: 400, epoch: 9 | loss: 0.0477625 | task: 0.0830141 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0831s/iter; left time: 17441.0886s
+	iters: 500, epoch: 9 | loss: 0.0474853 | task: 0.0824830 | Gate: 0.0495 | CosSim: 0.9916
+	speed: 0.0846s/iter; left time: 17757.4361s
+	iters: 600, epoch: 9 | loss: 0.0479209 | task: 0.0834866 | Gate: 0.0495 | CosSim: 0.9915
+	speed: 0.0846s/iter; left time: 17752.7235s
+	iters: 700, epoch: 9 | loss: 0.0471139 | task: 0.0820254 | Gate: 0.0495 | CosSim: 0.9930
+	speed: 0.0833s/iter; left time: 17478.8478s
+	iters: 800, epoch: 9 | loss: 0.0456594 | task: 0.0794901 | Gate: 0.0495 | CosSim: 0.9916
+	speed: 0.0851s/iter; left time: 17841.3109s
+	iters: 900, epoch: 9 | loss: 0.0485751 | task: 0.0845942 | Gate: 0.0495 | CosSim: 0.9913
+	speed: 0.0855s/iter; left time: 17915.2668s
+	iters: 1000, epoch: 9 | loss: 0.0483309 | task: 0.0840822 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0833s/iter; left time: 17434.0662s
+	iters: 1100, epoch: 9 | loss: 0.0466046 | task: 0.0808363 | Gate: 0.0495 | CosSim: 0.9918
+	speed: 0.0833s/iter; left time: 17426.2208s
+	iters: 1200, epoch: 9 | loss: 0.0459197 | task: 0.0797622 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0845s/iter; left time: 17670.2381s
+	iters: 1300, epoch: 9 | loss: 0.0463723 | task: 0.0807303 | Gate: 0.0495 | CosSim: 0.9919
+	speed: 0.0849s/iter; left time: 17751.0074s
+	iters: 1400, epoch: 9 | loss: 0.0470072 | task: 0.0818868 | Gate: 0.0495 | CosSim: 0.9926
+	speed: 0.0824s/iter; left time: 17226.8944s
+	iters: 1500, epoch: 9 | loss: 0.0495819 | task: 0.0864053 | Gate: 0.0495 | CosSim: 0.9916
+	speed: 0.0815s/iter; left time: 17027.4138s
+	iters: 1600, epoch: 9 | loss: 0.0498512 | task: 0.0869996 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.0818s/iter; left time: 17085.0696s
+	iters: 1700, epoch: 9 | loss: 0.0464476 | task: 0.0808171 | Gate: 0.0495 | CosSim: 0.9917
+	speed: 0.0832s/iter; left time: 17357.7290s
+	iters: 1800, epoch: 9 | loss: 0.0465684 | task: 0.0812119 | Gate: 0.0495 | CosSim: 0.9919
+	speed: 0.0850s/iter; left time: 17726.8454s
+	iters: 1900, epoch: 9 | loss: 0.0470475 | task: 0.0819648 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0825s/iter; left time: 17211.7450s
+	iters: 2000, epoch: 9 | loss: 0.0489900 | task: 0.0851087 | Gate: 0.0495 | CosSim: 0.9918
+	speed: 0.0841s/iter; left time: 17520.0212s
+	iters: 2100, epoch: 9 | loss: 0.0491855 | task: 0.0855426 | Gate: 0.0495 | CosSim: 0.9920
+	speed: 0.0829s/iter; left time: 17265.3392s
+	iters: 2200, epoch: 9 | loss: 0.0457269 | task: 0.0793993 | Gate: 0.0495 | CosSim: 0.9924
+	speed: 0.0839s/iter; left time: 17475.5925s
+Epoch: 9 cost time: 190.913960 s
+Best model stored in memory (Vali Loss: 0.152280)
+Epoch: 9, Steps: 2287 | Train Loss: 0.0474647 Vali Loss: 0.1522800 Test Loss: 0.1954398 | task:0.113296 output:0.002677 feature:0.015973
+Validation loss decreased (0.153403 --> 0.152280).  Saving model ...
+
+>>> New best model found at Epoch 9! Resetting SWA average...
+lr_adjust = {9: 5.3144100000000005e-05}
+Updating learning rate to 5.3144100000000005e-05
+	iters: 100, epoch: 10 | loss: 0.0441211 | task: 0.0769371 | Gate: 0.0495 | CosSim: 0.9921
+	speed: 0.5358s/iter; left time: 111458.9570s
+	iters: 200, epoch: 10 | loss: 0.0447235 | task: 0.0779576 | Gate: 0.0495 | CosSim: 0.9922
+	speed: 0.0959s/iter; left time: 19937.2714s
+	iters: 300, epoch: 10 | loss: 0.0454532 | task: 0.0792927 | Gate: 0.0496 | CosSim: 0.9923
+	speed: 0.0954s/iter; left time: 19820.5598s
+	iters: 400, epoch: 10 | loss: 0.0474101 | task: 0.0828469 | Gate: 0.0496 | CosSim: 0.9912
+	speed: 0.0960s/iter; left time: 19933.8875s
+	iters: 500, epoch: 10 | loss: 0.0464684 | task: 0.0810535 | Gate: 0.0496 | CosSim: 0.9927
+	speed: 0.0984s/iter; left time: 20425.0946s
+	iters: 600, epoch: 10 | loss: 0.0455254 | task: 0.0795179 | Gate: 0.0496 | CosSim: 0.9929
+	speed: 0.0971s/iter; left time: 20152.0788s
+	iters: 700, epoch: 10 | loss: 0.0468740 | task: 0.0818160 | Gate: 0.0496 | CosSim: 0.9921
+	speed: 0.0957s/iter; left time: 19841.6523s
+	iters: 800, epoch: 10 | loss: 0.0497458 | task: 0.0868433 | Gate: 0.0496 | CosSim: 0.9927
+	speed: 0.0906s/iter; left time: 18792.3230s
+	iters: 900, epoch: 10 | loss: 0.0484709 | task: 0.0845385 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0828s/iter; left time: 17164.9128s
+	iters: 1000, epoch: 10 | loss: 0.0457253 | task: 0.0796961 | Gate: 0.0496 | CosSim: 0.9917
+	speed: 0.0815s/iter; left time: 16888.6393s
+	iters: 1100, epoch: 10 | loss: 0.0449189 | task: 0.0783198 | Gate: 0.0496 | CosSim: 0.9924
+	speed: 0.0815s/iter; left time: 16873.9701s
+	iters: 1200, epoch: 10 | loss: 0.0470646 | task: 0.0823625 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0811s/iter; left time: 16774.1943s
+	iters: 1300, epoch: 10 | loss: 0.0465866 | task: 0.0812574 | Gate: 0.0496 | CosSim: 0.9931
+	speed: 0.0810s/iter; left time: 16752.2622s
+	iters: 1400, epoch: 10 | loss: 0.0466854 | task: 0.0816327 | Gate: 0.0496 | CosSim: 0.9917
+	speed: 0.0816s/iter; left time: 16871.1377s
+	iters: 1500, epoch: 10 | loss: 0.0465907 | task: 0.0815096 | Gate: 0.0496 | CosSim: 0.9924
+	speed: 0.0893s/iter; left time: 18444.0244s
+	iters: 1600, epoch: 10 | loss: 0.0466415 | task: 0.0813963 | Gate: 0.0496 | CosSim: 0.9911
+	speed: 0.0965s/iter; left time: 19931.8139s
+	iters: 1700, epoch: 10 | loss: 0.0471861 | task: 0.0824182 | Gate: 0.0496 | CosSim: 0.9920
+	speed: 0.0945s/iter; left time: 19498.8597s
+	iters: 1800, epoch: 10 | loss: 0.0443291 | task: 0.0773733 | Gate: 0.0496 | CosSim: 0.9917
+	speed: 0.0947s/iter; left time: 19541.7427s
+	iters: 1900, epoch: 10 | loss: 0.0470953 | task: 0.0822893 | Gate: 0.0496 | CosSim: 0.9923
+	speed: 0.0986s/iter; left time: 20335.2461s
+	iters: 2000, epoch: 10 | loss: 0.0467777 | task: 0.0817239 | Gate: 0.0496 | CosSim: 0.9927
+	speed: 0.0985s/iter; left time: 20302.2926s
+	iters: 2100, epoch: 10 | loss: 0.0445055 | task: 0.0777515 | Gate: 0.0496 | CosSim: 0.9936
+	speed: 0.0942s/iter; left time: 19409.8384s
+	iters: 2200, epoch: 10 | loss: 0.0471316 | task: 0.0824365 | Gate: 0.0496 | CosSim: 0.9912
+	speed: 0.0956s/iter; left time: 19676.0650s
+Epoch: 10 cost time: 210.444253 s
+Epoch: 10, Steps: 2287 | Train Loss: 0.0463397 Vali Loss: 0.1526168 Test Loss: 0.2023797 | task:0.088576 output:0.001839 feature:0.007175
+EarlyStopping counter: 1 out of 3
+
+>>> SWA (Re)Triggered at Epoch 10! Starting weight averaging using global LR 0.0001...
+	iters: 100, epoch: 11 | loss: 0.0464678 | task: 0.0811604 | Gate: 0.0496 | CosSim: 0.9915
+	speed: 0.5883s/iter; left time: 121037.3007s
+	iters: 200, epoch: 11 | loss: 0.0458424 | task: 0.0799162 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0913s/iter; left time: 18772.4554s
+	iters: 300, epoch: 11 | loss: 0.0465808 | task: 0.0813126 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0829s/iter; left time: 17035.8781s
+	iters: 400, epoch: 11 | loss: 0.0490780 | task: 0.0858733 | Gate: 0.0496 | CosSim: 0.9916
+	speed: 0.0855s/iter; left time: 17572.0562s
+	iters: 500, epoch: 11 | loss: 0.0460422 | task: 0.0802969 | Gate: 0.0496 | CosSim: 0.9913
+	speed: 0.0874s/iter; left time: 17951.3164s
+	iters: 600, epoch: 11 | loss: 0.0483407 | task: 0.0843585 | Gate: 0.0496 | CosSim: 0.9930
+	speed: 0.0901s/iter; left time: 18494.1330s
+	iters: 700, epoch: 11 | loss: 0.0455345 | task: 0.0796010 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0957s/iter; left time: 19640.5808s
+	iters: 800, epoch: 11 | loss: 0.0463858 | task: 0.0810401 | Gate: 0.0496 | CosSim: 0.9921
+	speed: 0.0947s/iter; left time: 19423.3977s
+	iters: 900, epoch: 11 | loss: 0.0463785 | task: 0.0810861 | Gate: 0.0496 | CosSim: 0.9924
+	speed: 0.0932s/iter; left time: 19103.9205s
+	iters: 1000, epoch: 11 | loss: 0.0462791 | task: 0.0809657 | Gate: 0.0496 | CosSim: 0.9918
+	speed: 0.0821s/iter; left time: 16825.1768s
+	iters: 1100, epoch: 11 | loss: 0.0455344 | task: 0.0794627 | Gate: 0.0496 | CosSim: 0.9928
+	speed: 0.0828s/iter; left time: 16951.8419s
+	iters: 1200, epoch: 11 | loss: 0.0453203 | task: 0.0790981 | Gate: 0.0496 | CosSim: 0.9929
+	speed: 0.0828s/iter; left time: 16949.9165s
+	iters: 1300, epoch: 11 | loss: 0.0449836 | task: 0.0784105 | Gate: 0.0496 | CosSim: 0.9912
+	speed: 0.0823s/iter; left time: 16827.8284s
+	iters: 1400, epoch: 11 | loss: 0.0475484 | task: 0.0829406 | Gate: 0.0496 | CosSim: 0.9917
+	speed: 0.0823s/iter; left time: 16833.9095s
+	iters: 1500, epoch: 11 | loss: 0.0474274 | task: 0.0828925 | Gate: 0.0496 | CosSim: 0.9926
+	speed: 0.0829s/iter; left time: 16942.6931s
+	iters: 1600, epoch: 11 | loss: 0.0440111 | task: 0.0768816 | Gate: 0.0496 | CosSim: 0.9915
+	speed: 0.0834s/iter; left time: 17033.8396s
+	iters: 1700, epoch: 11 | loss: 0.0447772 | task: 0.0783157 | Gate: 0.0496 | CosSim: 0.9914
+	speed: 0.0851s/iter; left time: 17372.9911s
+	iters: 1800, epoch: 11 | loss: 0.0458421 | task: 0.0801921 | Gate: 0.0497 | CosSim: 0.9926
+	speed: 0.0826s/iter; left time: 16849.6668s
+	iters: 1900, epoch: 11 | loss: 0.0479096 | task: 0.0839103 | Gate: 0.0497 | CosSim: 0.9925
+	speed: 0.0857s/iter; left time: 17477.7506s
+	iters: 2000, epoch: 11 | loss: 0.0432184 | task: 0.0755097 | Gate: 0.0497 | CosSim: 0.9917
+	speed: 0.0859s/iter; left time: 17499.3701s
+	iters: 2100, epoch: 11 | loss: 0.0452645 | task: 0.0790239 | Gate: 0.0497 | CosSim: 0.9916
+	speed: 0.0883s/iter; left time: 17997.1620s
+	iters: 2200, epoch: 11 | loss: 0.0457512 | task: 0.0799875 | Gate: 0.0497 | CosSim: 0.9916
+	speed: 0.1000s/iter; left time: 20368.5429s
+Epoch: 11 cost time: 200.782640 s
+Epoch: 11, Steps: 2287 | Train Loss: 0.0460593 Vali Loss: 0.1531008 Test Loss: 0.1935790 | task:0.089140 output:0.001925 feature:0.007016
+EarlyStopping counter: 2 out of 3
+	iters: 100, epoch: 12 | loss: 0.0478250 | task: 0.0835366 | Gate: 0.0497 | CosSim: 0.9927
+	speed: 0.5596s/iter; left time: 113853.4871s
+	iters: 200, epoch: 12 | loss: 0.0449740 | task: 0.0785249 | Gate: 0.0497 | CosSim: 0.9911
+	speed: 0.0817s/iter; left time: 16614.6880s
+	iters: 300, epoch: 12 | loss: 0.0466970 | task: 0.0815091 | Gate: 0.0497 | CosSim: 0.9921
+	speed: 0.0840s/iter; left time: 17076.6180s
+	iters: 400, epoch: 12 | loss: 0.0436990 | task: 0.0763512 | Gate: 0.0497 | CosSim: 0.9923
+	speed: 0.0836s/iter; left time: 16983.7618s
+	iters: 500, epoch: 12 | loss: 0.0438102 | task: 0.0765144 | Gate: 0.0497 | CosSim: 0.9923
+	speed: 0.0831s/iter; left time: 16869.6107s
+	iters: 600, epoch: 12 | loss: 0.0485010 | task: 0.0847141 | Gate: 0.0497 | CosSim: 0.9928
+	speed: 0.0859s/iter; left time: 17437.9583s
+	iters: 700, epoch: 12 | loss: 0.0460060 | task: 0.0802300 | Gate: 0.0497 | CosSim: 0.9925
+	speed: 0.0837s/iter; left time: 16979.8547s
+	iters: 800, epoch: 12 | loss: 0.0483633 | task: 0.0843978 | Gate: 0.0497 | CosSim: 0.9926
+	speed: 0.0838s/iter; left time: 16999.7900s
+	iters: 900, epoch: 12 | loss: 0.0450818 | task: 0.0787399 | Gate: 0.0497 | CosSim: 0.9925
+	speed: 0.0860s/iter; left time: 17422.4070s
+	iters: 1000, epoch: 12 | loss: 0.0461448 | task: 0.0807499 | Gate: 0.0497 | CosSim: 0.9915
+	speed: 0.0839s/iter; left time: 16991.5648s
+	iters: 1100, epoch: 12 | loss: 0.0450503 | task: 0.0785403 | Gate: 0.0497 | CosSim: 0.9912
+	speed: 0.0830s/iter; left time: 16796.1752s
+	iters: 1200, epoch: 12 | loss: 0.0471258 | task: 0.0824731 | Gate: 0.0497 | CosSim: 0.9921
+	speed: 0.0824s/iter; left time: 16665.2189s
+	iters: 1300, epoch: 12 | loss: 0.0467028 | task: 0.0817175 | Gate: 0.0497 | CosSim: 0.9921
+	speed: 0.0841s/iter; left time: 17014.3723s
+	iters: 1400, epoch: 12 | loss: 0.0467621 | task: 0.0815686 | Gate: 0.0497 | CosSim: 0.9925
+	speed: 0.0899s/iter; left time: 18176.8677s
+	iters: 1500, epoch: 12 | loss: 0.0436229 | task: 0.0763152 | Gate: 0.0497 | CosSim: 0.9919
+	speed: 0.0945s/iter; left time: 19088.3579s
+	iters: 1600, epoch: 12 | loss: 0.0450350 | task: 0.0786961 | Gate: 0.0497 | CosSim: 0.9931
+	speed: 0.0952s/iter; left time: 19216.1317s
+	iters: 1700, epoch: 12 | loss: 0.0450142 | task: 0.0786627 | Gate: 0.0497 | CosSim: 0.9929
+	speed: 0.0990s/iter; left time: 19984.1568s
+	iters: 1800, epoch: 12 | loss: 0.0449834 | task: 0.0786736 | Gate: 0.0497 | CosSim: 0.9918
+	speed: 0.0991s/iter; left time: 19989.2674s
+	iters: 1900, epoch: 12 | loss: 0.0447039 | task: 0.0778409 | Gate: 0.0497 | CosSim: 0.9927
+	speed: 0.0966s/iter; left time: 19480.6442s
+	iters: 2000, epoch: 12 | loss: 0.0438754 | task: 0.0766567 | Gate: 0.0497 | CosSim: 0.9922
+	speed: 0.0978s/iter; left time: 19710.1464s
+	iters: 2100, epoch: 12 | loss: 0.0438553 | task: 0.0765094 | Gate: 0.0497 | CosSim: 0.9920
+	speed: 0.0854s/iter; left time: 17204.8784s
+	iters: 2200, epoch: 12 | loss: 0.0485553 | task: 0.0849842 | Gate: 0.0497 | CosSim: 0.9915
+	speed: 0.0952s/iter; left time: 19176.4191s
+Epoch: 12 cost time: 203.450025 s
+Best model stored in memory (Vali Loss: 0.151096)
+Epoch: 12, Steps: 2287 | Train Loss: 0.0457416 Vali Loss: 0.1510961 Test Loss: 0.1905101 | task:0.058833 output:0.001618 feature:0.004116
+Validation loss decreased (0.152280 --> 0.151096).  Saving model ...
+
+>>> New best model found at Epoch 12! Resetting SWA average...
+lr_adjust = {12: 3.874204890000001e-05}
+Updating learning rate to 3.874204890000001e-05
+	iters: 100, epoch: 13 | loss: 0.0457807 | task: 0.0802146 | Gate: 0.0497 | CosSim: 0.9916
+	speed: 0.5723s/iter; left time: 115120.2889s
+	iters: 200, epoch: 13 | loss: 0.0439852 | task: 0.0770845 | Gate: 0.0497 | CosSim: 0.9915
+	speed: 0.0973s/iter; left time: 19554.6146s
+	iters: 300, epoch: 13 | loss: 0.0452398 | task: 0.0792799 | Gate: 0.0497 | CosSim: 0.9911
+	speed: 0.0815s/iter; left time: 16371.5252s
+	iters: 400, epoch: 13 | loss: 0.0469405 | task: 0.0822738 | Gate: 0.0497 | CosSim: 0.9927
+	speed: 0.0890s/iter; left time: 17877.4517s
+	iters: 500, epoch: 13 | loss: 0.0449831 | task: 0.0789339 | Gate: 0.0497 | CosSim: 0.9919
+	speed: 0.0830s/iter; left time: 16655.3665s
+	iters: 600, epoch: 13 | loss: 0.0443092 | task: 0.0775725 | Gate: 0.0497 | CosSim: 0.9917
+	speed: 0.0861s/iter; left time: 17278.8500s
+	iters: 700, epoch: 13 | loss: 0.0453141 | task: 0.0793295 | Gate: 0.0497 | CosSim: 0.9926
+	speed: 0.0961s/iter; left time: 19280.8960s
+	iters: 800, epoch: 13 | loss: 0.0436763 | task: 0.0765031 | Gate: 0.0497 | CosSim: 0.9919
+	speed: 0.0976s/iter; left time: 19567.8531s
+	iters: 900, epoch: 13 | loss: 0.0444384 | task: 0.0777712 | Gate: 0.0497 | CosSim: 0.9915
+	speed: 0.0963s/iter; left time: 19302.4718s
+	iters: 1000, epoch: 13 | loss: 0.0421185 | task: 0.0737699 | Gate: 0.0497 | CosSim: 0.9917
+	speed: 0.0940s/iter; left time: 18814.7056s
+	iters: 1100, epoch: 13 | loss: 0.0475601 | task: 0.0833579 | Gate: 0.0498 | CosSim: 0.9917
+	speed: 0.0950s/iter; left time: 19008.3930s
+	iters: 1200, epoch: 13 | loss: 0.0433418 | task: 0.0757436 | Gate: 0.0498 | CosSim: 0.9933
+	speed: 0.0945s/iter; left time: 18907.6417s
+	iters: 1300, epoch: 13 | loss: 0.0454459 | task: 0.0795682 | Gate: 0.0498 | CosSim: 0.9925
+	speed: 0.0963s/iter; left time: 19251.3351s
+	iters: 1400, epoch: 13 | loss: 0.0456573 | task: 0.0798702 | Gate: 0.0498 | CosSim: 0.9920
+	speed: 0.0970s/iter; left time: 19381.8354s
+	iters: 1500, epoch: 13 | loss: 0.0428686 | task: 0.0750171 | Gate: 0.0498 | CosSim: 0.9925
+	speed: 0.0869s/iter; left time: 17350.6427s
+	iters: 1600, epoch: 13 | loss: 0.0437355 | task: 0.0766173 | Gate: 0.0498 | CosSim: 0.9916
+	speed: 0.0845s/iter; left time: 16880.4308s
+	iters: 1700, epoch: 13 | loss: 0.0474061 | task: 0.0831883 | Gate: 0.0498 | CosSim: 0.9923
+	speed: 0.0830s/iter; left time: 16555.3134s
+	iters: 1800, epoch: 13 | loss: 0.0430718 | task: 0.0752895 | Gate: 0.0498 | CosSim: 0.9912
+	speed: 0.0835s/iter; left time: 16658.8293s
+	iters: 1900, epoch: 13 | loss: 0.0436119 | task: 0.0762408 | Gate: 0.0498 | CosSim: 0.9919
+	speed: 0.0838s/iter; left time: 16705.8749s
+	iters: 2000, epoch: 13 | loss: 0.0474426 | task: 0.0829760 | Gate: 0.0498 | CosSim: 0.9916
+	speed: 0.0830s/iter; left time: 16532.9608s
+	iters: 2100, epoch: 13 | loss: 0.0451759 | task: 0.0790575 | Gate: 0.0498 | CosSim: 0.9912
+	speed: 0.0828s/iter; left time: 16499.5451s
+	iters: 2200, epoch: 13 | loss: 0.0450449 | task: 0.0789418 | Gate: 0.0498 | CosSim: 0.9924
+	speed: 0.0836s/iter; left time: 16639.2391s
+Epoch: 13 cost time: 204.257781 s
+Best model stored in memory (Vali Loss: 0.150552)
+Epoch: 13, Steps: 2287 | Train Loss: 0.0449538 Vali Loss: 0.1505515 Test Loss: 0.1951108 | task:0.079828 output:0.002896 feature:0.004370
+Validation loss decreased (0.151096 --> 0.150552).  Saving model ...
+lr_adjust = {13: 3.486784401000001e-05}
+Updating learning rate to 3.486784401000001e-05
+	iters: 100, epoch: 14 | loss: 0.0465128 | task: 0.0814965 | Gate: 0.0498 | CosSim: 0.9913
+	speed: 0.4998s/iter; left time: 99389.1286s
+	iters: 200, epoch: 14 | loss: 0.0447602 | task: 0.0784098 | Gate: 0.0498 | CosSim: 0.9921
+	speed: 0.0833s/iter; left time: 16559.0318s
+	iters: 300, epoch: 14 | loss: 0.0439809 | task: 0.0770367 | Gate: 0.0498 | CosSim: 0.9924
+	speed: 0.0842s/iter; left time: 16731.4714s
+	iters: 400, epoch: 14 | loss: 0.0419304 | task: 0.0734764 | Gate: 0.0498 | CosSim: 0.9921
+	speed: 0.0819s/iter; left time: 16253.4477s
+	iters: 500, epoch: 14 | loss: 0.0435931 | task: 0.0763539 | Gate: 0.0498 | CosSim: 0.9915
+	speed: 0.0818s/iter; left time: 16239.0802s
+	iters: 600, epoch: 14 | loss: 0.0434947 | task: 0.0762394 | Gate: 0.0498 | CosSim: 0.9920
+	speed: 0.0821s/iter; left time: 16292.6172s
+	iters: 700, epoch: 14 | loss: 0.0455486 | task: 0.0797668 | Gate: 0.0498 | CosSim: 0.9915
+	speed: 0.0816s/iter; left time: 16170.4992s
+	iters: 800, epoch: 14 | loss: 0.0435118 | task: 0.0763013 | Gate: 0.0498 | CosSim: 0.9915
+	speed: 0.0820s/iter; left time: 16242.6385s
+	iters: 900, epoch: 14 | loss: 0.0458463 | task: 0.0803055 | Gate: 0.0498 | CosSim: 0.9930
+	speed: 0.0835s/iter; left time: 16535.5533s
+	iters: 1000, epoch: 14 | loss: 0.0467018 | task: 0.0818600 | Gate: 0.0498 | CosSim: 0.9922
+	speed: 0.0872s/iter; left time: 17256.9128s
+	iters: 1100, epoch: 14 | loss: 0.0443768 | task: 0.0778770 | Gate: 0.0498 | CosSim: 0.9919
+	speed: 0.0831s/iter; left time: 16438.0061s
+	iters: 1200, epoch: 14 | loss: 0.0449528 | task: 0.0787626 | Gate: 0.0498 | CosSim: 0.9916
+	speed: 0.0826s/iter; left time: 16329.2276s
+	iters: 1300, epoch: 14 | loss: 0.0444851 | task: 0.0779935 | Gate: 0.0498 | CosSim: 0.9930
+	speed: 0.0812s/iter; left time: 16044.8241s
+	iters: 1400, epoch: 14 | loss: 0.0447020 | task: 0.0783638 | Gate: 0.0498 | CosSim: 0.9929
+	speed: 0.0813s/iter; left time: 16053.5724s
+	iters: 1500, epoch: 14 | loss: 0.0444434 | task: 0.0778430 | Gate: 0.0498 | CosSim: 0.9924
+	speed: 0.0833s/iter; left time: 16454.2047s
+	iters: 1600, epoch: 14 | loss: 0.0437130 | task: 0.0766129 | Gate: 0.0498 | CosSim: 0.9918
+	speed: 0.0833s/iter; left time: 16449.7270s
+	iters: 1700, epoch: 14 | loss: 0.0446512 | task: 0.0782679 | Gate: 0.0498 | CosSim: 0.9923
+	speed: 0.0816s/iter; left time: 16102.4505s
+	iters: 1800, epoch: 14 | loss: 0.0432751 | task: 0.0757806 | Gate: 0.0498 | CosSim: 0.9927
+	speed: 0.0821s/iter; left time: 16194.1862s
+	iters: 1900, epoch: 14 | loss: 0.0441230 | task: 0.0773685 | Gate: 0.0498 | CosSim: 0.9918
+	speed: 0.0817s/iter; left time: 16091.9513s
+	iters: 2000, epoch: 14 | loss: 0.0439339 | task: 0.0769447 | Gate: 0.0498 | CosSim: 0.9924
+	speed: 0.0828s/iter; left time: 16310.8624s
+	iters: 2100, epoch: 14 | loss: 0.0442292 | task: 0.0774792 | Gate: 0.0498 | CosSim: 0.9930
+	speed: 0.0823s/iter; left time: 16204.4184s
+	iters: 2200, epoch: 14 | loss: 0.0438611 | task: 0.0768537 | Gate: 0.0498 | CosSim: 0.9926
+	speed: 0.0824s/iter; left time: 16220.7640s
+Epoch: 14 cost time: 189.042121 s
+Best model stored in memory (Vali Loss: 0.148613)
+Epoch: 14, Steps: 2287 | Train Loss: 0.0444532 Vali Loss: 0.1486128 Test Loss: 0.1969650 | task:0.095392 output:0.001618 feature:0.002733
+Validation loss decreased (0.150552 --> 0.148613).  Saving model ...
+lr_adjust = {14: 3.138105960900001e-05}
+Updating learning rate to 3.138105960900001e-05
+	iters: 100, epoch: 15 | loss: 0.0430982 | task: 0.0755300 | Gate: 0.0498 | CosSim: 0.9918
+	speed: 0.4954s/iter; left time: 97383.4658s
+	iters: 200, epoch: 15 | loss: 0.0435893 | task: 0.0764284 | Gate: 0.0498 | CosSim: 0.9917
+	speed: 0.0812s/iter; left time: 15959.0884s
+	iters: 300, epoch: 15 | loss: 0.0431050 | task: 0.0756190 | Gate: 0.0498 | CosSim: 0.9920
+	speed: 0.0950s/iter; left time: 18665.7001s
+	iters: 400, epoch: 15 | loss: 0.0447855 | task: 0.0785658 | Gate: 0.0499 | CosSim: 0.9920
+	speed: 0.0954s/iter; left time: 18718.4187s
+	iters: 500, epoch: 15 | loss: 0.0445020 | task: 0.0780249 | Gate: 0.0499 | CosSim: 0.9921
+	speed: 0.0909s/iter; left time: 17823.2855s
+	iters: 600, epoch: 15 | loss: 0.0457653 | task: 0.0800331 | Gate: 0.0499 | CosSim: 0.9920
+	speed: 0.0958s/iter; left time: 18778.7023s
+	iters: 700, epoch: 15 | loss: 0.0431689 | task: 0.0755847 | Gate: 0.0499 | CosSim: 0.9916
+	speed: 0.0959s/iter; left time: 18787.1649s
+	iters: 800, epoch: 15 | loss: 0.0425548 | task: 0.0745716 | Gate: 0.0499 | CosSim: 0.9923
+	speed: 0.0830s/iter; left time: 16267.6163s
+	iters: 900, epoch: 15 | loss: 0.0441352 | task: 0.0773716 | Gate: 0.0499 | CosSim: 0.9920
+	speed: 0.0824s/iter; left time: 16134.8807s
+	iters: 1000, epoch: 15 | loss: 0.0459146 | task: 0.0805410 | Gate: 0.0499 | CosSim: 0.9918
+	speed: 0.0839s/iter; left time: 16412.1027s
+	iters: 1100, epoch: 15 | loss: 0.0454705 | task: 0.0797696 | Gate: 0.0499 | CosSim: 0.9918
+	speed: 0.0926s/iter; left time: 18106.0504s
+	iters: 1200, epoch: 15 | loss: 0.0449155 | task: 0.0787472 | Gate: 0.0499 | CosSim: 0.9918
+	speed: 0.0954s/iter; left time: 18646.7762s
+	iters: 1300, epoch: 15 | loss: 0.0453657 | task: 0.0794267 | Gate: 0.0499 | CosSim: 0.9922
+	speed: 0.0955s/iter; left time: 18650.8154s
+	iters: 1400, epoch: 15 | loss: 0.0443828 | task: 0.0777348 | Gate: 0.0499 | CosSim: 0.9915
+	speed: 0.0933s/iter; left time: 18213.5238s
+	iters: 1500, epoch: 15 | loss: 0.0444367 | task: 0.0778693 | Gate: 0.0499 | CosSim: 0.9912
+	speed: 0.0945s/iter; left time: 18452.8288s
+	iters: 1600, epoch: 15 | loss: 0.0435337 | task: 0.0762707 | Gate: 0.0499 | CosSim: 0.9915
+	speed: 0.0950s/iter; left time: 18529.1311s
+	iters: 1700, epoch: 15 | loss: 0.0443172 | task: 0.0777133 | Gate: 0.0499 | CosSim: 0.9921
+	speed: 0.0852s/iter; left time: 16604.9425s
+	iters: 1800, epoch: 15 | loss: 0.0444378 | task: 0.0779242 | Gate: 0.0499 | CosSim: 0.9916
+	speed: 0.0837s/iter; left time: 16302.1953s
+	iters: 1900, epoch: 15 | loss: 0.0457756 | task: 0.0802065 | Gate: 0.0499 | CosSim: 0.9918
+	speed: 0.0853s/iter; left time: 16623.9119s
+	iters: 2000, epoch: 15 | loss: 0.0464390 | task: 0.0814205 | Gate: 0.0499 | CosSim: 0.9920
+	speed: 0.0822s/iter; left time: 16011.8081s
+	iters: 2100, epoch: 15 | loss: 0.0428091 | task: 0.0750456 | Gate: 0.0499 | CosSim: 0.9913
+	speed: 0.0832s/iter; left time: 16180.4246s
+	iters: 2200, epoch: 15 | loss: 0.0406431 | task: 0.0713274 | Gate: 0.0499 | CosSim: 0.9919
+	speed: 0.0827s/iter; left time: 16079.7142s
+Epoch: 15 cost time: 202.666471 s
+Best model stored in memory (Vali Loss: 0.148533)
+Epoch: 15, Steps: 2287 | Train Loss: 0.0442160 Vali Loss: 0.1485329 Test Loss: 0.1938219 | task:0.122595 output:0.002223 feature:0.004583
+Validation loss decreased (0.148613 --> 0.148533).  Saving model ...
+lr_adjust = {15: 2.824295364810001e-05}
+Updating learning rate to 2.824295364810001e-05
+	iters: 100, epoch: 16 | loss: 0.0420878 | task: 0.0738010 | Gate: 0.0499 | CosSim: 0.9919
+	speed: 0.5081s/iter; left time: 98723.5990s
+	iters: 200, epoch: 16 | loss: 0.0432491 | task: 0.0758748 | Gate: 0.0499 | CosSim: 0.9915
+	speed: 0.0820s/iter; left time: 15918.9004s
+	iters: 300, epoch: 16 | loss: 0.0449092 | task: 0.0786709 | Gate: 0.0499 | CosSim: 0.9928
+	speed: 0.0845s/iter; left time: 16398.3147s
+	iters: 400, epoch: 16 | loss: 0.0441182 | task: 0.0772337 | Gate: 0.0499 | CosSim: 0.9919
+	speed: 0.0829s/iter; left time: 16090.2362s
+	iters: 500, epoch: 16 | loss: 0.0441687 | task: 0.0774652 | Gate: 0.0499 | CosSim: 0.9914
+	speed: 0.0834s/iter; left time: 16173.3532s
+	iters: 600, epoch: 16 | loss: 0.0440124 | task: 0.0772449 | Gate: 0.0499 | CosSim: 0.9923
+	speed: 0.0847s/iter; left time: 16406.2839s
+	iters: 700, epoch: 16 | loss: 0.0422275 | task: 0.0740966 | Gate: 0.0499 | CosSim: 0.9917
+	speed: 0.0864s/iter; left time: 16737.2543s
+	iters: 800, epoch: 16 | loss: 0.0449040 | task: 0.0786724 | Gate: 0.0499 | CosSim: 0.9918
+	speed: 0.0855s/iter; left time: 16556.2483s
+	iters: 900, epoch: 16 | loss: 0.0413060 | task: 0.0723707 | Gate: 0.0499 | CosSim: 0.9912
+	speed: 0.0866s/iter; left time: 16765.2556s
+	iters: 1000, epoch: 16 | loss: 0.0445957 | task: 0.0782206 | Gate: 0.0499 | CosSim: 0.9917
+	speed: 0.0844s/iter; left time: 16317.0078s
+	iters: 1100, epoch: 16 | loss: 0.0437772 | task: 0.0767730 | Gate: 0.0499 | CosSim: 0.9915
+	speed: 0.0831s/iter; left time: 16060.9845s
+	iters: 1200, epoch: 16 | loss: 0.0449937 | task: 0.0789491 | Gate: 0.0499 | CosSim: 0.9925
+	speed: 0.0821s/iter; left time: 15862.3479s
+	iters: 1300, epoch: 16 | loss: 0.0433641 | task: 0.0761312 | Gate: 0.0499 | CosSim: 0.9924
+	speed: 0.0818s/iter; left time: 15794.4339s
+	iters: 1400, epoch: 16 | loss: 0.0451492 | task: 0.0790380 | Gate: 0.0499 | CosSim: 0.9928
+	speed: 0.0817s/iter; left time: 15765.5030s
+	iters: 1500, epoch: 16 | loss: 0.0433198 | task: 0.0759108 | Gate: 0.0499 | CosSim: 0.9917
+	speed: 0.0835s/iter; left time: 16110.7447s
+	iters: 1600, epoch: 16 | loss: 0.0444663 | task: 0.0778998 | Gate: 0.0499 | CosSim: 0.9922
+	speed: 0.0837s/iter; left time: 16143.1661s
+	iters: 1700, epoch: 16 | loss: 0.0417085 | task: 0.0731253 | Gate: 0.0499 | CosSim: 0.9925
+	speed: 0.0835s/iter; left time: 16080.7817s
+	iters: 1800, epoch: 16 | loss: 0.0446995 | task: 0.0784933 | Gate: 0.0499 | CosSim: 0.9916
+	speed: 0.0828s/iter; left time: 15948.2845s
+	iters: 1900, epoch: 16 | loss: 0.0453622 | task: 0.0795462 | Gate: 0.0499 | CosSim: 0.9937
+	speed: 0.0824s/iter; left time: 15868.3880s
+	iters: 2000, epoch: 16 | loss: 0.0437899 | task: 0.0768412 | Gate: 0.0499 | CosSim: 0.9911
+	speed: 0.0895s/iter; left time: 17218.9884s
+	iters: 2100, epoch: 16 | loss: 0.0426554 | task: 0.0748490 | Gate: 0.0499 | CosSim: 0.9910
+	speed: 0.0964s/iter; left time: 18545.7626s
+	iters: 2200, epoch: 16 | loss: 0.0445492 | task: 0.0781158 | Gate: 0.0500 | CosSim: 0.9921
+	speed: 0.0938s/iter; left time: 18037.5236s
+Epoch: 16 cost time: 194.923565 s
+Epoch: 16, Steps: 2287 | Train Loss: 0.0438380 Vali Loss: 0.1519393 Test Loss: 0.2036367 | task:0.075889 output:0.001970 feature:0.001563
+EarlyStopping counter: 1 out of 3
+
+>>> SWA (Re)Triggered at Epoch 16! Starting weight averaging using global LR 0.0001...
+	iters: 100, epoch: 17 | loss: 0.0440141 | task: 0.0771027 | Gate: 0.0500 | CosSim: 0.9919
+	speed: 0.5227s/iter; left time: 100368.2571s
+	iters: 200, epoch: 17 | loss: 0.0447895 | task: 0.0784096 | Gate: 0.0500 | CosSim: 0.9921
+	speed: 0.0832s/iter; left time: 15968.4790s
+	iters: 300, epoch: 17 | loss: 0.0433817 | task: 0.0760530 | Gate: 0.0500 | CosSim: 0.9922
+	speed: 0.0826s/iter; left time: 15841.1304s
+	iters: 400, epoch: 17 | loss: 0.0436612 | task: 0.0765669 | Gate: 0.0500 | CosSim: 0.9910
+	speed: 0.0820s/iter; left time: 15715.0504s
+	iters: 500, epoch: 17 | loss: 0.0421543 | task: 0.0739577 | Gate: 0.0500 | CosSim: 0.9919
+	speed: 0.0812s/iter; left time: 15559.2774s
+	iters: 600, epoch: 17 | loss: 0.0427842 | task: 0.0750395 | Gate: 0.0500 | CosSim: 0.9912
+	speed: 0.0817s/iter; left time: 15654.2402s
+	iters: 700, epoch: 17 | loss: 0.0436081 | task: 0.0764813 | Gate: 0.0500 | CosSim: 0.9916
+	speed: 0.0820s/iter; left time: 15687.1489s
+	iters: 800, epoch: 17 | loss: 0.0423419 | task: 0.0742583 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0823s/iter; left time: 15739.8234s
+	iters: 900, epoch: 17 | loss: 0.0442487 | task: 0.0777303 | Gate: 0.0500 | CosSim: 0.9915
+	speed: 0.0825s/iter; left time: 15781.1107s
+	iters: 1000, epoch: 17 | loss: 0.0434544 | task: 0.0762055 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0826s/iter; left time: 15783.3648s
+	iters: 1100, epoch: 17 | loss: 0.0448708 | task: 0.0786104 | Gate: 0.0500 | CosSim: 0.9922
+	speed: 0.0822s/iter; left time: 15694.1526s
+	iters: 1200, epoch: 17 | loss: 0.0427940 | task: 0.0749401 | Gate: 0.0500 | CosSim: 0.9921
+	speed: 0.0819s/iter; left time: 15629.3289s
+	iters: 1300, epoch: 17 | loss: 0.0423506 | task: 0.0743216 | Gate: 0.0500 | CosSim: 0.9921
+	speed: 0.0819s/iter; left time: 15617.7661s
+	iters: 1400, epoch: 17 | loss: 0.0436358 | task: 0.0764110 | Gate: 0.0500 | CosSim: 0.9923
+	speed: 0.0823s/iter; left time: 15694.9065s
+	iters: 1500, epoch: 17 | loss: 0.0422880 | task: 0.0741021 | Gate: 0.0500 | CosSim: 0.9917
+	speed: 0.0825s/iter; left time: 15731.4571s
+	iters: 1600, epoch: 17 | loss: 0.0445249 | task: 0.0780981 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0845s/iter; left time: 16095.5006s
+	iters: 1700, epoch: 17 | loss: 0.0457964 | task: 0.0803150 | Gate: 0.0500 | CosSim: 0.9917
+	speed: 0.0829s/iter; left time: 15779.4661s
+	iters: 1800, epoch: 17 | loss: 0.0435234 | task: 0.0763055 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0821s/iter; left time: 15629.2375s
+	iters: 1900, epoch: 17 | loss: 0.0432383 | task: 0.0758606 | Gate: 0.0500 | CosSim: 0.9910
+	speed: 0.0822s/iter; left time: 15636.8011s
+	iters: 2000, epoch: 17 | loss: 0.0444353 | task: 0.0779917 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0818s/iter; left time: 15559.1375s
+	iters: 2100, epoch: 17 | loss: 0.0437239 | task: 0.0767489 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0819s/iter; left time: 15568.3050s
+	iters: 2200, epoch: 17 | loss: 0.0419121 | task: 0.0734388 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0819s/iter; left time: 15554.9558s
+Epoch: 17 cost time: 188.411559 s
+Best model stored in memory (Vali Loss: 0.148463)
+Epoch: 17, Steps: 2287 | Train Loss: 0.0435826 Vali Loss: 0.1484632 Test Loss: 0.1945853 | task:0.050072 output:0.001391 feature:0.001121
+Validation loss decreased (0.148533 --> 0.148463).  Saving model ...
+
+>>> New best model found at Epoch 17! Resetting SWA average...
+lr_adjust = {17: 2.287679245496101e-05}
+Updating learning rate to 2.287679245496101e-05
+	iters: 100, epoch: 18 | loss: 0.0412409 | task: 0.0723343 | Gate: 0.0500 | CosSim: 0.9925
+	speed: 0.5022s/iter; left time: 95276.8514s
+	iters: 200, epoch: 18 | loss: 0.0421749 | task: 0.0740827 | Gate: 0.0500 | CosSim: 0.9921
+	speed: 0.0875s/iter; left time: 16587.2097s
+	iters: 300, epoch: 18 | loss: 0.0426280 | task: 0.0748515 | Gate: 0.0500 | CosSim: 0.9931
+	speed: 0.0845s/iter; left time: 16012.4375s
+	iters: 400, epoch: 18 | loss: 0.0452524 | task: 0.0795707 | Gate: 0.0500 | CosSim: 0.9919
+	speed: 0.0843s/iter; left time: 15961.2909s
+	iters: 500, epoch: 18 | loss: 0.0434374 | task: 0.0762105 | Gate: 0.0500 | CosSim: 0.9915
+	speed: 0.0842s/iter; left time: 15947.2621s
+	iters: 600, epoch: 18 | loss: 0.0429574 | task: 0.0753784 | Gate: 0.0500 | CosSim: 0.9915
+	speed: 0.0844s/iter; left time: 15979.3466s
+	iters: 700, epoch: 18 | loss: 0.0439261 | task: 0.0772013 | Gate: 0.0500 | CosSim: 0.9922
+	speed: 0.0840s/iter; left time: 15883.1311s
+	iters: 800, epoch: 18 | loss: 0.0442656 | task: 0.0776420 | Gate: 0.0500 | CosSim: 0.9932
+	speed: 0.0837s/iter; left time: 15827.1057s
+	iters: 900, epoch: 18 | loss: 0.0435141 | task: 0.0763837 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0856s/iter; left time: 16164.4253s
+	iters: 1000, epoch: 18 | loss: 0.0429427 | task: 0.0754937 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0859s/iter; left time: 16222.3771s
+	iters: 1100, epoch: 18 | loss: 0.0427255 | task: 0.0749710 | Gate: 0.0500 | CosSim: 0.9920
+	speed: 0.0839s/iter; left time: 15835.6059s
+	iters: 1200, epoch: 18 | loss: 0.0433553 | task: 0.0761154 | Gate: 0.0500 | CosSim: 0.9911
+	speed: 0.0846s/iter; left time: 15955.9849s
+	iters: 1300, epoch: 18 | loss: 0.0424758 | task: 0.0744600 | Gate: 0.0500 | CosSim: 0.9910
+	speed: 0.0835s/iter; left time: 15747.7778s
+	iters: 1400, epoch: 18 | loss: 0.0429474 | task: 0.0753409 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0842s/iter; left time: 15866.3217s
+	iters: 1500, epoch: 18 | loss: 0.0445589 | task: 0.0781805 | Gate: 0.0501 | CosSim: 0.9923
+	speed: 0.0833s/iter; left time: 15690.9190s
+	iters: 1600, epoch: 18 | loss: 0.0441815 | task: 0.0775510 | Gate: 0.0501 | CosSim: 0.9913
+	speed: 0.0824s/iter; left time: 15506.5301s
+	iters: 1700, epoch: 18 | loss: 0.0420847 | task: 0.0738664 | Gate: 0.0501 | CosSim: 0.9912
+	speed: 0.0823s/iter; left time: 15481.6575s
+	iters: 1800, epoch: 18 | loss: 0.0412196 | task: 0.0724019 | Gate: 0.0501 | CosSim: 0.9911
+	speed: 0.0860s/iter; left time: 16173.8317s
+	iters: 1900, epoch: 18 | loss: 0.0439829 | task: 0.0771875 | Gate: 0.0501 | CosSim: 0.9921
+	speed: 0.0848s/iter; left time: 15927.1725s
+	iters: 2000, epoch: 18 | loss: 0.0432225 | task: 0.0758387 | Gate: 0.0501 | CosSim: 0.9910
+	speed: 0.0827s/iter; left time: 15533.2730s
+	iters: 2100, epoch: 18 | loss: 0.0415542 | task: 0.0728704 | Gate: 0.0501 | CosSim: 0.9922
+	speed: 0.0828s/iter; left time: 15535.6333s
+	iters: 2200, epoch: 18 | loss: 0.0432591 | task: 0.0759363 | Gate: 0.0501 | CosSim: 0.9910
+	speed: 0.0838s/iter; left time: 15721.9643s
+Epoch: 18 cost time: 192.327096 s
+Epoch: 18, Steps: 2287 | Train Loss: 0.0431130 Vali Loss: 0.1508225 Test Loss: 0.1926807 | task:0.079695 output:0.001347 feature:0.000855
+EarlyStopping counter: 1 out of 3
+
+>>> SWA (Re)Triggered at Epoch 18! Starting weight averaging using global LR 0.0001...
+	iters: 100, epoch: 19 | loss: 0.0416547 | task: 0.0730830 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.5122s/iter; left time: 95999.3673s
+	iters: 200, epoch: 19 | loss: 0.0424066 | task: 0.0744191 | Gate: 0.0501 | CosSim: 0.9919
+	speed: 0.0861s/iter; left time: 16133.7257s
+	iters: 300, epoch: 19 | loss: 0.0430702 | task: 0.0756166 | Gate: 0.0501 | CosSim: 0.9919
+	speed: 0.0844s/iter; left time: 15800.1731s
+	iters: 400, epoch: 19 | loss: 0.0444360 | task: 0.0780552 | Gate: 0.0501 | CosSim: 0.9921
+	speed: 0.0823s/iter; left time: 15397.4980s
+	iters: 500, epoch: 19 | loss: 0.0433094 | task: 0.0759671 | Gate: 0.0501 | CosSim: 0.9915
+	speed: 0.0847s/iter; left time: 15836.3730s
+	iters: 600, epoch: 19 | loss: 0.0435944 | task: 0.0764268 | Gate: 0.0501 | CosSim: 0.9924
+	speed: 0.0873s/iter; left time: 16315.1572s
+	iters: 700, epoch: 19 | loss: 0.0421717 | task: 0.0739226 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0842s/iter; left time: 15726.7137s
+	iters: 800, epoch: 19 | loss: 0.0442593 | task: 0.0776591 | Gate: 0.0501 | CosSim: 0.9925
+	speed: 0.0857s/iter; left time: 15995.7962s
+	iters: 900, epoch: 19 | loss: 0.0438544 | task: 0.0769881 | Gate: 0.0501 | CosSim: 0.9924
+	speed: 0.0854s/iter; left time: 15931.4110s
+	iters: 1000, epoch: 19 | loss: 0.0417910 | task: 0.0733329 | Gate: 0.0501 | CosSim: 0.9921
+	speed: 0.0827s/iter; left time: 15424.2079s
+	iters: 1100, epoch: 19 | loss: 0.0437136 | task: 0.0765981 | Gate: 0.0501 | CosSim: 0.9916
+	speed: 0.0820s/iter; left time: 15285.9388s
+	iters: 1200, epoch: 19 | loss: 0.0424985 | task: 0.0745798 | Gate: 0.0501 | CosSim: 0.9920
+	speed: 0.0840s/iter; left time: 15650.9376s
+	iters: 1300, epoch: 19 | loss: 0.0451270 | task: 0.0792128 | Gate: 0.0501 | CosSim: 0.9919
+	speed: 0.0812s/iter; left time: 15114.7113s
+	iters: 1400, epoch: 19 | loss: 0.0437873 | task: 0.0768850 | Gate: 0.0501 | CosSim: 0.9917
+	speed: 0.0813s/iter; left time: 15125.4560s
+	iters: 1500, epoch: 19 | loss: 0.0415777 | task: 0.0729990 | Gate: 0.0501 | CosSim: 0.9923
+	speed: 0.0910s/iter; left time: 16924.8461s
+	iters: 1600, epoch: 19 | loss: 0.0412974 | task: 0.0723240 | Gate: 0.0501 | CosSim: 0.9921
+	speed: 0.0929s/iter; left time: 17266.9247s
+	iters: 1700, epoch: 19 | loss: 0.0432524 | task: 0.0758010 | Gate: 0.0501 | CosSim: 0.9914
+	speed: 0.0955s/iter; left time: 17744.0528s
+	iters: 1800, epoch: 19 | loss: 0.0441612 | task: 0.0774097 | Gate: 0.0501 | CosSim: 0.9913
+	speed: 0.0948s/iter; left time: 17603.3242s
+	iters: 1900, epoch: 19 | loss: 0.0423494 | task: 0.0743471 | Gate: 0.0501 | CosSim: 0.9916
+	speed: 0.0930s/iter; left time: 17261.9287s
+	iters: 2000, epoch: 19 | loss: 0.0428792 | task: 0.0752509 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0929s/iter; left time: 17230.0289s
+	iters: 2100, epoch: 19 | loss: 0.0428679 | task: 0.0751987 | Gate: 0.0501 | CosSim: 0.9921
+	speed: 0.0925s/iter; left time: 17149.8664s
+	iters: 2200, epoch: 19 | loss: 0.0439292 | task: 0.0770731 | Gate: 0.0501 | CosSim: 0.9916
+	speed: 0.0948s/iter; left time: 17574.2709s
+Epoch: 19 cost time: 200.644584 s
+Epoch: 19, Steps: 2287 | Train Loss: 0.0430794 Vali Loss: 0.1489441 Test Loss: 0.1896703 | task:0.094888 output:0.002339 feature:0.001734
+EarlyStopping counter: 2 out of 3
+	iters: 100, epoch: 20 | loss: 0.0427018 | task: 0.0748931 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.5473s/iter; left time: 101339.8262s
+	iters: 200, epoch: 20 | loss: 0.0430411 | task: 0.0754758 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0833s/iter; left time: 15408.9313s
+	iters: 300, epoch: 20 | loss: 0.0421290 | task: 0.0738646 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0868s/iter; left time: 16050.3536s
+	iters: 400, epoch: 20 | loss: 0.0428927 | task: 0.0751292 | Gate: 0.0501 | CosSim: 0.9922
+	speed: 0.0949s/iter; left time: 17541.3269s
+	iters: 500, epoch: 20 | loss: 0.0432906 | task: 0.0758829 | Gate: 0.0501 | CosSim: 0.9916
+	speed: 0.0981s/iter; left time: 18116.3660s
+	iters: 600, epoch: 20 | loss: 0.0434041 | task: 0.0761995 | Gate: 0.0501 | CosSim: 0.9919
+	speed: 0.0966s/iter; left time: 17840.3630s
+	iters: 700, epoch: 20 | loss: 0.0422830 | task: 0.0741427 | Gate: 0.0501 | CosSim: 0.9915
+	speed: 0.0969s/iter; left time: 17878.8883s
+	iters: 800, epoch: 20 | loss: 0.0424955 | task: 0.0744331 | Gate: 0.0501 | CosSim: 0.9913
+	speed: 0.0965s/iter; left time: 17806.0497s
+	iters: 900, epoch: 20 | loss: 0.0420412 | task: 0.0735969 | Gate: 0.0501 | CosSim: 0.9913
+	speed: 0.0985s/iter; left time: 18166.7500s
+	iters: 1000, epoch: 20 | loss: 0.0435360 | task: 0.0764372 | Gate: 0.0501 | CosSim: 0.9916
+	speed: 0.0828s/iter; left time: 15264.7563s
+	iters: 1100, epoch: 20 | loss: 0.0429534 | task: 0.0753022 | Gate: 0.0501 | CosSim: 0.9928
+	speed: 0.0824s/iter; left time: 15168.2519s
+	iters: 1200, epoch: 20 | loss: 0.0442253 | task: 0.0775862 | Gate: 0.0501 | CosSim: 0.9910
+	speed: 0.0826s/iter; left time: 15203.8251s
+	iters: 1300, epoch: 20 | loss: 0.0423173 | task: 0.0741589 | Gate: 0.0501 | CosSim: 0.9920
+	speed: 0.0823s/iter; left time: 15131.7091s
+	iters: 1400, epoch: 20 | loss: 0.0433287 | task: 0.0759664 | Gate: 0.0501 | CosSim: 0.9918
+	speed: 0.0827s/iter; left time: 15209.7393s
+	iters: 1500, epoch: 20 | loss: 0.0454765 | task: 0.0798028 | Gate: 0.0501 | CosSim: 0.9922
+	speed: 0.0823s/iter; left time: 15122.2353s
+	iters: 1600, epoch: 20 | loss: 0.0439910 | task: 0.0771400 | Gate: 0.0502 | CosSim: 0.9912
+	speed: 0.0832s/iter; left time: 15275.8224s
+	iters: 1700, epoch: 20 | loss: 0.0423500 | task: 0.0742139 | Gate: 0.0502 | CosSim: 0.9918
+	speed: 0.0860s/iter; left time: 15789.0891s
+	iters: 1800, epoch: 20 | loss: 0.0450831 | task: 0.0790484 | Gate: 0.0502 | CosSim: 0.9913
+	speed: 0.0814s/iter; left time: 14930.6437s
+	iters: 1900, epoch: 20 | loss: 0.0412414 | task: 0.0722334 | Gate: 0.0502 | CosSim: 0.9912
+	speed: 0.0819s/iter; left time: 15009.1988s
+	iters: 2000, epoch: 20 | loss: 0.0425054 | task: 0.0744780 | Gate: 0.0502 | CosSim: 0.9924
+	speed: 0.0812s/iter; left time: 14873.7777s
+	iters: 2100, epoch: 20 | loss: 0.0422956 | task: 0.0743077 | Gate: 0.0502 | CosSim: 0.9914
+	speed: 0.0819s/iter; left time: 14995.1329s
+	iters: 2200, epoch: 20 | loss: 0.0432498 | task: 0.0758827 | Gate: 0.0502 | CosSim: 0.9915
+	speed: 0.0827s/iter; left time: 15139.1645s
+Epoch: 20 cost time: 198.033543 s
+Epoch: 20, Steps: 2287 | Train Loss: 0.0430731 Vali Loss: 0.1514934 Test Loss: 0.1975757 | task:0.069739 output:0.001792 feature:0.000594
+EarlyStopping counter: 3 out of 3
+Early stopping
+average training time: 198.525574 s
+Applying SWA: Updating BN statistics and swapping model weights...
+Max Memory (MB): 3444.42529296875
+>>>>>>>testing : long_term_forecast_CALF_96_96_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el2_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt3_rl0.0001_2026_0_feature0.01_output0.43_train_epochs100_bs16_dr0.1_ld0.1_r16<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+test 10417
+Computational complexity(MACs): 9.5 GMac, Number of parameters: 21.37 M
+test shape: (10417, 96, 137) (10417, 96, 137)
+test shape: (10417, 96, 137) (10417, 96, 137)
+mse:0.19219736754894257, mae:0.22573581337928772
+Predictions saved to ./results/feature0.01_output0.43_mse0.192197.csv (stations=0..9, windows=[0, 96, 192, 288, 384, 480, 576, 672, 768, 864])
