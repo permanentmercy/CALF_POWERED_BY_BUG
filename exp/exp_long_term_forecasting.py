@@ -115,10 +115,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             epoch_time = time.time()
             
             max_memory = 0
+            accumulation_steps = self.args.accumulation_steps
+            model_optim.zero_grad()
+            loss_optim.zero_grad()
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
-                model_optim.zero_grad()
-                loss_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
@@ -133,25 +134,35 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
+                
+                if accumulation_steps > 1:
+                    loss = loss / accumulation_steps
+
+                # Backward pass with AMP if enabled
+                if self.args.use_amp:
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+
+                if (i + 1) % accumulation_steps == 0 or (i + 1) == train_steps:
+                    if self.args.use_amp:
+                        scaler.step(model_optim)
+                        scaler.step(loss_optim)
+                        scaler.update()
+                    else:
+                        model_optim.step()
+                        loss_optim.step()
+                    
+                    model_optim.zero_grad()
+                    loss_optim.zero_grad()
 
                 if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item() * accumulation_steps))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
                     iter_count = 0
                     time_now = time.time()
-
-                # Backward pass with AMP if enabled
-                if self.args.use_amp:
-                    scaler.scale(loss).backward()
-                    scaler.step(model_optim)
-                    scaler.step(loss_optim)
-                    scaler.update()
-                else:
-                    loss.backward()
-                    model_optim.step()
-                    loss_optim.step()
                 
                 current_memory = torch.cuda.max_memory_allocated() / 1024 ** 2
                 max_memory = max(max_memory, current_memory)

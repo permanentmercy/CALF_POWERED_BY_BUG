@@ -53,6 +53,7 @@ fi
 SKIP_COMBOS=("")
 
 # 待加入调整的参数：2个loss系数
+accumulation_steps=1
 seq_len=96
 for feature_w in  $(seq 0.00005 0.000001 0.00008)
 do
@@ -126,6 +127,7 @@ do
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
     --output_loss smooth_l1 \
+    --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
      | tee logs/$model/$data_name/$feature_w'_'$output_w'_'$model'_'$seq_len'_'$pred_len'_'$d_model'_'$n_heads'_'$learning_rate'_'$random_seed.logs
   EXIT_CODE=${PIPESTATUS[0]}

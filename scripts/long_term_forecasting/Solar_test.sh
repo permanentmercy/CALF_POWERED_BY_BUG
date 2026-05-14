@@ -48,6 +48,7 @@ fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
+accumulation_steps=1
 seq_len=96
 for task_w in 0.6
 do
@@ -139,6 +140,7 @@ else:
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
     --output_loss smooth_l1 \
+    --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
      | tee logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}

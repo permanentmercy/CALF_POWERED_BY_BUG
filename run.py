@@ -83,6 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
     parser.add_argument('--des', type=str, default='test', help='exp description')
     parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
+    parser.add_argument('--accumulation_steps', type=int, default=1, help='gradient accumulation steps')
     parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
     
     parser.add_argument('--task_loss', type=str, default='l1', help='task loss function')
