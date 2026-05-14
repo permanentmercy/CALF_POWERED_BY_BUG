@@ -48,11 +48,11 @@ fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
-accumulation_steps=1
+accumulation_steps=4
 seq_len=96
-for task_w in 0.6
+for task_w in 0.589
 do
-for feature_w in 0.0005
+for feature_w in 0.01
 do
 for d_model in 768
 do

@@ -69,6 +69,25 @@ class Encoder_PCA(nn.Module):
 
         return x_time, x
 
+class TQ_OutputHead(nn.Module):
+    def __init__(self, d_model, output_dim, dropout):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.GELU(),
+            nn.Linear(d_model, d_model),
+            nn.GELU(),
+        )
+        self.output_proj = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(d_model, output_dim)
+        )
+
+    def forward(self, x):
+        # x: (batch, seq, d_model)
+        h = self.mlp(x)
+        return self.output_proj(h + x)
+
 class Model(nn.Module):
     def __init__(self, configs, device):
         super(Model, self).__init__()
@@ -120,13 +139,13 @@ class Model(nn.Module):
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.out_layer = nn.Linear(configs.d_model, configs.pred_len)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.pred_len, configs.dropout)
         elif self.task_name == 'classification':
             self.out_layer = nn.Linear(configs.d_model * configs.enc_in, configs.num_class)
         elif self.task_name == 'imputation':
-            self.out_layer = nn.Linear(configs.d_model, configs.seq_len)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
         elif self.task_name == 'anomaly_detection':
-            self.out_layer = nn.Linear(configs.d_model, configs.seq_len)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
