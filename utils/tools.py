@@ -25,7 +25,9 @@ def adjust_learning_rate(optimizer, epoch, args):
     if epoch in lr_adjust.keys():
         lr = lr_adjust[epoch]
         for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
+            # 使用 param_group 中定义的 lr_factor 保持不同组之间的比例
+            factor = param_group.get('lr_factor', 1.0)
+            param_group['lr'] = lr * factor
         print('Updating learning rate to {}'.format(lr))
 
 

@@ -54,7 +54,7 @@ gate_lr_factor=10
 accumulation_steps=8
 swa_loss_threshold=0.04
 e_layers=3
-for task_w in 0.5601
+for task_w in 0.559
 do
 for feature_w in 0.01
 do

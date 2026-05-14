@@ -76,9 +76,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         other_params = [p for p in self.model.parameters() if p.requires_grad and id(p) not in gate_ids and id(p) not in proj_ids]
         
         param_groups = [
-            {"params": other_params, "lr": self.args.learning_rate},
-            {"params": proj_params, "lr": self.args.learning_rate * 2.0}, # 恢复双倍更新的强度
-            {"params": gate_params, "lr": self.args.learning_rate * self.args.gate_lr_factor} # 正确使用 gate_lr_factor
+            {"params": other_params, "lr": self.args.learning_rate, "lr_factor": 1.0},
+            {"params": proj_params, "lr": self.args.learning_rate * 2.0, "lr_factor": 2.0}, # 恢复双倍更新的强度
+            {"params": gate_params, "lr": self.args.learning_rate * self.args.gate_lr_factor, "lr_factor": self.args.gate_lr_factor} # 正确使用 gate_lr_factor
         ]
         # 过滤掉空的参数组，防止优化器报错
         param_groups = [pg for pg in param_groups if len(pg['params']) > 0]
