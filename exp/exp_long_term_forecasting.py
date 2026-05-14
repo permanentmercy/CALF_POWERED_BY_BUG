@@ -1,6 +1,7 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, visual,test_params_flop
+from torch.optim.swa_utils import AveragedModel, update_bn
+from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric
 from utils.cmLoss import cmLoss
 import torch
@@ -110,6 +111,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
+            
+            # SWA related initialization
+            if epoch == 0:
+                swa_model = None
+                self.swa_n = 0
+                self.swa_enabled = False
 
             self.model.train()
             epoch_time = time.time()
@@ -200,6 +207,32 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                             print(f"Best model saved to disk: {path}/checkpoint.pth (Vali Loss: {best_val:.6f})")
                     except Exception:
                         pass
+                
+                # Custom SWA Logic
+                # Trigger: Enable SWA when early stopping counter starts
+                if not self.swa_enabled and early_stopping.counter >= 1:
+                    self.swa_enabled = True
+                    swa_model = AveragedModel(self.model, device=self.device)
+                    self.swa_n = 0
+                    if early_stopping.verbose:
+                        print(">>> SWA Enabled (Early stopping counter >= 1)")
+
+                if self.swa_enabled:
+                    if vali_loss < best_val:
+                        # Reset SWA if a new best is found after SWA started
+                        swa_model = AveragedModel(self.model, device=self.device)
+                        self.swa_n = 1
+                        if early_stopping.verbose:
+                            print(f">>> SWA Reset: New best Vali Loss found ({vali_loss:.6f})")
+                    elif vali_loss < best_val * 1.04:
+                        # Only average if within 4% of best_val
+                        swa_model.update_parameters(self.model)
+                        self.swa_n += 1
+                        if early_stopping.verbose:
+                            print(f">>> SWA Updated: Current model included (Total: {self.swa_n})")
+                    else:
+                        if early_stopping.verbose:
+                            print(f">>> SWA Skipped: Vali Loss {vali_loss:.6f} > 1.04 * Best {best_val:.6f}")
 
             # Print training progress with or without test loss
             if test_loss is not None:
@@ -220,10 +253,23 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 print("Early stopping")
                 break
         
+        # Final SWA Processing
+        if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+            print(f">>> Finalizing SWA: Averaged {self.swa_n} models.")
+            # Update BN statistics (standard SWA practice)
+            update_bn(train_loader, swa_model, device=self.device)
+            self.model = swa_model.module # Extract the averaged model
+            # Save the final SWA model
+            torch.save(self.model.state_dict(), path + '/' + 'checkpoint_swa.pth')
+            print(f">>> SWA Model saved to {path}/checkpoint_swa.pth")
+        
         print("average training time: {:4f} s".format(np.average(epoch_times)))
         
-        # load best model: prefer in-memory if available
-        if getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
+        # load best model: prefer SWA, then in-memory best, then checkpoint.pth
+        if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+            print(">>> Using SWA averaged model for testing.")
+            # self.model already contains SWA weights from the finalization step
+        elif getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
             self.model.load_state_dict(self.best_model_state)
         else:
             best_model_path = path + '/' + 'checkpoint.pth'
@@ -282,25 +328,48 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         return total_loss
 
-    def test(self, setting, test=0):
+    def test(self, setting, test=0, swa_tag=""):
+        # If called from run.py (test=0), dispatch to both Best and SWA tests
+        if test == 0 and swa_tag == "":
+            print(">>> Initiating Dual-Model Testing...")
+            # 1. Test Best Single Model
+            self.test(setting, test=1, swa_tag="_best")
+            
+            # 2. Test SWA Model (if enabled)
+            if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+                self.test(setting, test=1, swa_tag="_swa")
+            return
+
         # zero shot
         if self.args.zero_shot:
             self.args.data = self.args.target_data
             self.args.data_path = f"{self.args.data}.csv"
 
         test_data, test_loader = self._get_data(flag='test')
+        
         if test:
-            print('loading model')
-            # prefer loading best model from memory if requested and available
-            if getattr(self.args, 'bestmodel', False) and getattr(self, 'best_model_state', None) is not None:
-                print('Loading best model from memory...')
-                self.model.load_state_dict(self.best_model_state)
-            else:
-                best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
-                if os.path.exists(best_model_path):
-                    self.model.load_state_dict(torch.load(best_model_path))
+            print(f'loading model for {swa_tag if swa_tag else "best"} test')
+            if swa_tag == "_swa":
+                swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
+                if os.path.exists(swa_path):
+                    print(f'Loading SWA model from {swa_path}...')
+                    self.model.load_state_dict(torch.load(swa_path))
                 else:
-                    print(f"No checkpoint found at {best_model_path}; using current model state.")
+                    print("SWA checkpoint not found!")
+            elif swa_tag == "_best" or (getattr(self.args, 'bestmodel', False) and getattr(self, 'best_model_state', None) is not None):
+                # Try memory first for best model, then disk
+                if getattr(self, 'best_model_state', None) is not None:
+                    print('Loading best model from memory...')
+                    self.model.load_state_dict(self.best_model_state)
+                else:
+                    best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
+                    if os.path.exists(best_model_path):
+                        print(f'Loading best model from disk: {best_model_path}...')
+                        self.model.load_state_dict(torch.load(best_model_path))
+                    else:
+                        print(f"Best model checkpoint not found!")
+            else:
+                print("Using current model state for test.")
 
         preds = []
         trues = []
@@ -358,19 +427,27 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
         f = open("result_long_term_forecast.txt", 'a')
         f.write(setting + "  \n")
-        f.write('mse:{}, mae:{},train_epoch:{}'.format(mse, mae, self.best_model_epoch))
+        f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
         f.write('\n')
         f.close()
 
-        # np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
-        # np.save(folder_path + 'pred.npy', preds)
-        # np.save(folder_path + 'true.npy', trues)
+        # Custom filename format: featurew_outputw_mse_mae
+        result_name = 'fw{}_ow{}_mse{:.4f}_mae{:.4f}{}'.format(
+            self.args.feature_w, self.args.output_w, mse, mae, swa_tag
+        )
+
+        folder_path = './results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        np.save(folder_path + result_name + '_metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+        np.save(folder_path + result_name + '_pred.npy', preds)
+        np.save(folder_path + result_name + '_true.npy', trues)
 
         # ---- Save predictions and ground truth to CSV (Simplified and Sampled) ----
         def to_numpy(arr):
@@ -403,9 +480,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         true_cols = [f'station_{f}_true' for f in range(n_features)]
         columns = ['window', 'step'] + pred_cols + true_cols
 
-        # 3. 构造简短的文件名
-        csv_name = f"fw{self.args.feature_w}_ow{self.args.output_w}_mse{mse:.4f}_mae{mae:.4f}.csv"
-        csv_path = os.path.join(folder_path, csv_name)
+        # 3. 构造文件名
+        csv_path = os.path.join(folder_path, f"{result_name}.csv")
         os.makedirs(folder_path, exist_ok=True)
 
         steps_template = np.arange(pred_len)
@@ -429,7 +505,6 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         )
 
         df.to_csv(csv_path, index=False)
-
-        print(f'Sampled predictions saved to {csv_path}')
+        print(f'>>> Test results saved to: {csv_path}')
         
         return

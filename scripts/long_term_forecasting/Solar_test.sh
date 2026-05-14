@@ -50,7 +50,7 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-for task_w in 0.7
+for task_w in 0.69
 do
 for feature_w in 0.01
 do

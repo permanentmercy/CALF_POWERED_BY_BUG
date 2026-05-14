@@ -1,1 +1,1 @@
-python plot_predictions.py ./results/feature0.01_output0.43_mse0.192197.csv --station 5 --n_windows 10 --max_windows 1 --concat 1
+python plot_predictions.py ./results/long_term_forecast_CALF_96_96_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el2_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.01_output0.29_train_epochs100_bs16_dr0.1_ld0.1_r8/fw0.01_ow0.29_mse0.1878_mae0.2246.csv --station 5 --n_windows 10 --max_windows 1 --concat 0

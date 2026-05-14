@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import gc
+import os
 from einops import rearrange
 from peft import LoraConfig, TaskType, get_peft_model
 from models.GPT2_arch import AccustumGPT2Model
@@ -106,8 +109,16 @@ class Model(nn.Module):
         self.gpt2 = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
         self.gpt2_text = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
 
-        self.gpt2.h = self.gpt2.h[:configs.gpt_layers]#通过gpt_layers裁剪层数
-        self.gpt2_text.h = self.gpt2_text.h[:configs.gpt_layers]
+        # 物理裁剪层数并释放显存
+        for gpt in [self.gpt2, self.gpt2_text]:
+            if len(gpt.h) > configs.gpt_layers:
+                print(f">>> Pruning GPT-2: keeping {configs.gpt_layers} layers, deleting {len(gpt.h) - configs.gpt_layers} layers.")
+                gpt.h = nn.ModuleList([gpt.h[i] for i in range(configs.gpt_layers)])
+        
+        # 强制垃圾回收
+        gc.collect()
+        torch.cuda.empty_cache()
+
         self.gpt2 = get_peft_model(self.gpt2, peft_config)#LORA微调参数传入
         
         word_embedding = torch.tensor(torch.load(configs.word_embedding_path)).to(device=device)
