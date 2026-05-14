@@ -110,6 +110,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
+            train_f_loss = []
+            train_o_loss = []
+            train_t_loss = []
 
             self.model.train()
             epoch_time = time.time()
@@ -134,6 +137,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
+                train_f_loss.append(criterion.last_feature_loss)
+                train_o_loss.append(criterion.last_output_loss)
+                train_t_loss.append(criterion.last_task_loss)
                 
                 if accumulation_steps > 1:
                     loss = loss / accumulation_steps
@@ -157,7 +163,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     loss_optim.zero_grad()
 
                 if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item() * accumulation_steps))
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f} | task_loss: {3:.7f} | feature_loss: {4:.7f} | output_loss: {5:.7f}".format(
+                        i + 1, epoch + 1, loss.item() * accumulation_steps, 
+                        criterion.last_task_loss, criterion.last_feature_loss, criterion.last_output_loss))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
@@ -168,11 +176,17 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 max_memory = max(max_memory, current_memory)
             
             t = time.time() - epoch_time
-            print("Epoch: {} cost time: {:4f} s".format(epoch + 1, t))
+            print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+            train_loss = np.average(train_loss)
+            avg_f_loss = np.average(train_f_loss)
+            avg_o_loss = np.average(train_o_loss)
+            avg_t_loss = np.average(train_t_loss)
+            
+            print("Epoch: {0} | Avg Total Loss: {1:.7f} | Avg Task Loss: {2:.7f} | Avg Feature Loss: {3:.7f} | Avg Output Loss: {4:.7f}".format(
+                epoch + 1, train_loss, avg_t_loss, avg_f_loss, avg_o_loss))
+            
             epoch_times.append(t)
             
-            train_loss = np.average(train_loss)
-
             vali_loss = self.vali(vali_data, vali_loader, criterion)
             
             # Evaluate test set only if eval_test_every_epoch is True
