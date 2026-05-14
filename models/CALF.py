@@ -35,8 +35,9 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False):
         super(Encoder_PCA, self).__init__()
+        self.use_tq_gate = use_tq_gate
         self.linear = nn.Linear(input_dim, hidden_dim)
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
@@ -45,6 +46,10 @@ class Encoder_PCA(nn.Module):
         
         # 注册为 buffer，确保其随模型移动到 GPU 且不被视为参数
         self.register_buffer('word_embedding_base', word_embedding.T)
+
+        # 门控参数：控制时间信息的注入强度，初始化为0 (sigmoid后为0.5)
+        if self.use_tq_gate:
+            self.tq_gate = nn.Parameter(torch.zeros(1))
 
     def forward(self, x, cycle_index=None):
         B = x.shape[0]
@@ -68,7 +73,14 @@ class Encoder_PCA(nn.Module):
 
         x = x.transpose(0, 1)
 
-        return x_time, x
+        if self.use_tq_gate:
+            # 门控融合：(1-w) * 原始特征 + w * TQ增强特征
+            gate_weight = torch.sigmoid(self.tq_gate)
+            x_fused = (1 - gate_weight) * x_time + gate_weight * x
+            return x_time, x_fused
+        else:
+            # 之前的老逻辑：直接使用 TQ 增强后的特征
+            return x_time, x
 
 class TQ_OutputHead(nn.Module):
     def __init__(self, d_model, output_dim, dropout):
@@ -146,6 +158,7 @@ class Model(nn.Module):
             hidden_dim=configs.d_model,    # Transformer 的 d_model
             dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度（来自脚本）
             cycle_len=configs.cycle,         # TQ 机制的循环长度
+            use_tq_gate=configs.use_tq_gate  # 是否使用门控
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':

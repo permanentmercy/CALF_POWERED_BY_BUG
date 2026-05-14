@@ -224,6 +224,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             else:
                 adjust_learning_rate(model_optim, epoch + 1, self.args)
 
+            # 打印 TQ 门控值，观察模型对时间信息的依赖程度
+            if hasattr(self.model.in_layer, 'tq_gate'):
+                tq_weight = torch.sigmoid(self.model.in_layer.tq_gate).item()
+                print(f">>> [Analysis] TQ Gate Weight: {tq_weight:.4f} (1.0 = Max Reliance on TQ)")
+
             early_stopping(vali_loss, self.model, path)
 
             # Custom SWA Logic (Moved here to capture updated counter)

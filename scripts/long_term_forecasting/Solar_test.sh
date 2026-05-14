@@ -50,7 +50,7 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-for task_w in 0.63
+for task_w in 0.75
 do
 for feature_w in 0.01
 do
@@ -135,6 +135,7 @@ else:
     --task_w $task_w \
     --bestmodel \
     --use_amp \
+    --use_tq_gate 1 \
     --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \

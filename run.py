@@ -136,6 +136,7 @@ if __name__ == '__main__':
 
     # TQNet cycle
     parser.add_argument('--cycle', type=int, default=24, help='cycle length for TQ mechanism')
+    parser.add_argument('--use_tq_gate', type=int, default=0, help='whether to use learnable gate for TQ injection')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
