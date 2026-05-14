@@ -114,6 +114,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
+            train_task_loss = []
+            train_output_loss = []
+            train_feature_loss = []
             
             # SWA related initialization
             if epoch == 0:
@@ -139,12 +142,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with autocast():
                         outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
-                        loss = criterion(outputs_dict, batch_y)
+                        loss, t_loss, o_loss, f_loss = criterion(outputs_dict, batch_y)
                 else:
                     outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
-                    loss = criterion(outputs_dict, batch_y)
+                    loss, t_loss, o_loss, f_loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
+                train_task_loss.append(t_loss.item())
+                train_output_loss.append(o_loss.item())
+                train_feature_loss.append(f_loss.item())
                 
                 if accumulation_steps > 1:
                     loss = loss / accumulation_steps
@@ -168,7 +174,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     loss_optim.zero_grad()
 
                 if (i + 1) % 100 == 0:
-                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item() * accumulation_steps))
+                    # 使用当前 Epoch 已产生的 Loss 列表计算平均值，方便观察趋势
+                    avg_l = np.average(train_loss)
+                    avg_t = np.average(train_task_loss)
+                    avg_o = np.average(train_output_loss)
+                    avg_f = np.average(train_feature_loss)
+                    
+                    print("\titers: {0}, epoch: {1} | AvgLoss: {2:.7f} (T:{3:.4f} O:{4:.4f} F:{5:.4f})".format(
+                        i + 1, epoch + 1, avg_l, avg_t, avg_o, avg_f
+                    ))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
@@ -181,6 +195,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             t = time.time() - epoch_time
             print("Epoch: {} cost time: {}".format(epoch + 1, t))
             train_loss = np.average(train_loss)
+            avg_task_loss = np.average(train_task_loss)
+            avg_output_loss = np.average(train_output_loss)
+            avg_feat_loss = np.average(train_feature_loss)
             
             epoch_times.append(t)
             
@@ -215,11 +232,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             # Print training progress with or without test loss
             if test_loss is not None:
-                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss, test_loss))
+                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f}) Vali: {6:.7f} Test: {7:.7f}".format(
+                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, vali_loss, test_loss))
             else:
-                print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
-                    epoch + 1, train_steps, train_loss, vali_loss))
+                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f}) Vali: {6:.7f}".format(
+                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, vali_loss))
 
             if self.args.cos:
                 scheduler.step()

@@ -1,1 +1,0 @@
-python plot_predictions.py ./results/Solar/fw0.01_ow0.25_mse0.1863_mae0.2232_best.csv --station 5 --n_windows 10 --max_windows 1 --concat 0 --inverse 1

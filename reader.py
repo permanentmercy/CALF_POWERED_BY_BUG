@@ -247,7 +247,14 @@ class ResultViewer:
                         df[true_col] = df[true_col] * std + mean
 
                 unique_wins = sorted(df["window"].unique())[:n_windows]
-                short_name = os.path.basename(file_path).split('_mse')[0]
+                
+                # 从文件名提取 MSE 数值
+                try:
+                    mse_val = os.path.basename(file_path).split('mse')[1].split('_')[0]
+                    label_name = f"MSE: {mse_val}"
+                    if "_swa" in file_path: label_name += " (SWA)"
+                except:
+                    label_name = os.path.basename(file_path)[:15]
 
                 if concat:
                     if first_file:
@@ -264,7 +271,7 @@ class ResultViewer:
                     
                     # 如果不是单纯为了画 GT，才画预测线
                     if not is_empty_selection:
-                        ax.plot(all_pred, label=f"Pred: {short_name}", color=colors[i%10], linestyle="--")
+                        ax.plot(all_pred, label=label_name, color=colors[i%10], linestyle="--")
                 else:
                     if first_file:
                         axes = self.fig.subplots(len(unique_wins), 1, sharex=True)
@@ -276,7 +283,7 @@ class ResultViewer:
                             axes[j].plot(w_data[true_col].values, label="GT", color="black", linewidth=1.5, alpha=0.4)
                         
                         if not is_empty_selection:
-                            axes[j].plot(w_data[pred_col].values, label=short_name, color=colors[i%10], linestyle="--")
+                            axes[j].plot(w_data[pred_col].values, label=label_name, color=colors[i%10], linestyle="--")
                         
                         if i == 0: axes[j].set_title(f"Window {w}", fontsize=8)
 

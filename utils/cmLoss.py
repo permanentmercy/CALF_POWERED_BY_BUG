@@ -78,4 +78,4 @@ class cmLoss(nn.Module):
         
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
         
-        return total_loss
+        return total_loss, task_loss, output_loss, feature_loss
