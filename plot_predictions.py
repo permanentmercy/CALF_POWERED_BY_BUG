@@ -19,7 +19,7 @@ import warnings
 DEFAULT_MAX_WINDOWS = 9
 
 
-def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max_windows=DEFAULT_MAX_WINDOWS):
+def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max_windows=DEFAULT_MAX_WINDOWS, concat=False):
     # 1. 仅读取需要的列（大幅减少 IO 和内存）
     use_cols = ["window", "step", f"station_{station_id}_pred", f"station_{station_id}_true"]
     try:
@@ -37,55 +37,87 @@ def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max
     pred_col = f"station_{station_id}_pred"
     true_col = f"station_{station_id}_true"
 
-    # 2. 确定实际窗口数，并限制到合理范围
-    max_window = int(df["window"].max()) + 1
+    # 2. 确定实际窗口列表，并限制到合理范围
+    unique_windows = sorted(df["window"].unique())
     if n_windows is None:
-        n_windows = min(max_window, max_windows)
-        if max_window > max_windows:
-            print(f"Total windows = {max_window}, limiting plot to first {max_windows}. "
+        n_windows = min(len(unique_windows), max_windows)
+        if len(unique_windows) > max_windows:
+            print(f"Total windows = {len(unique_windows)}, limiting plot to first {max_windows}. "
                   f"Use --n_windows to change, or --max_windows to adjust limit.")
     else:
-        n_windows = min(n_windows, max_window)
+        n_windows = min(n_windows, len(unique_windows))
+    
+    target_windows = unique_windows[:n_windows]
 
-    # 3. 创建子图（行数可控，不会爆炸）
-    n_cols = 1
-    n_rows = n_windows
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 2.5 * n_rows), squeeze=False)
-    axes = axes.flatten()
+    # 3. 创建画布
+    if concat:
+        fig, ax = plt.subplots(figsize=(15, 5))
+        all_true = []
+        all_pred = []
+        all_steps = []
+        offset = 0
+        
+        for win_id in target_windows:
+            win_data = df[df["window"] == win_id].sort_values("step")
+            true_vals = win_data[true_col].values
+            pred_vals = win_data[pred_col].values
+            steps = win_data["step"].values
+            
+            all_true.append(true_vals)
+            all_pred.append(pred_vals)
+            # 这里的 steps 是相对偏移，累加 offset 实现连续绘制
+            all_steps.append(np.arange(len(steps)) + offset)
+            offset += len(steps)
+            
+        all_true = np.concatenate(all_true)
+        all_pred = np.concatenate(all_pred)
+        all_steps = np.concatenate(all_steps)
 
-    # 预测长度（假设所有窗口同一个 horizon）
-    pred_len = int(df[df["window"] == 0]["step"].max()) + 1
-
-    for idx in range(n_windows):
-        ax = axes[idx]
-        win_data = df[df["window"] == idx].sort_values("step")
-
-        steps = win_data["step"].values
-        true_vals = win_data[true_col].values
-        pred_vals = win_data[pred_col].values
-
-        # 4. 绘图：不画 marker 点，仅用线条（速度大幅提升）
-        ax.plot(steps, true_vals, label="True", color="blue", linewidth=1.5)
-        ax.plot(steps, pred_vals, label="Predicted", color="red", linewidth=1.5)
-        ax.fill_between(steps, true_vals, pred_vals, alpha=0.15, color="gray")
-
-        ax.set_title(f"Window {idx} — Station {station_id}", fontsize=10)
-        ax.set_xlabel("Time step in prediction horizon")
+        ax.plot(all_steps, all_true, label="True", color="blue", linewidth=1.5)
+        ax.plot(all_steps, all_pred, label="Predicted", color="red", linewidth=1.5)
+        ax.fill_between(all_steps, all_true, all_pred, alpha=0.15, color="gray")
+        
+        ax.set_title(f"Station {station_id} — Concatenated {n_windows} Windows", fontsize=12)
+        ax.set_xlabel("Cumulative Time Steps")
         ax.set_ylabel("Value")
-        ax.legend(fontsize=8)
+        ax.legend()
         ax.grid(True, alpha=0.3)
+    else:
+        n_cols = 1
+        n_rows = n_windows
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 2.5 * n_rows), squeeze=False)
+        axes = axes.flatten()
+
+        for idx, win_id in enumerate(target_windows):
+            ax = axes[idx]
+            win_data = df[df["window"] == win_id].sort_values("step")
+
+            steps = win_data["step"].values
+            true_vals = win_data[true_col].values
+            pred_vals = win_data[pred_col].values
+
+            # 4. 绘图：不画 marker 点，仅用线条
+            ax.plot(steps, true_vals, label="True", color="blue", linewidth=1.5)
+            ax.plot(steps, pred_vals, label="Predicted", color="red", linewidth=1.5)
+            ax.fill_between(steps, true_vals, pred_vals, alpha=0.15, color="gray")
+
+            ax.set_title(f"Window {win_id} — Station {station_id}", fontsize=10)
+            ax.set_xlabel("Time step in prediction horizon")
+            ax.set_ylabel("Value")
+            ax.legend(fontsize=8)
+            ax.grid(True, alpha=0.3)
 
     fig.suptitle(f"Station {station_id} — Prediction vs Ground Truth ({n_windows} windows)",
                  fontsize=13, fontweight="bold")
     plt.tight_layout()
 
-    # 5. 保存或显示（优先保存文件，避免 GUI 开销）
+    # 5. 保存或显示
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches='tight')
         print(f"Figure saved to {output_path}")
     else:
         plt.show()
-    plt.close(fig)  # 释放内存
+    plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -96,8 +128,10 @@ if __name__ == "__main__":
                         help="Number of windows to plot (default: up to max_windows)")
     parser.add_argument("--max_windows", type=int, default=DEFAULT_MAX_WINDOWS,
                         help="Safety limit for windows if --n_windows is not set")
+    parser.add_argument("--concat", type=int, default=0, choices=[0, 1],
+                        help="Whether to concatenate windows into a single plot (1 for True, 0 for False)")
     parser.add_argument("--output", type=str, default=None,
                         help="Save figure to file instead of showing (e.g., plot.png)")
     args = parser.parse_args()
 
-    plot_predictions(args.csv_path, args.station, args.n_windows, args.output, args.max_windows)
+    plot_predictions(args.csv_path, args.station, args.n_windows, args.output, args.max_windows, concat=bool(args.concat))

@@ -358,7 +358,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # np.save(folder_path + 'pred.npy', preds)
         # np.save(folder_path + 'true.npy', trues)
 
-        # ---- Save predictions and ground truth to CSV (memory-friendly) ----
+        # ---- Save predictions and ground truth to CSV (Simplified and Sampled) ----
         def to_numpy(arr):
             if hasattr(arr, 'cpu'):          # PyTorch tensor
                 arr = arr.detach().cpu().numpy()
@@ -372,52 +372,50 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if preds_np.ndim != 3 or trues_np.ndim != 3:
             raise ValueError("preds and trues must be 3D arrays")
 
-        num_windows, pred_len, n_features = preds_np.shape
+        num_windows_total, pred_len, n_features_total = preds_np.shape
+        
+        # 1. 限制站点数量：取前10个
+        n_features = min(10, n_features_total)
+        preds_np = preds_np[:, :, :n_features]
+        trues_np = trues_np[:, :, :n_features]
+        
+        # 2. 限制窗口数量：取10个窗口，每个窗口间隔 pred_len
+        indices = [i * pred_len for i in range(10) if i * pred_len < num_windows_total]
+        preds_np = preds_np[indices]
+        trues_np = trues_np[indices]
+        num_windows = len(indices)
+
         pred_cols = [f'station_{f}_pred' for f in range(n_features)]
         true_cols = [f'station_{f}_true' for f in range(n_features)]
         columns = ['window', 'step'] + pred_cols + true_cols
 
+        # 3. 构造简短的文件名
+        csv_name = f"fw{self.args.feature_w}_ow{self.args.output_w}_mse{mse:.4f}_mae{mae:.4f}.csv"
+        csv_path = os.path.join(folder_path, csv_name)
         os.makedirs(folder_path, exist_ok=True)
-        csv_path = os.path.join(folder_path, 'predictions.csv')
 
         steps_template = np.arange(pred_len)
-        chunk_size = 100
-        first_chunk = True
+        
+        # 由于现在数据量很小 (最多 10x10 个特征)，直接一次性写入
+        total_rows = num_windows * pred_len
+        p_flat = preds_np.reshape(total_rows, n_features)
+        t_flat = trues_np.reshape(total_rows, n_features)
 
-        for start in range(0, num_windows, chunk_size):
-            end = min(start + chunk_size, num_windows)
-            batch_windows = slice(start, end)
-            batch_num = end - start
-            total_rows = batch_num * pred_len
+        windows_arr = np.repeat(np.array(indices), pred_len)
+        steps_arr = np.tile(steps_template, num_windows)
 
-            p_flat = preds_np[batch_windows].reshape(total_rows, n_features)
-            t_flat = trues_np[batch_windows].reshape(total_rows, n_features)
+        df = pd.DataFrame(
+            dict(
+                window=windows_arr,
+                step=steps_arr,
+                **{col: p_flat[:, f] for f, col in enumerate(pred_cols)},
+                **{col: t_flat[:, f] for f, col in enumerate(true_cols)},
+            ),
+            columns=columns,
+        )
 
-            windows_arr = np.repeat(np.arange(start, end), pred_len)
-            steps_arr = np.tile(steps_template, batch_num)
+        df.to_csv(csv_path, index=False)
 
-            df_chunk = pd.DataFrame(
-                dict(
-                    window=windows_arr,
-                    step=steps_arr,
-                    **{col: p_flat[:, f] for f, col in enumerate(pred_cols)},
-                    **{col: t_flat[:, f] for f, col in enumerate(true_cols)},
-                ),
-                columns=columns,
-            )
-
-            df_chunk.to_csv(
-                csv_path,
-                mode='w' if first_chunk else 'a',
-                header=first_chunk,
-                index=False,
-            )
-            first_chunk = False
-
-        print(f'Predictions saved to {csv_path}')
-        print(f"openning{csv_path}stathion_5")
-        from plot_predictions import plot_predictions
-        plot_predictions(csv_path, station_id=5, n_windows=3, max_windows=1)
-        # ---- End CSV save ----
-
+        print(f'Sampled predictions saved to {csv_path}')
+        
         return

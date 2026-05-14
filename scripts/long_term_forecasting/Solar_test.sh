@@ -49,7 +49,7 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
 seq_len=96
-for task_w in 0.9
+for task_w in 0.6
 do
 for feature_w in 0.0005
 do
@@ -119,7 +119,7 @@ else:
     --dropout 0.1 \
     --enc_in 137 \
     --c_out 137 \
-    --gpt_layers 3 \
+    --gpt_layers 1 \
     --itr 1 \
     --model $model \
     --cos 1 \
