@@ -31,11 +31,6 @@ class cmLoss(nn.Module):
         
         self.task_name = task_name
 
-        # For tracking individual loss components
-        self.last_feature_loss = 0
-        self.last_output_loss = 0
-        self.last_task_loss = 0
-
     def forward(self, outputs, batch_y, in_sample=None, freq_map=None, batch_y_mark=None):
         outputs_text, outputs_time, intermidiate_feat_time, intermidiate_feat_text = (
             outputs["outputs_text"],
@@ -82,10 +77,5 @@ class cmLoss(nn.Module):
             task_loss = self.task_loss(outputs_time, batch_y)
         
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
-        
-        # Store individual components for logging
-        self.last_feature_loss = feature_loss.item()
-        self.last_output_loss = output_loss.item()
-        self.last_task_loss = task_loss.item()
         
         return total_loss

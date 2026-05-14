@@ -62,7 +62,7 @@ for random_seed in  2026
 do
 for pred_len in 96 
 do
-  learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size))")
+  learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
   # 由 task_w 和 feature_w 计算 output_w
   output_w=$(python -c "

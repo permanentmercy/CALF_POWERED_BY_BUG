@@ -38,40 +38,29 @@ class Encoder_PCA(nn.Module):
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
 
-        # 让脚本里的 d_ff（dim_feedforward）真正影响 Transformer 前馈网络维度
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,                 # 注意力层的输入维度
-            nhead=num_heads,                   # 多头注意力头数
-            dim_feedforward=dim_feedforward,  # Transformer FFN 中间维度（由 d_ff 控制）
-        )
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_encoder_layers)
-
         self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads)
         
-        self.word_embedding = word_embedding.T
+        # 注册为 buffer，确保其随模型移动到 GPU 且不被视为参数
+        self.register_buffer('word_embedding_base', word_embedding.T)
 
     def forward(self, x, cycle_index=None):
         B = x.shape[0]
-        if self.word_embedding.ndim == 2:
-            self.word_embedding = self.word_embedding.repeat(B, 1, 1)
-        elif self.word_embedding.shape[0] != B:
-            self.word_embedding = self.word_embedding[0].repeat(B, 1, 1)
+        
+        # 使用 expand 得到 (B, Prototypes, Hidden) 的视图，这不会占用额外显存
+        # 且能确保后续 MHA 接收到正确的 Batch 维度
+        w_embed = self.word_embedding_base.unsqueeze(0).expand(B, -1, -1)
 
         if cycle_index is not None:
             tq = self.temporal_query[cycle_index] # (B, 768)
-            # Add temporal information to the prototypes (word_embedding is B x Prototypes x 768)
-            word_embedding = self.word_embedding + tq.unsqueeze(1)
-        else:
-            word_embedding = self.word_embedding
+            # 此时 w_embed 和 tq.unsqueeze(1) 维度完全对齐 (B, 500, 768) 和 (B, 1, 768)
+            w_embed = w_embed + tq.unsqueeze(1)
 
         x = self.linear(x)
-
-        x = self.transformer_encoder(x.transpose(0, 1)).transpose(0, 1)
 
         x_time = x
 
         q = x.transpose(0, 1)
-        k = v = word_embedding.transpose(0, 1)
+        k = v = w_embed.transpose(0, 1)
         x, _ = self.cross_attention(q, k, v)
 
         x = x.transpose(0, 1)
