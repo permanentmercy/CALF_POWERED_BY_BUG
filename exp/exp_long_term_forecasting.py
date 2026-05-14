@@ -22,6 +22,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
     def __init__(self, args):
         super(Exp_Long_Term_Forecast, self).__init__(args)
         self.best_model_state = None
+        self.swa_model_state = None
+        self.swa_enabled = False
+        self.swa_n = 0
         self.best_model_epoch = None
     def _build_model(self):
         model = self.model_dict[self.args.model].Model(self.args, self.device).float()
@@ -231,9 +234,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             early_stopping(vali_loss, self.model, path)
 
-            # Custom SWA Logic (Moved here to capture updated counter)
-            # Trigger: Enable SWA when early stopping counter starts
-            if not self.swa_enabled and early_stopping.counter >= 1:
+            # Custom SWA Logic
+            # Trigger: Enable SWA when early stopping counter starts, ONLY if use_swa is enabled
+            if self.args.use_swa and not self.swa_enabled and early_stopping.counter >= 1:
                 self.swa_enabled = True
                 swa_model = AveragedModel(self.model, device=self.device)
                 self.swa_n = 0
@@ -258,7 +261,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 break
         
         # Final SWA Processing
-        if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+        if self.swa_enabled and self.swa_n > 0:
             print(f">>> Finalizing SWA: Averaged {self.swa_n} models.")
             # Update BN statistics (standard SWA practice)
             update_bn(train_loader, swa_model, device=self.device)
@@ -274,7 +277,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         print("average training time: {:4f} s".format(np.average(epoch_times)))
         
         # load best model: prefer SWA, then in-memory best, then checkpoint.pth
-        if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+        if self.swa_enabled and self.swa_n > 0:
             print(">>> Using SWA averaged model for testing.")
             # self.model already contains SWA weights from the finalization step
         elif getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
@@ -343,8 +346,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             # 1. Test Best Single Model
             self.test(setting, test=1, swa_tag="_best")
             
-            # 2. Test SWA Model (if enabled)
-            if getattr(self, 'swa_enabled', False) and self.swa_n > 0:
+            # 2. Test SWA Model (if enabled via args)
+            if self.args.use_swa and self.swa_n > 0:
                 self.test(setting, test=1, swa_tag="_swa")
             return
 
@@ -459,9 +462,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             self.args.feature_w, self.args.output_w, mse, mae, swa_tag
         )
 
-        np.save(folder_path + result_name + '_metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
-        np.save(folder_path + result_name + '_pred.npy', preds)
-        np.save(folder_path + result_name + '_true.npy', trues)
+        # Skip saving large npy files to save disk space
+        # np.save(folder_path + result_name + '_metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
+        # np.save(folder_path + result_name + '_pred.npy', preds)
+        # np.save(folder_path + result_name + '_true.npy', trues)
 
         # ---- Save predictions and ground truth to CSV (Simplified and Sampled) ----
         def to_numpy(arr):

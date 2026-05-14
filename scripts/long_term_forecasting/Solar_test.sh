@@ -50,7 +50,7 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-for task_w in 0.74
+for task_w in 0.73
 do
 for feature_w in 0.01
 do
@@ -134,6 +134,7 @@ else:
     --output_w $output_w \
     --task_w $task_w \
     --bestmodel \
+    --use_swa 0 \
     --use_amp \
     --use_tq_gate 1 \
     --eval_test_every_epoch \
