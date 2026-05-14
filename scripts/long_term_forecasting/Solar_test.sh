@@ -50,7 +50,9 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-for task_w in 0.71
+tq_lr_factor=10.0
+tq_dropout=0.1
+for task_w in 0.8
 do
 for feature_w in 0.05
 do
@@ -137,6 +139,8 @@ else:
     --use_swa 0 \
     --use_amp \
     --use_tq_gate 1 \
+    --tq_dropout $tq_dropout \
+    --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \

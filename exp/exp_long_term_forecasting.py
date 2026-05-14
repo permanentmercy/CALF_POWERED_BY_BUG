@@ -66,12 +66,23 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return data_set, data_loader
 
     def _select_optimizer(self):
-        param_dict = [
-            {"params": [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n], "lr": 1e-4},
-            {"params": [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' not in n], "lr": self.args.learning_rate}
-        ]
-        model_optim = optim.Adam([param_dict[1]], lr=self.args.learning_rate)
-        loss_optim = optim.Adam([param_dict[0]], lr=self.args.learning_rate)
+        # 分组 1: TQ 相关参数（周期表和门控），使用高学习率
+        tq_params = [p for n, p in self.model.named_parameters() if p.requires_grad and ('temporal_query' in n or 'tq_gate' in n)]
+        
+        # 分组 2: 投影层参数（_proj），由 loss_optim 独立控制
+        proj_params = [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n]
+        
+        # 分组 3: 其他所有参数
+        other_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 
+                        not ('temporal_query' in n or 'tq_gate' in n) and 
+                        not ('_proj' in n)]
+
+        model_optim = optim.Adam([
+            {'params': other_params, 'lr': self.args.learning_rate},
+            {'params': tq_params, 'lr': self.args.learning_rate * self.args.tq_lr_factor}
+        ], lr=self.args.learning_rate)
+        
+        loss_optim = optim.Adam(proj_params, lr=self.args.learning_rate)
 
         return model_optim, loss_optim
 

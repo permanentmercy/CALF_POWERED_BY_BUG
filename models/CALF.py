@@ -35,12 +35,13 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
         self.linear = nn.Linear(input_dim, hidden_dim)
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
+        self.tq_dropout = nn.Dropout(tq_dropout)
 
         self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads)
         
@@ -61,7 +62,8 @@ class Encoder_PCA(nn.Module):
         if cycle_index is not None:
             tq = self.temporal_query[cycle_index] # (B, 768)
             # 此时 w_embed 和 tq.unsqueeze(1) 维度完全对齐 (B, 500, 768) 和 (B, 1, 768)
-            w_embed = w_embed + tq.unsqueeze(1)
+            # 在相加前应用 Dropout
+            w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
 
         x = self.linear(x)
 
@@ -155,10 +157,11 @@ class Model(nn.Module):
         self.in_layer = Encoder_PCA(
             configs.seq_len,                  # 输入维度（线性层输入）
             word_embedding,                  # 用于交叉注意力的词嵌入
-            hidden_dim=configs.d_model,    # Transformer 的 d_model
+            configs.d_model,    # Transformer 的 d_model
             dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度（来自脚本）
             cycle_len=configs.cycle,         # TQ 机制的循环长度
-            use_tq_gate=configs.use_tq_gate  # 是否使用门控
+            use_tq_gate=configs.use_tq_gate, # 是否使用门控
+            tq_dropout=getattr(configs, 'tq_dropout', 0.0) # TQ Dropout
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':

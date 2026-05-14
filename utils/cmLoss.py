@@ -66,15 +66,23 @@ class cmLoss(nn.Module):
         
         # supervised task loss 
         if self.task_name == "long_term_forecast":
-            task_loss = self.task_loss(outputs_time, batch_y)
+            task_loss_time = self.task_loss(outputs_time, batch_y)
+            task_loss_text = self.task_loss(outputs_text, batch_y)
+            task_loss = (task_loss_time + task_loss_text) / 2.0
         elif self.task_name == "short_term_forecast":
-            task_loss = self.task_loss(in_sample, freq_map, outputs_time, batch_y, batch_y_mark)
+            task_loss_time = self.task_loss(in_sample, freq_map, outputs_time, batch_y, batch_y_mark)
+            task_loss_text = self.task_loss(in_sample, freq_map, outputs_text, batch_y, batch_y_mark)
+            task_loss = (task_loss_time + task_loss_text) / 2.0
         elif self.task_name == "classification":
             task_loss = self.task_loss(outputs_time, batch_y)
         elif self.task_name == "imputation":
-            task_loss = self.task_loss(outputs_time, batch_y)
+            task_loss_time = self.task_loss(outputs_time, batch_y)
+            task_loss_text = self.task_loss(outputs_text, batch_y)
+            task_loss = (task_loss_time + task_loss_text) / 2.0
         elif self.task_name == "anomaly_detection":
-            task_loss = self.task_loss(outputs_time, batch_y)
+            task_loss_time = self.task_loss(outputs_time, batch_y)
+            task_loss_text = self.task_loss(outputs_text, batch_y)
+            task_loss = (task_loss_time + task_loss_text) / 2.0
         
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
         
