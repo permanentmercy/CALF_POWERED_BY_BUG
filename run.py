@@ -134,6 +134,9 @@ if __name__ == '__main__':
     # evaluation
     parser.add_argument('--eval_test_every_epoch', action='store_true', help='evaluate test set every epoch during training', default=False)
 
+    # TQNet cycle
+    parser.add_argument('--cycle', type=int, default=24, help='cycle length for TQ mechanism')
+
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 

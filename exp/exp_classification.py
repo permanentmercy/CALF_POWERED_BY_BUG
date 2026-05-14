@@ -67,12 +67,13 @@ class Exp_Classification(Exp_Basic):
         self.model.eval()
 
         with torch.no_grad():
-            for i, (batch_x, label, padding_mask) in enumerate(vali_loader):
+            for i, (batch_x, label, padding_mask, batch_cycle) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 padding_mask = padding_mask.float().to(self.device)
                 label = label.to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x, padding_mask)["outputs_time"]
+                outputs = self.model(batch_x, padding_mask, cycle_index=batch_cycle)["outputs_time"]
 
                 pred = outputs.detach().cpu()
                 loss = criterion(pred, label.long().squeeze().cpu())
@@ -117,15 +118,16 @@ class Exp_Classification(Exp_Basic):
             self.model.train()
             epoch_time = time.time()
 
-            for i, (batch_x, label, padding_mask) in enumerate(train_loader):
+            for i, (batch_x, label, padding_mask, batch_cycle) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
                 loss_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
                 label = label.to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x)
+                outputs = self.model(batch_x, cycle_index=batch_cycle)
 
                 loss = criterion(outputs, label.long().squeeze(-1))
                 train_loss.append(loss.item())
@@ -177,12 +179,13 @@ class Exp_Classification(Exp_Basic):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, label, padding_mask) in enumerate(test_loader):
+            for i, (batch_x, label, padding_mask, batch_cycle) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 padding_mask = padding_mask.float().to(self.device)
                 label = label.to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x, padding_mask)["outputs_time"]
+                outputs = self.model(batch_x, padding_mask, cycle_index=batch_cycle)["outputs_time"]
 
                 preds.append(outputs.detach())
                 trues.append(label)

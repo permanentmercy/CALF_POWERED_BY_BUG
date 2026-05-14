@@ -97,7 +97,7 @@ class Dataset_ETT_hour(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, 0 # dummy cycle_index
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -191,7 +191,7 @@ class Dataset_ETT_minute(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, 0 # dummy cycle_index
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -298,7 +298,7 @@ class Dataset_Custom(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, 0 # dummy cycle_index
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -311,7 +311,7 @@ class Dataset_Solar(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100,
-                 task_loss='l1'):
+                 task_loss='l1', cycle=24):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -335,6 +335,7 @@ class Dataset_Solar(Dataset):
         self.freq = freq
         self.percent = percent
         self.task_loss = task_loss
+        self.cycle = cycle
         
         self.root_path = root_path
         self.data_path = data_path
@@ -419,6 +420,10 @@ class Dataset_Solar(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        
+        # add cycle
+        self.cycle_index = np.arange(len(data)) % self.cycle
+        self.cycle_index = self.cycle_index[border1:border2]
 
     def __getitem__(self, index):
         s_begin = index
@@ -438,7 +443,10 @@ class Dataset_Solar(Dataset):
         seq_x_mark = torch.zeros((seq_x.shape[0], 1))
         seq_y_mark = torch.zeros((seq_x.shape[0], 1))
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark
+        # use the cycle index at the end of the input sequence
+        cycle_index = self.cycle_index[s_end - 1]
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, cycle_index
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1
@@ -505,7 +513,7 @@ class Dataset_M4(Dataset):
                            cut_point - self.label_len:min(len(sampled_timeseries), cut_point + self.pred_len)]
         outsample[:len(outsample_window), 0] = outsample_window
         outsample_mask[:len(outsample_window), 0] = 1.0
-        return insample, outsample, insample_mask, outsample_mask
+        return insample, outsample, insample_mask, outsample_mask, 0 # dummy cycle_index
 
     def __len__(self):
         return len(self.timeseries)
@@ -871,8 +879,8 @@ class UEAloader(Dataset):
             return case
 
     def __getitem__(self, ind):
-        return self.instance_norm(torch.from_numpy(self.feature_df.loc[self.all_IDs[ind]].values)), \
-               torch.from_numpy(self.labels_df.loc[self.all_IDs[ind]].values)
+        ID = self.all_IDs[ind]
+        return self.instance_norm(torch.from_numpy(self.feature_df.loc[ID].values)), torch.from_numpy(self.labels_df.loc[ID].values), 0
 
     def __len__(self):
         return len(self.all_IDs)

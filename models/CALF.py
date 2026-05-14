@@ -32,9 +32,11 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24):
         super(Encoder_PCA, self).__init__()
         self.linear = nn.Linear(input_dim, hidden_dim)
+
+        self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
 
         # 让脚本里的 d_ff（dim_feedforward）真正影响 Transformer 前馈网络维度
         encoder_layer = nn.TransformerEncoderLayer(
@@ -48,12 +50,19 @@ class Encoder_PCA(nn.Module):
         
         self.word_embedding = word_embedding.T
 
-    def forward(self, x):
+    def forward(self, x, cycle_index=None):
         B = x.shape[0]
         if self.word_embedding.ndim == 2:
             self.word_embedding = self.word_embedding.repeat(B, 1, 1)
         elif self.word_embedding.shape[0] != B:
             self.word_embedding = self.word_embedding[0].repeat(B, 1, 1)
+
+        if cycle_index is not None:
+            tq = self.temporal_query[cycle_index] # (B, 768)
+            # Add temporal information to the prototypes (word_embedding is B x Prototypes x 768)
+            word_embedding = self.word_embedding + tq.unsqueeze(1)
+        else:
+            word_embedding = self.word_embedding
 
         x = self.linear(x)
 
@@ -62,7 +71,7 @@ class Encoder_PCA(nn.Module):
         x_time = x
 
         q = x.transpose(0, 1)
-        k = v = self.word_embedding.transpose(0, 1)
+        k = v = word_embedding.transpose(0, 1)
         x, _ = self.cross_attention(q, k, v)
 
         x = x.transpose(0, 1)
@@ -136,6 +145,7 @@ class Model(nn.Module):
             word_embedding,                  # 用于交叉注意力的词嵌入
             hidden_dim=configs.d_model,    # Transformer 的 d_model
             dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度（来自脚本）
+            cycle_len=configs.cycle,         # TQ 机制的循环长度
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
@@ -154,7 +164,7 @@ class Model(nn.Module):
         self.cnt = 0
         
 
-    def forecast(self, x):
+    def forecast(self, x, cycle_index=None):
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -164,7 +174,7 @@ class Model(nn.Module):
 
         x = rearrange(x, 'b l m -> b m l')
 
-        outputs_time1, outputs_text1 = self.in_layer(x)
+        outputs_time1, outputs_text1 = self.in_layer(x, cycle_index=cycle_index)
 
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
@@ -192,12 +202,12 @@ class Model(nn.Module):
         }
 
 
-    def classification(self, x):
+    def classification(self, x, cycle_index=None):
         B, L, M = x.shape
 
         x = rearrange(x, 'b l m -> b m l')
 
-        outputs_time1, outputs_text1 = self.in_layer(x)
+        outputs_time1, outputs_text1 = self.in_layer(x, cycle_index=cycle_index)
         
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
@@ -222,7 +232,7 @@ class Model(nn.Module):
         }
     
 
-    def imputation(self, x, mask):
+    def imputation(self, x, mask, cycle_index=None):
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -234,7 +244,7 @@ class Model(nn.Module):
 
         x = rearrange(x, 'b l m -> b m l')
 
-        outputs_time1, outputs_text1 = self.in_layer(x)
+        outputs_time1, outputs_text1 = self.in_layer(x, cycle_index=cycle_index)
 
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
@@ -262,7 +272,7 @@ class Model(nn.Module):
             'intermidiate_text':intermidiate_feat_text,
         }
 
-    def anomaly_detection(self, x):
+    def anomaly_detection(self, x, cycle_index=None):
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -272,7 +282,7 @@ class Model(nn.Module):
 
         x = rearrange(x, 'b l m -> b m l')
 
-        outputs_time1, outputs_text1 = self.in_layer(x)
+        outputs_time1, outputs_text1 = self.in_layer(x, cycle_index=cycle_index)
 
         outputs_time, intermidiate_feat_time = self.gpt2(inputs_embeds=outputs_time1)
         outputs_text, intermidiate_feat_text = self.gpt2_text(inputs_embeds=outputs_text1)
@@ -300,13 +310,13 @@ class Model(nn.Module):
         }
 
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None, cycle_index=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            output = self.forecast(x)
+            output = self.forecast(x, cycle_index=cycle_index)
         if self.task_name == 'classification':
-            output = self.classification(x)
+            output = self.classification(x, cycle_index=cycle_index)
         if self.task_name == "imputation":
-            output = self.imputation(x, mask)
+            output = self.imputation(x, mask, cycle_index=cycle_index)
         if self.task_name == "anomaly_detection":
-            output = self.anomaly_detection(x)
+            output = self.anomaly_detection(x, cycle_index=cycle_index)
         return output

@@ -86,6 +86,7 @@ def data_provider(args, flag, vali=False):
             freq=freq,
             seasonal_patterns=args.seasonal_patterns,
             percent=args.percent,
+            cycle=args.cycle,
             **({'task_loss': args.task_loss} if args.data == 'Solar' else {})
         )
         print(flag, len(data_set))

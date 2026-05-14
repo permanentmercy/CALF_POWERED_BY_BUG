@@ -50,7 +50,7 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-for task_w in 0.589
+for task_w in 0.7
 do
 for feature_w in 0.01
 do
@@ -142,6 +142,7 @@ else:
     --output_loss smooth_l1 \
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
+    --cycle 144 \
      | tee logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then

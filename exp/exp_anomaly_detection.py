@@ -80,14 +80,15 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
             self.model.train()
             epoch_time = time.time()
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_cycle) in enumerate(train_loader):
                 iter_count += 1
                 model_optim.zero_grad()
                 loss_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x)
+                outputs = self.model(batch_x, cycle_index=batch_cycle)
 
                 loss = criterion(outputs, batch_x)
                 train_loss.append(loss.item())
@@ -132,10 +133,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         self.model.text_proj.eval()
 
         with torch.no_grad():
-            for i, (batch_x, _) in enumerate(vali_loader):
+            for i, (batch_x, _, batch_cycle) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x)["outputs_time"]
+                outputs = self.model(batch_x, cycle_index=batch_cycle)["outputs_time"]
 
                 pred = outputs.detach().cpu()
                 true = batch_x.detach().cpu()
@@ -168,10 +170,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
         # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_cycle) in enumerate(train_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
                 # reconstruction
-                outputs = self.model(batch_x)["outputs_time"]
+                outputs = self.model(batch_x, cycle_index=batch_cycle)["outputs_time"]
                 # criterion
                 score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
                 score = score.detach().cpu().numpy()
@@ -183,10 +186,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
         # (2) find the threshold
         attens_energy = []
         test_labels = []
-        for i, (batch_x, batch_y) in enumerate(test_loader):
+        for i, (batch_x, batch_y, batch_cycle) in enumerate(test_loader):
             batch_x = batch_x.float().to(self.device)
+            batch_cycle = batch_cycle.to(self.device)
             # reconstruction
-            outputs = self.model(batch_x)["outputs_time"]
+            outputs = self.model(batch_x, cycle_index=batch_cycle)["outputs_time"]
             # criterion
             score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
             score = score.detach().cpu().numpy()

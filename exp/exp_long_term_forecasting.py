@@ -121,19 +121,20 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             accumulation_steps = self.args.accumulation_steps
             model_optim.zero_grad()
             loss_optim.zero_grad()
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle) in enumerate(train_loader):
                 iter_count += 1
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
                 
                 # Forward pass with AMP if enabled
                 if self.args.use_amp:
                     with autocast():
-                        outputs_dict = self.model(batch_x)
+                        outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
                         loss = criterion(outputs_dict, batch_y)
                 else:
-                    outputs_dict = self.model(batch_x)
+                    outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
                     loss = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
@@ -259,19 +260,20 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         self.model.text_proj.eval()
 
         with torch.no_grad(): 
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(vali_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float()
 
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
                 # Use autocast for validation if AMP is enabled
                 if self.args.use_amp:
                     with autocast():
-                        outputs = self.model(batch_x)
+                        outputs = self.model(batch_x, cycle_index=batch_cycle)
                 else:
-                    outputs = self.model(batch_x)
+                    outputs = self.model(batch_x, cycle_index=batch_cycle)
                     
                 outputs_ensemble = outputs['outputs_time'] 
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
@@ -322,11 +324,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
+                batch_cycle = batch_cycle.to(self.device)
 
-                outputs = self.model(batch_x[:, -self.args.seq_len:, :])
+                outputs = self.model(batch_x[:, -self.args.seq_len:, :], cycle_index=batch_cycle)
 
                 outputs_ensemble = outputs['outputs_time']
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
