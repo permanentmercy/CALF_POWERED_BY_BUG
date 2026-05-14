@@ -240,7 +240,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 print(">>> [SWA] Enabled: Patience counter started, beginning weight averaging.")
 
             if self.swa_enabled:
-                if vali_loss < best_val:
+                if early_stopping.counter == 0:
                     # Reset SWA if a new best is found after SWA started
                     swa_model = AveragedModel(self.model, device=self.device)
                     self.swa_n = 1
@@ -263,9 +263,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             # Update BN statistics (standard SWA practice)
             update_bn(train_loader, swa_model, device=self.device)
             self.model = swa_model.module # Extract the averaged model
-            # Save the final SWA model
-            torch.save(self.model.state_dict(), path + '/' + 'checkpoint_swa.pth')
-            print(f">>> SWA Model saved to {path}/checkpoint_swa.pth")
+            # Save the final SWA model (to memory or disk)
+            if getattr(self.args, 'bestmodel', False):
+                self.swa_model_state = deepcopy(self.model.state_dict())
+                print(">>> SWA Model stored in memory.")
+            else:
+                torch.save(self.model.state_dict(), path + '/' + 'checkpoint_swa.pth')
+                print(f">>> SWA Model saved to {path}/checkpoint_swa.pth")
         
         print("average training time: {:4f} s".format(np.average(epoch_times)))
         
@@ -354,12 +358,17 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if test:
             print(f'loading model for {swa_tag if swa_tag else "best"} test')
             if swa_tag == "_swa":
-                swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
-                if os.path.exists(swa_path):
-                    print(f'Loading SWA model from {swa_path}...')
-                    self.model.load_state_dict(torch.load(swa_path))
+                # Try memory first for SWA, then disk
+                if getattr(self.args, 'bestmodel', False) and hasattr(self, 'swa_model_state') and self.swa_model_state is not None:
+                    print('Loading SWA model from memory...')
+                    self.model.load_state_dict(self.swa_model_state)
                 else:
-                    print("SWA checkpoint not found!")
+                    swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
+                    if os.path.exists(swa_path):
+                        print(f'Loading SWA model from {swa_path}...')
+                        self.model.load_state_dict(torch.load(swa_path))
+                    else:
+                        print("SWA checkpoint not found!")
             elif swa_tag == "_best" or (getattr(self.args, 'bestmodel', False) and getattr(self, 'best_model_state', None) is not None):
                 # Try memory first for best model, then disk
                 if getattr(self, 'best_model_state', None) is not None:
