@@ -140,6 +140,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_swa', type=int, default=0, help='whether to use SWA')
     parser.add_argument('--tq_lr_factor', type=float, default=10.0, help='learning rate factor for TQ related parameters')
     parser.add_argument('--tq_dropout', type=float, default=0.0, help='dropout probability for TQ injection')
+    parser.add_argument('--tq_mode', type=str, default='mul', choices=['add', 'mul'], help='TQ injection mode: add or mul')
+    parser.add_argument('--layer_offset', type=int, default=0, help='offset for time branch layer indexing in feature alignment')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False

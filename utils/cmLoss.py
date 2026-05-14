@@ -19,11 +19,12 @@ loss_dict = {
 
 
 class cmLoss(nn.Module):
-    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0):
+    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0, layer_offset=0):
         super(cmLoss, self).__init__()
         self.task_w = task_w
         self.output_w = output_w
         self.feature_w = feature_w
+        self.layer_offset = layer_offset
 
         self.feature_loss = loss_dict[feature_loss]
         self.output_loss = loss_dict[output_loss]
@@ -39,7 +40,10 @@ class cmLoss(nn.Module):
             outputs["intermidiate_text"],
         )
         
-        # feture regularization loss
+        # alignment loss (Feature Alignment)
+        # 此时时间的第 i 层物理上已经是 GPT-2 的第 i + layer_offset 层
+        # 文本的第 i 层物理上是 GPT-2 的第 i 层
+        # 所以直接一对一对齐即可
         feature_loss = sum(
             [
                 (0.8**idx) * self.feature_loss(feat_time, feat_text)

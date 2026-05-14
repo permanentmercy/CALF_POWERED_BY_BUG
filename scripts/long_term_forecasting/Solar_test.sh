@@ -50,9 +50,9 @@ fi
 batch_size=16
 accumulation_steps=4
 seq_len=96
-tq_lr_factor=10.0
+tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.8
+for task_w in 0.733
 do
 for feature_w in 0.05
 do
@@ -138,7 +138,9 @@ else:
     --bestmodel \
     --use_swa 0 \
     --use_amp \
+    --tq_mode add \
     --use_tq_gate 1 \
+    --layer_offset 0 \
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \

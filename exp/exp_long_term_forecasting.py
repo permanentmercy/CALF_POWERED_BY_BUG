@@ -93,7 +93,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                            self.args.task_name, 
                            self.args.feature_w, 
                            self.args.output_w, 
-                           self.args.task_w)
+                           self.args.task_w,
+                           getattr(self.args, 'layer_offset', 0))
         return criterion
 
     def train(self, setting):

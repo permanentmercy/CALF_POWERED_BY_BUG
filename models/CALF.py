@@ -35,9 +35,10 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul'):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
+        self.tq_mode = tq_mode
         self.linear = nn.Linear(input_dim, hidden_dim)
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
@@ -62,8 +63,14 @@ class Encoder_PCA(nn.Module):
         if cycle_index is not None:
             tq = self.temporal_query[cycle_index] # (B, 768)
             # 此时 w_embed 和 tq.unsqueeze(1) 维度完全对齐 (B, 500, 768) 和 (B, 1, 768)
-            # 在相加前应用 Dropout
-            w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
+            # 根据参数选择调制模式
+            if self.tq_mode == 'mul':
+                # 乘法调制 (FiLM 风格)：使用 TQ 向量对词嵌入进行缩放
+                # sigmoid(tq)*2 的范围在 (0, 2)，中点为 1.0，初始状态不改变特征量级
+                w_embed = w_embed * (torch.sigmoid(self.tq_dropout(tq.unsqueeze(1))) * 2)
+            else:
+                # 传统的加法调制 (位置编码风格)
+                w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
 
         x = self.linear(x)
 
@@ -77,7 +84,8 @@ class Encoder_PCA(nn.Module):
 
         if self.use_tq_gate:
             # 门控融合：(1-w) * 原始特征 + w * TQ增强特征
-            gate_weight = torch.sigmoid(self.tq_gate)
+            # 设置 0.1 的保底值，强制 TQ 信息参与，防止门控完全坍塌
+            gate_weight = 0.1 + 0.9 * torch.sigmoid(self.tq_gate)
             x_fused = (1 - gate_weight) * x_time + gate_weight * x
             return x_time, x_fused
         else:
@@ -101,7 +109,8 @@ class TQ_OutputHead(nn.Module):
     def forward(self, x):
         # x: (batch, seq, d_model)
         h = self.mlp(x)
-        return self.output_proj(h + x)
+        # 取消此处的残差，改到 LLM 输出端
+        return self.output_proj(h)
 
 class Model(nn.Module):
     def __init__(self, configs, device):
@@ -124,10 +133,20 @@ class Model(nn.Module):
         self.gpt2_text = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
 
         # 物理裁剪层数并释放显存
-        for gpt in [self.gpt2, self.gpt2_text]:
-            if len(gpt.h) > configs.gpt_layers:
-                print(f">>> Pruning GPT-2: keeping {configs.gpt_layers} layers, deleting {len(gpt.h) - configs.gpt_layers} layers.")
-                gpt.h = nn.ModuleList([gpt.h[i] for i in range(configs.gpt_layers)])
+        # 文本分支：永远从第 0 层开始取
+        if len(self.gpt2_text.h) > configs.gpt_layers:
+            print(f">>> Pruning GPT-2 Text: keeping layers [0:{configs.gpt_layers}]")
+            self.gpt2_text.h = nn.ModuleList([self.gpt2_text.h[i] for i in range(configs.gpt_layers)])
+            
+        # 时间分支：根据 layer_offset 决定起始层
+        layer_offset = getattr(configs, 'layer_offset', 0)
+        total_available = len(self.gpt2.h)
+        if layer_offset + configs.gpt_layers <= total_available:
+            print(f">>> Pruning GPT-2 Time: keeping layers [{layer_offset}:{layer_offset + configs.gpt_layers}]")
+            self.gpt2.h = nn.ModuleList([self.gpt2.h[i + layer_offset] for i in range(configs.gpt_layers)])
+        else:
+            print(f">>> Warning: layer_offset {layer_offset} is too large, falling back to layer 0.")
+            self.gpt2.h = nn.ModuleList([self.gpt2.h[i] for i in range(configs.gpt_layers)])
         
         # 强制垃圾回收
         gc.collect()
@@ -161,7 +180,8 @@ class Model(nn.Module):
             dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度（来自脚本）
             cycle_len=configs.cycle,         # TQ 机制的循环长度
             use_tq_gate=configs.use_tq_gate, # 是否使用门控
-            tq_dropout=getattr(configs, 'tq_dropout', 0.0) # TQ Dropout
+            tq_dropout=getattr(configs, 'tq_dropout', 0.0), # TQ Dropout
+            tq_mode=getattr(configs, 'tq_mode', 'mul')      # TQ 调制模式: add/mul
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
