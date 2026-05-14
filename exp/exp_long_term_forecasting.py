@@ -208,31 +208,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     except Exception:
                         pass
                 
-                # Custom SWA Logic
-                # Trigger: Enable SWA when early stopping counter starts
-                if not self.swa_enabled and early_stopping.counter >= 1:
-                    self.swa_enabled = True
-                    swa_model = AveragedModel(self.model, device=self.device)
-                    self.swa_n = 0
-                    if early_stopping.verbose:
-                        print(">>> SWA Enabled (Early stopping counter >= 1)")
 
-                if self.swa_enabled:
-                    if vali_loss < best_val:
-                        # Reset SWA if a new best is found after SWA started
-                        swa_model = AveragedModel(self.model, device=self.device)
-                        self.swa_n = 1
-                        if early_stopping.verbose:
-                            print(f">>> SWA Reset: New best Vali Loss found ({vali_loss:.6f})")
-                    elif vali_loss < best_val * 1.04:
-                        # Only average if within 4% of best_val
-                        swa_model.update_parameters(self.model)
-                        self.swa_n += 1
-                        if early_stopping.verbose:
-                            print(f">>> SWA Updated: Current model included (Total: {self.swa_n})")
-                    else:
-                        if early_stopping.verbose:
-                            print(f">>> SWA Skipped: Vali Loss {vali_loss:.6f} > 1.04 * Best {best_val:.6f}")
 
             # Print training progress with or without test loss
             if test_loss is not None:
@@ -249,6 +225,29 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 adjust_learning_rate(model_optim, epoch + 1, self.args)
 
             early_stopping(vali_loss, self.model, path)
+
+            # Custom SWA Logic (Moved here to capture updated counter)
+            # Trigger: Enable SWA when early stopping counter starts
+            if not self.swa_enabled and early_stopping.counter >= 1:
+                self.swa_enabled = True
+                swa_model = AveragedModel(self.model, device=self.device)
+                self.swa_n = 0
+                print(">>> [SWA] Enabled: Patience counter started, beginning weight averaging.")
+
+            if self.swa_enabled:
+                if vali_loss < best_val:
+                    # Reset SWA if a new best is found after SWA started
+                    swa_model = AveragedModel(self.model, device=self.device)
+                    self.swa_n = 1
+                    print(f">>> [SWA] Reset: New global best found ({vali_loss:.6f}), clearing previous averages.")
+                elif vali_loss < best_val * 1.04:
+                    # Only average if within 4% of best_val
+                    swa_model.update_parameters(self.model)
+                    self.swa_n += 1
+                    print(f">>> [SWA] Updated: Current model added to average (Total models: {self.swa_n})")
+                else:
+                    print(f">>> [SWA] Skipped: Vali Loss ({vali_loss:.6f}) exceeds 4% threshold (>{best_val*1.04:.6f})")
+
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -436,14 +435,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         f.write('\n')
         f.close()
 
+        # Concise folder path: ./results/{data_name}/
+        folder_path = './results/' + self.args.data + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
         # Custom filename format: featurew_outputw_mse_mae
         result_name = 'fw{}_ow{}_mse{:.4f}_mae{:.4f}{}'.format(
             self.args.feature_w, self.args.output_w, mse, mae, swa_tag
         )
-
-        folder_path = './results/' + setting + '/'
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
 
         np.save(folder_path + result_name + '_metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         np.save(folder_path + result_name + '_pred.npy', preds)
