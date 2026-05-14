@@ -19,7 +19,8 @@ import warnings
 DEFAULT_MAX_WINDOWS = 9
 
 
-def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max_windows=DEFAULT_MAX_WINDOWS, concat=False):
+def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max_windows=DEFAULT_MAX_WINDOWS, concat=False, 
+                     inverse=False, data_root="./datasets/Solar/", data_path="solar_AL.txt"):
     # 1. 仅读取需要的列（大幅减少 IO 和内存）
     use_cols = ["window", "step", f"station_{station_id}_pred", f"station_{station_id}_true"]
     try:
@@ -36,6 +37,26 @@ def plot_predictions(csv_path, station_id, n_windows=None, output_path=None, max
 
     pred_col = f"station_{station_id}_pred"
     true_col = f"station_{station_id}_true"
+
+    # 1.5 逆变换逻辑
+    if inverse:
+        import os
+        raw_file = os.path.join(data_root, data_path)
+        if os.path.exists(raw_file):
+            print(f"Calculating scaler from raw data for inverse transform: {raw_file}")
+            # 读取原始数据（无表头，逗号分隔）
+            raw_data = pd.read_csv(raw_file, header=None).values
+            # 计算训练集（前 70%）的均值和标准差
+            num_train = int(len(raw_data) * 0.7)
+            train_data = raw_data[:num_train, station_id]
+            mean = np.mean(train_data)
+            std = np.std(train_data)
+            
+            print(f"Station {station_id} -> Mean: {mean:.4f}, Std: {std:.4f}")
+            df[pred_col] = df[pred_col] * std + mean
+            df[true_col] = df[true_col] * std + mean
+        else:
+            print(f"Warning: Raw file {raw_file} not found. Skipping inverse transform.")
 
     # 2. 确定实际窗口列表，并限制到合理范围
     unique_windows = sorted(df["window"].unique())
@@ -132,6 +153,22 @@ if __name__ == "__main__":
                         help="Whether to concatenate windows into a single plot (1 for True, 0 for False)")
     parser.add_argument("--output", type=str, default=None,
                         help="Save figure to file instead of showing (e.g., plot.png)")
+    parser.add_argument("--inverse", type=int, default=0, choices=[0, 1],
+                        help="Inverse transform to original scale (1 for True, 0 for False)")
+    parser.add_argument("--data_root", type=str, default="./datasets/Solar/",
+                        help="Root path of raw data for scaler calculation")
+    parser.add_argument("--data_path", type=str, default="solar_AL.txt",
+                        help="Raw data file name")
     args = parser.parse_args()
 
-    plot_predictions(args.csv_path, args.station, args.n_windows, args.output, args.max_windows, concat=bool(args.concat))
+    plot_predictions(
+        args.csv_path, 
+        args.station, 
+        args.n_windows, 
+        args.output, 
+        args.max_windows, 
+        concat=bool(args.concat),
+        inverse=bool(args.inverse),
+        data_root=args.data_root,
+        data_path=args.data_path
+    )
