@@ -52,7 +52,7 @@ accumulation_steps=4
 seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.733
+for task_w in 0.61
 do
 for feature_w in 0.05
 do
@@ -136,7 +136,7 @@ else:
     --output_w $output_w \
     --task_w $task_w \
     --bestmodel \
-    --use_swa 0 \
+    --use_swa 1 \
     --use_amp \
     --tq_mode add \
     --use_tq_gate 1 \
@@ -151,7 +151,7 @@ else:
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
     --cycle 144 \
-     | tee logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
+     | tee -a logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then
     echo "$combo" >> "$COMPLETED_FILE"

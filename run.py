@@ -142,6 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--tq_dropout', type=float, default=0.0, help='dropout probability for TQ injection')
     parser.add_argument('--tq_mode', type=str, default='mul', choices=['add', 'mul'], help='TQ injection mode: add or mul')
     parser.add_argument('--layer_offset', type=int, default=0, help='offset for time branch layer indexing in feature alignment')
+    parser.add_argument('--use_tq', type=int, default=1, help='enable or disable TQ injection completely')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False

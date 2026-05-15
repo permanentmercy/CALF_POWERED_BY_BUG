@@ -129,7 +129,7 @@ do
     --output_loss smooth_l1 \
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
-     | tee logs/$model/$data_name/$feature_w'_'$output_w'_'$model'_'$seq_len'_'$pred_len'_'$d_model'_'$n_heads'_'$learning_rate'_'$random_seed.logs
+     | tee -a logs/$model/$data_name/$feature_w'_'$output_w'_'$model'_'$seq_len'_'$pred_len'_'$d_model'_'$n_heads'_'$learning_rate'_'$random_seed.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then
     echo "$combo" >> "$COMPLETED_FILE"
