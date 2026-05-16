@@ -274,8 +274,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             if self.args.use_swa and not self.swa_enabled and early_stopping.counter >= 1:
                 self.swa_enabled = True
-                swa_model = AveragedModel(self.model, device=self.device)
-                print(">>> [SWA] Enabled: Patience counter started, beginning weight averaging.")
+                # Use best model as the starting point for SWA
+                temp_model = deepcopy(self.model)
+                if self.best_model_state is not None:
+                    temp_model.load_state_dict(self.best_model_state)
+                swa_model = AveragedModel(temp_model, device=self.device)
+                swa_model.update_parameters(temp_model) # Count = 1 (Best Model)
+                print(f">>> [SWA] Enabled: Starting with Best Model (Vali Loss: {best_val:.6f})")
 
             if self.swa_enabled:
                 if early_stopping.counter == 0:

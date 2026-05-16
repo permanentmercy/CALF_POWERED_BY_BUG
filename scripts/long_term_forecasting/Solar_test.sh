@@ -49,12 +49,12 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
 accumulation_steps=4
-seq_len=96
+seq_len=192
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.4
+for task_w in 0.73
 do
-for feature_w in 0.10
+for feature_w in 0.05
 do
 for d_model in 768
 do
@@ -62,7 +62,7 @@ for n_heads in 4
 do
 for random_seed in 2026
 do
-for pred_len in 96 
+for pred_len in 192
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
