@@ -428,8 +428,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             else:
                 print("Using current model state for test.")
 
-        preds = []
-        trues = []
+        # Incremental metrics to avoid ArrayMemoryError on large datasets
+        sum_mae, sum_mse, sum_mape, sum_mspe = 0, 0, 0, 0
+        total_elements = 0
+        
+        # Sampling for CSV (only store 10 windows)
+        sampled_preds, sampled_trues = [], []
+        sample_indices = [i * self.args.pred_len for i in range(10)]
+        current_idx = 0
+
         folder_path = './test_results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
@@ -451,41 +458,42 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 pred = outputs_ensemble.detach().cpu().numpy()
                 true = batch_y.detach().cpu().numpy()
 
-                preds.append(pred)
-                trues.append(true)
-                # if i % 20 == 0:
-                #     input = batch_x.detach().cpu().numpy()
-                #     if test_data.scale and self.args.inverse:
-                #         shape = input.shape
-                #         input = test_data.inverse_transform(input.squeeze(0)).reshape(shape)
-                #     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
-                #     pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
-                #     visual(gt, pd, os.path.join(folder_path, str(i) + '.pdf'))
+                # Update running sums for metrics
+                sum_mae += np.sum(np.abs(pred - true))
+                sum_mse += np.sum((pred - true) ** 2)
+                sum_mape += np.sum(np.abs(100 * (pred - true) / (true + 1e-8)))
+                sum_mspe += np.sum(np.square((pred - true) / (true + 1e-8)))
+                total_elements += pred.size
 
-        # # # 模型参数量：
-        # x = batch_x[0,:,:].unsqueeze(0)
-        # test_params_flop(self.model, (x,))
-        # # x = batch_x[0,:,:].unsqueeze(0).unsqueeze(0)
-        # # test_params_flop(self.model, x) 
+                # Collect samples for CSV (store only needed indices)
+                batch_size = pred.shape[0]
+                for j in range(batch_size):
+                    if (current_idx + j) in sample_indices:
+                        sampled_preds.append(pred[j:j+1])
+                        sampled_trues.append(true[j:j+1])
+                current_idx += batch_size
+
+        # Compute final metrics
+        mae = sum_mae / total_elements
+        mse = sum_mse / total_elements
+        rmse = np.sqrt(mse)
+        mape = sum_mape / total_elements
+        mspe = sum_mspe / total_elements
+
+        # Print model complexity info
         y = (batch_x.shape[-2], batch_x.shape[-1])
         test_params_flop(self.model, y) 
         
-        # preds = np.array(preds)
-        # trues = np.array(trues)
-        preds = np.concatenate(preds, axis=0) # without the "drop-last" trick
-        trues = np.concatenate(trues, axis=0) # without the "drop-last" trick
-        print('test shape:', preds.shape, trues.shape)
-        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        print('test shape:', preds.shape, trues.shape)
-        
+        # sampled_preds and sampled_trues now contain the 10 windows for CSV
+        preds = np.concatenate(sampled_preds, axis=0) if sampled_preds else np.array([])
+        trues = np.concatenate(sampled_trues, axis=0) if sampled_trues else np.array([])
+        print('mse:{}, mae:{}'.format(mse, mae))
 
         # result save
         folder_path = './results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-        mae, mse, rmse, mape, mspe = metric(preds, trues)
-        print('mse:{}, mae:{}'.format(mse, mae))
+        
         f = open("result_long_term_forecast.txt", 'a')
         f.write(setting + swa_tag + "  \n")
         f.write('mse:{}, mae:{}'.format(mse, mae))
@@ -519,21 +527,19 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         preds_np = to_numpy(preds)
         trues_np = to_numpy(trues)
 
-        if preds_np.ndim != 3 or trues_np.ndim != 3:
-            raise ValueError("preds and trues must be 3D arrays")
+        if preds_np.size == 0:
+            print(">>> No samples collected for CSV.")
+            return
 
-        num_windows_total, pred_len, n_features_total = preds_np.shape
+        num_windows, pred_len, n_features_total = preds_np.shape
         
         # 1. 限制站点数量：取前10个
         n_features = min(10, n_features_total)
         preds_np = preds_np[:, :, :n_features]
         trues_np = trues_np[:, :, :n_features]
         
-        # 2. 限制窗口数量：取10个窗口，每个窗口间隔 pred_len
-        indices = [i * pred_len for i in range(10) if i * pred_len < num_windows_total]
-        preds_np = preds_np[indices]
-        trues_np = trues_np[indices]
-        num_windows = len(indices)
+        # 2. 窗口索引（使用采样时对应的原始索引）
+        actual_indices = sample_indices[:num_windows]
 
         pred_cols = [f'station_{f}_pred' for f in range(n_features)]
         true_cols = [f'station_{f}_true' for f in range(n_features)]
@@ -545,12 +551,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         steps_template = np.arange(pred_len)
         
-        # 由于现在数据量很小 (最多 10x10 个特征)，直接一次性写入
+        # 由于数据量已经过预采样，直接写入
         total_rows = num_windows * pred_len
         p_flat = preds_np.reshape(total_rows, n_features)
         t_flat = trues_np.reshape(total_rows, n_features)
 
-        windows_arr = np.repeat(np.array(indices), pred_len)
+        windows_arr = np.repeat(np.array(actual_indices), pred_len)
         steps_arr = np.tile(steps_template, num_windows)
 
         df = pd.DataFrame(
