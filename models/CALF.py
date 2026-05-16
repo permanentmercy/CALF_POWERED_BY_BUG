@@ -35,16 +35,30 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul'):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
         self.tq_mode = tq_mode
+        self.use_tq = use_tq
         self.linear = nn.Linear(input_dim, hidden_dim)
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
         self.tq_dropout = nn.Dropout(tq_dropout)
 
-        self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads)
+        self.layers = nn.ModuleList([
+            nn.ModuleDict({
+                'cross_attention': nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads),
+                'norm1': nn.LayerNorm(hidden_dim),
+                'ffn': nn.Sequential(
+                    nn.Linear(hidden_dim, dim_feedforward),
+                    nn.GELU(),
+                    nn.Dropout(tq_dropout),
+                    nn.Linear(dim_feedforward, hidden_dim),
+                ),
+                'norm2': nn.LayerNorm(hidden_dim),
+                'dropout': nn.Dropout(tq_dropout),
+            }) for _ in range(num_encoder_layers)
+        ])
         
         # 注册为 buffer，确保其随模型移动到 GPU 且不被视为参数
         self.register_buffer('word_embedding_base', word_embedding.T)
@@ -56,31 +70,34 @@ class Encoder_PCA(nn.Module):
     def forward(self, x, cycle_index=None):
         B = x.shape[0]
         
-        # 使用 expand 得到 (B, Prototypes, Hidden) 的视图，这不会占用额外显存
-        # 且能确保后续 MHA 接收到正确的 Batch 维度
+        # 使用 expand 得到 (B, Prototypes, Hidden) 的视图
         w_embed = self.word_embedding_base.unsqueeze(0).expand(B, -1, -1)
 
-        if cycle_index is not None:
+        # 核心开关：只有在 use_tq 为 True 且提供了索引时，才注入周期性向量
+        if self.use_tq and cycle_index is not None:
             tq = self.temporal_query[cycle_index] # (B, 768)
-            # 此时 w_embed 和 tq.unsqueeze(1) 维度完全对齐 (B, 500, 768) 和 (B, 1, 768)
-            # 根据参数选择调制模式
             if self.tq_mode == 'mul':
-                # 乘法调制 (FiLM 风格)：使用 TQ 向量对词嵌入进行缩放
-                # sigmoid(tq)*2 的范围在 (0, 2)，中点为 1.0，初始状态不改变特征量级
                 w_embed = w_embed * (torch.sigmoid(self.tq_dropout(tq.unsqueeze(1))) * 2)
             else:
-                # 传统的加法调制 (位置编码风格)
                 w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
 
         x = self.linear(x)
-
         x_time = x
 
-        q = x.transpose(0, 1)
-        k = v = w_embed.transpose(0, 1)
-        x, _ = self.cross_attention(q, k, v)
-
-        x = x.transpose(0, 1)
+        # 多层特征提取
+        for layer in self.layers:
+            # Cross-Attention: Query from x, Key/Value from w_embed
+            q = x.transpose(0, 1)
+            k = v = w_embed.transpose(0, 1)
+            
+            attn_output, _ = layer['cross_attention'](q, k, v)
+            x = x + layer['dropout'](attn_output.transpose(0, 1))
+            x = layer['norm1'](x)
+            
+            # Feed-Forward Network
+            ffn_output = layer['ffn'](x)
+            x = x + layer['dropout'](ffn_output)
+            x = layer['norm2'](x)
 
         if self.use_tq_gate:
             # 门控融合：(1-w) * 原始特征 + w * TQ增强特征
@@ -106,10 +123,11 @@ class TQ_OutputHead(nn.Module):
             nn.Linear(d_model, output_dim)
         )
 
-    def forward(self, x):
+    def forward(self, x, res_w=0.0):
         # x: (batch, seq, d_model)
         h = self.mlp(x)
-        # 取消此处的残差，改到 LLM 输出端
+        if res_w != 0:
+            h = h + res_w * x
         return self.output_proj(h)
 
 class Model(nn.Module):
@@ -177,21 +195,26 @@ class Model(nn.Module):
             configs.seq_len,                  # 输入维度（线性层输入）
             word_embedding,                  # 用于交叉注意力的词嵌入
             configs.d_model,    # Transformer 的 d_model
-            dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度（来自脚本）
+            num_encoder_layers=configs.e_layers, # 编码器层数
+            dim_feedforward=configs.d_ff,  # Transformer FFN 中间维度
             cycle_len=configs.cycle,         # TQ 机制的循环长度
             use_tq_gate=configs.use_tq_gate, # 是否使用门控
             tq_dropout=getattr(configs, 'tq_dropout', 0.0), # TQ Dropout
-            tq_mode=getattr(configs, 'tq_mode', 'mul')      # TQ 调制模式: add/mul
+            tq_mode=getattr(configs, 'tq_mode', 'mul'),     # TQ 调制模式: add/mul
+            use_tq=getattr(configs, 'use_tq', 1)            # 是否开启 TQ 注入
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.out_layer = TQ_OutputHead(configs.d_model, configs.pred_len, configs.dropout)
         elif self.task_name == 'classification':
             self.out_layer = nn.Linear(configs.d_model * configs.enc_in, configs.num_class)
+            self.mlp_res_proj = nn.Linear(configs.d_model * configs.enc_in, configs.num_class)
         elif self.task_name == 'imputation':
             self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
         elif self.task_name == 'anomaly_detection':
             self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
+        
+        self.mlp_res_w = getattr(configs, 'mlp_res_w', 0.0)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
@@ -221,8 +244,11 @@ class Model(nn.Module):
         intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
         intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
-        outputs_time = self.out_layer(outputs_time[:, -M:, :])
-        outputs_text = self.out_layer(outputs_text[:, -M:, :])
+        outputs_time_feat = outputs_time[:, -M:, :]
+        outputs_text_feat = outputs_text[:, -M:, :]
+
+        outputs_time = self.out_layer(outputs_time_feat, res_w=self.mlp_res_w)
+        outputs_text = self.out_layer(outputs_text_feat, res_w=self.mlp_res_w)
 
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
@@ -254,11 +280,15 @@ class Model(nn.Module):
         intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
         intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
         
-        outputs_time = outputs_time.reshape(B, -1)
-        outputs_text = outputs_text.reshape(B, -1)
+        outputs_time_res = outputs_time.reshape(B, -1)
+        outputs_text_res = outputs_text.reshape(B, -1)
         
-        outputs_time = self.out_layer(outputs_time)
-        outputs_text = self.out_layer(outputs_text)
+        outputs_time = self.out_layer(outputs_time_res)
+        outputs_text = self.out_layer(outputs_text_res)
+        
+        if self.mlp_res_w != 0:
+            outputs_time = outputs_time + self.mlp_res_w * self.mlp_res_proj(outputs_time_res)
+            outputs_text = outputs_text + self.mlp_res_w * self.mlp_res_proj(outputs_text_res)
         
         return {
             'outputs_text': outputs_text,
@@ -292,8 +322,12 @@ class Model(nn.Module):
         intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
         intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
-        outputs_time = self.out_layer(outputs_time)
-        outputs_text = self.out_layer(outputs_text)
+        outputs_time_feat = outputs_time
+        outputs_text_feat = outputs_text
+
+        outputs_time = self.out_layer(outputs_time_feat, res_w=self.mlp_res_w)
+        outputs_text = self.out_layer(outputs_text_feat, res_w=self.mlp_res_w)
+
 
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
@@ -329,8 +363,12 @@ class Model(nn.Module):
         intermidiate_feat_time = tuple([self.time_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_time))])
         intermidiate_feat_text = tuple([self.text_proj[idx](feat) for idx, feat in enumerate(list(intermidiate_feat_text))])
 
-        outputs_time = self.out_layer(outputs_time)
-        outputs_text = self.out_layer(outputs_text)
+        outputs_time_feat = outputs_time
+        outputs_text_feat = outputs_text
+
+        outputs_time = self.out_layer(outputs_time_feat, res_w=self.mlp_res_w)
+        outputs_text = self.out_layer(outputs_text_feat, res_w=self.mlp_res_w)
+
 
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')

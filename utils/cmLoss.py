@@ -68,6 +68,10 @@ class cmLoss(nn.Module):
 
         batch_y = batch_y.to(output_loss.device)
         
+        task_loss_time = torch.tensor(0.0).to(output_loss.device)
+        task_loss_text = torch.tensor(0.0).to(output_loss.device)
+        task_loss = torch.tensor(0.0).to(output_loss.device)
+
         # supervised task loss 
         if self.task_name == "long_term_forecast":
             task_loss_time = self.task_loss(outputs_time, batch_y)
@@ -79,6 +83,8 @@ class cmLoss(nn.Module):
             task_loss = (task_loss_time + task_loss_text) / 2.0
         elif self.task_name == "classification":
             task_loss = self.task_loss(outputs_time, batch_y)
+            task_loss_time = task_loss
+            task_loss_text = task_loss
         elif self.task_name == "imputation":
             task_loss_time = self.task_loss(outputs_time, batch_y)
             task_loss_text = self.task_loss(outputs_text, batch_y)
@@ -90,4 +96,4 @@ class cmLoss(nn.Module):
         
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
         
-        return total_loss, task_loss, output_loss, feature_loss
+        return total_loss, task_loss, output_loss, feature_loss, task_loss_time, task_loss_text

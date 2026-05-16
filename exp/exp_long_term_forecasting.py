@@ -123,16 +123,18 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         
         epoch_times = []
         best_val = np.Inf
+        swa_model = None
         for epoch in range(self.args.train_epochs):
             iter_count = 0
             train_loss = []
             train_task_loss = []
+            train_task_loss_time = []
+            train_task_loss_text = []
             train_output_loss = []
             train_feature_loss = []
             
             # SWA related initialization
             if epoch == 0:
-                swa_model = None
                 self.swa_n = 0
                 self.swa_enabled = False
 
@@ -154,13 +156,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with autocast():
                         outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
-                        loss, t_loss, o_loss, f_loss = criterion(outputs_dict, batch_y)
+                        loss, t_loss, o_loss, f_loss, t_loss_time, t_loss_text = criterion(outputs_dict, batch_y)
                 else:
                     outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
-                    loss, t_loss, o_loss, f_loss = criterion(outputs_dict, batch_y)
+                    loss, t_loss, o_loss, f_loss, t_loss_time, t_loss_text = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
                 train_task_loss.append(t_loss.item())
+                train_task_loss_time.append(t_loss_time.item())
+                train_task_loss_text.append(t_loss_text.item())
                 train_output_loss.append(o_loss.item())
                 train_feature_loss.append(f_loss.item())
                 
@@ -189,11 +193,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     # 使用当前 Epoch 已产生的 Loss 列表计算平均值，方便观察趋势
                     avg_l = np.average(train_loss)
                     avg_t = np.average(train_task_loss)
+                    avg_ttime = np.average(train_task_loss_time)
+                    avg_ttext = np.average(train_task_loss_text)
                     avg_o = np.average(train_output_loss)
                     avg_f = np.average(train_feature_loss)
                     
-                    print("\titers: {0}, epoch: {1} | AvgLoss: {2:.7f} (T:{3:.4f} O:{4:.4f} F:{5:.4f})".format(
-                        i + 1, epoch + 1, avg_l, avg_t, avg_o, avg_f
+                    print("\titers: {0}, epoch: {1} | AvgLoss: {2:.7f} (T:{3:.4f} O:{4:.4f} F:{5:.4f} | Time:{6:.4f} Text:{7:.4f})".format(
+                        i + 1, epoch + 1, avg_l, avg_t, avg_o, avg_f, avg_ttime, avg_ttext
                     ))
                     speed = (time.time() - time_now) / iter_count
                     left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
@@ -208,6 +214,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             print("Epoch: {} cost time: {}".format(epoch + 1, t))
             train_loss = np.average(train_loss)
             avg_task_loss = np.average(train_task_loss)
+            avg_task_loss_time = np.average(train_task_loss_time)
+            avg_task_loss_text = np.average(train_task_loss_text)
             avg_output_loss = np.average(train_output_loss)
             avg_feat_loss = np.average(train_feature_loss)
             
@@ -244,11 +252,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             # Print training progress with or without test loss
             if test_loss is not None:
-                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f}) Vali: {6:.7f} Test: {7:.7f}".format(
-                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, vali_loss, test_loss))
+                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f} | Time:{6:.4f} Text:{7:.4f}) Vali: {8:.7f} Test: {9:.7f}".format(
+                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, avg_task_loss_time, avg_task_loss_text, vali_loss, test_loss))
             else:
-                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f}) Vali: {6:.7f}".format(
-                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, vali_loss))
+                print("Epoch: {0}, Steps: {1} | Train: {2:.7f} (Task:{3:.4f} Out:{4:.4f} Feat:{5:.4f} | Time:{6:.4f} Text:{7:.4f}) Vali: {8:.7f}".format(
+                    epoch + 1, train_steps, train_loss, avg_task_loss, avg_output_loss, avg_feat_loss, avg_task_loss_time, avg_task_loss_text, vali_loss))
 
             if self.args.cos:
                 scheduler.step()
@@ -264,27 +272,25 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             early_stopping(vali_loss, self.model, path)
 
-            # Custom SWA Logic
-            # Trigger: Enable SWA when early stopping counter starts, ONLY if use_swa is enabled
             if self.args.use_swa and not self.swa_enabled and early_stopping.counter >= 1:
                 self.swa_enabled = True
                 swa_model = AveragedModel(self.model, device=self.device)
-                self.swa_n = 0
                 print(">>> [SWA] Enabled: Patience counter started, beginning weight averaging.")
 
             if self.swa_enabled:
                 if early_stopping.counter == 0:
                     # Reset SWA if a new best is found after SWA started
                     swa_model = AveragedModel(self.model, device=self.device)
-                    self.swa_n = 1
+                    swa_model.update_parameters(self.model)
                     print(f">>> [SWA] Reset: New global best found ({vali_loss:.6f}), clearing previous averages.")
                 elif vali_loss < best_val * 1.04:
                     # Only average if within 4% of best_val
                     swa_model.update_parameters(self.model)
-                    self.swa_n += 1
-                    print(f">>> [SWA] Updated: Current model added to average (Total models: {self.swa_n})")
+                    print(f">>> [SWA] Updated: Current model added to average (Total models: {swa_model.n_averaged.item()})")
                 else:
                     print(f">>> [SWA] Skipped: Vali Loss ({vali_loss:.6f}) exceeds 4% threshold (>{best_val*1.04:.6f})")
+                
+                self.swa_n = swa_model.n_averaged.item()
 
             if early_stopping.early_stop:
                 print("Early stopping")
@@ -348,7 +354,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 else:
                     outputs = self.model(batch_x, cycle_index=batch_cycle)
                     
-                outputs_ensemble = outputs['outputs_time'] 
+                outputs_ensemble = outputs[f'outputs_{self.args.test_branch}'] 
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
                 
                 batch_y = batch_y[:, -self.args.pred_len:, :].to(self.device)
@@ -432,7 +438,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 outputs = self.model(batch_x[:, -self.args.seq_len:, :], cycle_index=batch_cycle)
 
-                outputs_ensemble = outputs['outputs_time']
+                outputs_ensemble = outputs[f'outputs_{self.args.test_branch}']
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
                 
                 batch_y = batch_y[:, -self.args.pred_len:, :]
@@ -476,7 +482,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
         f = open("result_long_term_forecast.txt", 'a')
-        f.write(setting + "  \n")
+        f.write(setting + swa_tag + "  \n")
         f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
         f.write('\n')

@@ -52,15 +52,15 @@ accumulation_steps=4
 seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.61
+for task_w in 0.4
 do
-for feature_w in 0.05
+for feature_w in 0.10
 do
 for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in  2026
+for random_seed in 2026
 do
 for pred_len in 96 
 do
@@ -141,6 +141,9 @@ else:
     --tq_mode add \
     --use_tq_gate 1 \
     --layer_offset 0 \
+    --e_layers 1 \
+    --test_branch time \
+    --mlp_res_w 1 \
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
