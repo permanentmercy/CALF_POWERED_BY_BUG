@@ -110,14 +110,13 @@ class Encoder_PCA(nn.Module):
             return x_time, x
 
 class TQ_OutputHead(nn.Module):
-    def __init__(self, d_model, output_dim, dropout):
+    def __init__(self, d_model, output_dim, dropout, out_mlp_layers=2):
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(d_model, d_model),
-            nn.GELU(),
-            nn.Linear(d_model, d_model),
-            nn.GELU(),
-        )
+        layers = []
+        for _ in range(out_mlp_layers):
+            layers.append(nn.Linear(d_model, d_model))
+            layers.append(nn.GELU())
+        self.mlp = nn.Sequential(*layers)
         self.output_proj = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(d_model, output_dim)
@@ -205,14 +204,14 @@ class Model(nn.Module):
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.out_layer = TQ_OutputHead(configs.d_model, configs.pred_len, configs.dropout)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.pred_len, configs.dropout, getattr(configs, 'out_mlp_layers', 2))
         elif self.task_name == 'classification':
             self.out_layer = nn.Linear(configs.d_model * configs.enc_in, configs.num_class)
             self.mlp_res_proj = nn.Linear(configs.d_model * configs.enc_in, configs.num_class)
         elif self.task_name == 'imputation':
-            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout, getattr(configs, 'out_mlp_layers', 2))
         elif self.task_name == 'anomaly_detection':
-            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout)
+            self.out_layer = TQ_OutputHead(configs.d_model, configs.seq_len, configs.dropout, getattr(configs, 'out_mlp_layers', 2))
         
         self.mlp_res_w = getattr(configs, 'mlp_res_w', 0.0)
 

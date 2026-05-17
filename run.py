@@ -145,6 +145,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_tq', type=int, default=1, help='enable or disable TQ injection completely')
     parser.add_argument('--test_branch', type=str, default='time', choices=['time', 'text'], help='which branch to use for testing/validation')
     parser.add_argument('--mlp_res_w', type=float, default=0.0, help='weight of the residual connection after MLP')
+    parser.add_argument('--out_mlp_layers', type=int, default=2, help='number of MLP layers in the output head')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False

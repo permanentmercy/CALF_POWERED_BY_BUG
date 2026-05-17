@@ -690,3 +690,88 @@ test shape: (10417, 96, 137) (10417, 96, 137)
 test shape: (10417, 96, 137) (10417, 96, 137)
 mse:0.18367791452351304, mae:0.21899335181614688
 >>> Test results saved to: ./results/Solar/fw0.05_ow0.22_mse0.1837_mae0.2190_swa.csv
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96          Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_AL.txt        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             137                 Dec In:             7                   
+  C Out:              137                 d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     1                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         16                  
+  Patience:           5                   Learning Rate:      0.0004              
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            1                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.22                Task Weight:        0.73                
+
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 103,267,680
+Trainable parameters: 11,898,720
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+>>>>>>>start training : long_term_forecast_CALF_96_96_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.22_train_epochs100_bs16_dr0.1_ld0.1_r8>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 36601
+val 5161
+test 10417
+Mixed Precision Training (AMP) Enabled
+	iters: 100, epoch: 1 | AvgLoss: 0.2187705 (T:0.2523 O:0.0677 F:0.3939 | Time:0.2457 Text:0.2589)
+	speed: 0.0702s/iter; left time: 16043.9248s
+	iters: 200, epoch: 1 | AvgLoss: 0.1708723 (T:0.1975 O:0.0579 F:0.2796 | Time:0.1895 Text:0.2054)
+	speed: 0.0465s/iter; left time: 10615.0808s
+	iters: 300, epoch: 1 | AvgLoss: 0.1510657 (T:0.1763 O:0.0497 F:0.2280 | Time:0.1688 Text:0.1839)
+	speed: 0.0471s/iter; left time: 10754.4814s
+	iters: 400, epoch: 1 | AvgLoss: 0.1395215 (T:0.1641 O:0.0449 F:0.1974 | Time:0.1566 Text:0.1716)
+	speed: 0.0476s/iter; left time: 10878.4983s
+	iters: 500, epoch: 1 | AvgLoss: 0.1308862 (T:0.1550 O:0.0404 F:0.1763 | Time:0.1481 Text:0.1619)
+	speed: 0.0473s/iter; left time: 10803.7099s
+	iters: 600, epoch: 1 | AvgLoss: 0.1254006 (T:0.1494 O:0.0377 F:0.1605 | Time:0.1427 Text:0.1561)
+	speed: 0.0468s/iter; left time: 10676.6905s
+	iters: 700, epoch: 1 | AvgLoss: 0.1218908 (T:0.1462 O:0.0354 F:0.1482 | Time:0.1397 Text:0.1526)
+	speed: 0.0494s/iter; left time: 11261.7807s
+	iters: 800, epoch: 1 | AvgLoss: 0.1179770 (T:0.1420 O:0.0336 F:0.1378 | Time:0.1357 Text:0.1483)
+	speed: 0.0484s/iter; left time: 11023.5608s
+	iters: 900, epoch: 1 | AvgLoss: 0.1146101 (T:0.1385 O:0.0321 F:0.1291 | Time:0.1323 Text:0.1447)
+	speed: 0.0445s/iter; left time: 10142.0142s

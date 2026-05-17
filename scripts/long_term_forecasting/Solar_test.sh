@@ -49,10 +49,10 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 batch_size=16
 accumulation_steps=4
-seq_len=720
+seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.7371
+for task_w in 0.736
 do
 for feature_w in 0.05
 do
@@ -60,9 +60,9 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in 2026
+for random_seed in 2028
 do
-for pred_len in 720
+for pred_len in 96
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
@@ -130,7 +130,7 @@ else:
     --r 8 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    --patience 3 \
+    --patience 5 \
     --num_workers 0 \
     --feature_w $feature_w \
     --output_w $output_w \
@@ -139,11 +139,12 @@ else:
     --use_swa 1 \
     --use_amp \
     --tq_mode add \
-    --use_tq_gate 1 \
+    --use_tq_gate 0 \
     --layer_offset 0 \
     --e_layers 1 \
     --test_branch time \
-    --mlp_res_w 1 \
+    --mlp_res_w 0 \
+    --out_mlp_layers 3 \
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
