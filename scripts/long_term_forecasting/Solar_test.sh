@@ -12,7 +12,7 @@ SIGN_FILE=$ROOT_LOG_DIR/Solar_test.signature
 # 计算当前脚本签名（用于判断参数或脚本是否改动）
 CUR_SIG=$(python - <<'PY'
 import hashlib,sys,re
-fn=r"f:/DOWNLOAD/参考文献-大模型/CALF-main/CALF-main/scripts/long_term_forecasting/Solar_test.sh"
+fn=r"./scripts/long_term_forecasting/Solar_test.sh"
 text=open(fn,'rb').read().decode('utf-8',errors='ignore')
 # 移除命令行中的 --batch_size <value> 以及任何 batch_size=... 赋值，视为无变化
 text=re.sub(r'--batch_size\s+\S+','',text)
