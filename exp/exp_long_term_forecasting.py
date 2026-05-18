@@ -150,15 +150,21 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                batch_cycle = batch_cycle.to(self.device)
+                if isinstance(batch_cycle, list):
+                    cycle_index, future_cycle_index = batch_cycle
+                    cycle_index = cycle_index.to(self.device)
+                    future_cycle_index = future_cycle_index.to(self.device)
+                else:
+                    cycle_index = batch_cycle.to(self.device)
+                    future_cycle_index = None
                 
                 # Forward pass with AMP if enabled
                 if self.args.use_amp:
                     with autocast():
-                        outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
+                        outputs_dict = self.model(batch_x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
                         loss, t_loss, o_loss, f_loss, t_loss_time, t_loss_text = criterion(outputs_dict, batch_y)
                 else:
-                    outputs_dict = self.model(batch_x, cycle_index=batch_cycle)
+                    outputs_dict = self.model(batch_x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
                     loss, t_loss, o_loss, f_loss, t_loss_time, t_loss_text = criterion(outputs_dict, batch_y)
 
                 train_loss.append(loss.item())
@@ -350,14 +356,20 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
                 batch_x_mark = batch_x_mark.float().to(self.device)
                 batch_y_mark = batch_y_mark.float().to(self.device)
-                batch_cycle = batch_cycle.to(self.device)
+                if isinstance(batch_cycle, list):
+                    cycle_index, future_cycle_index = batch_cycle
+                    cycle_index = cycle_index.to(self.device)
+                    future_cycle_index = future_cycle_index.to(self.device)
+                else:
+                    cycle_index = batch_cycle.to(self.device)
+                    future_cycle_index = None
 
                 # Use autocast for validation if AMP is enabled
                 if self.args.use_amp:
                     with autocast():
-                        outputs = self.model(batch_x, cycle_index=batch_cycle)
+                        outputs = self.model(batch_x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
                 else:
-                    outputs = self.model(batch_x, cycle_index=batch_cycle)
+                    outputs = self.model(batch_x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
                     
                 outputs_ensemble = outputs[f'outputs_{self.args.test_branch}'] 
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
@@ -446,9 +458,15 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
-                batch_cycle = batch_cycle.to(self.device)
+                if isinstance(batch_cycle, list):
+                    cycle_index, future_cycle_index = batch_cycle
+                    cycle_index = cycle_index.to(self.device)
+                    future_cycle_index = future_cycle_index.to(self.device)
+                else:
+                    cycle_index = batch_cycle.to(self.device)
+                    future_cycle_index = None
 
-                outputs = self.model(batch_x[:, -self.args.seq_len:, :], cycle_index=batch_cycle)
+                outputs = self.model(batch_x[:, -self.args.seq_len:, :], cycle_index=cycle_index, future_cycle_index=future_cycle_index)
 
                 outputs_ensemble = outputs[f'outputs_{self.args.test_branch}']
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]

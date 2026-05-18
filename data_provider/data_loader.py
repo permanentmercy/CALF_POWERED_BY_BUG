@@ -446,7 +446,10 @@ class Dataset_Solar(Dataset):
         # use the cycle index at the end of the input sequence
         cycle_index = self.cycle_index[s_end - 1]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark, cycle_index
+        # Retrieve the sequence of future cycle indices of length self.pred_len starting from s_end
+        future_cycle_index = self.cycle_index[s_end : s_end + self.pred_len]
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, (cycle_index, future_cycle_index)
 
     def __len__(self):
         return len(self.data_x) - self.seq_len - self.pred_len + 1

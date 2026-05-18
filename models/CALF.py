@@ -215,6 +215,11 @@ class Model(nn.Module):
         
         self.mlp_res_w = getattr(configs, 'mlp_res_w', 0.0)
 
+        # Define physical cycle queue parameter if task is forecasting
+        if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
+            self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
+            self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
+
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
             layer.train()
@@ -222,7 +227,7 @@ class Model(nn.Module):
         self.cnt = 0
         
 
-    def forecast(self, x, cycle_index=None):
+    def forecast(self, x, cycle_index=None, future_cycle_index=None):
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -254,6 +259,12 @@ class Model(nn.Module):
 
         outputs_text = outputs_text * stdev + means
         outputs_time = outputs_time * stdev + means
+
+        # Add physical cycle residual prior if available
+        if future_cycle_index is not None and hasattr(self, 'cycle_queue'):
+            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+            outputs_time = outputs_time + self.cycle_scale * future_cycle_val
+            outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 
         return {
             'outputs_text': outputs_text,
@@ -383,9 +394,9 @@ class Model(nn.Module):
         }
 
 
-    def forward(self, x, mask=None, cycle_index=None):
+    def forward(self, x, mask=None, cycle_index=None, future_cycle_index=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            output = self.forecast(x, cycle_index=cycle_index)
+            output = self.forecast(x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
         if self.task_name == 'classification':
             output = self.classification(x, cycle_index=cycle_index)
         if self.task_name == "imputation":
