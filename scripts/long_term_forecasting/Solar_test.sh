@@ -135,7 +135,6 @@ else:
     --feature_w $feature_w \
     --output_w $output_w \
     --task_w $task_w \
-    --bestmodel \
     --use_swa 1 \
     --use_amp \
     --tq_mode add \

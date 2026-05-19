@@ -235,24 +235,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             else:
                 test_loss = None
 
-            # save best model (to memory or disk)
+            # save best model (always keep in memory first to avoid training disk overhead)
             if vali_loss < best_val:
                 best_val = vali_loss
                 self.best_model_epoch = epoch + 1
-                if getattr(self.args, 'bestmodel', False):
-                    # keep best model in memory
-                    self.best_model_state = deepcopy(self.model.state_dict())
-                    if self.args.patience and self.args.patience > 0:
-                        if early_stopping.verbose:
-                            print(f"Best model stored in memory (Vali Loss: {best_val:.6f})")
-                else:
-                    # save to disk (fallback)
-                    try:
-                        torch.save(self.model.state_dict(), path + '/' + 'checkpoint.pth')
-                        if early_stopping.verbose:
-                            print(f"Best model saved to disk: {path}/checkpoint.pth (Vali Loss: {best_val:.6f})")
-                    except Exception:
-                        pass
+                self.best_model_state = deepcopy(self.model.state_dict())
+                if early_stopping.verbose:
+                    print(f"Best model stored in memory (Vali Loss: {best_val:.6f})")
                 
 
 
@@ -313,29 +302,22 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             # Update BN statistics (standard SWA practice)
             update_bn(train_loader, swa_model, device=self.device)
             self.model = swa_model.module # Extract the averaged model
-            # Save the final SWA model (to memory or disk)
-            if getattr(self.args, 'bestmodel', False):
-                self.swa_model_state = deepcopy(self.model.state_dict())
-                print(">>> SWA Model stored in memory.")
-            else:
-                torch.save(self.model.state_dict(), path + '/' + 'checkpoint_swa.pth')
-                print(f">>> SWA Model saved to {path}/checkpoint_swa.pth")
+            # Save the final SWA model (always keep in memory first to avoid training disk overhead)
+            self.swa_model_state = deepcopy(self.model.state_dict())
+            print(">>> SWA Model stored in memory.")
         
         print("average training time: {:4f} s".format(np.average(epoch_times)))
         
-        # load best model: prefer SWA, then in-memory best, then checkpoint.pth
+        # load best model: prefer SWA, then in-memory best
         if self.swa_enabled and self.swa_n > 0:
             print(">>> Using SWA averaged model for testing.")
             # self.model already contains SWA weights from the finalization step
-        elif getattr(self.args, 'bestmodel', False) and self.best_model_state is not None:
+        elif self.best_model_state is not None:
+            print(">>> Loading best model from memory for testing.")
             self.model.load_state_dict(self.best_model_state)
         else:
-            best_model_path = path + '/' + 'checkpoint.pth'
-            if os.path.exists(best_model_path):
-                self.model.load_state_dict(torch.load(best_model_path))
-            else:
-                if early_stopping.verbose:
-                    print(f"No checkpoint found at {best_model_path}; using current model state.")
+            if early_stopping.verbose:
+                print("No checkpoint found in memory; using current model state.")
         
         print(f"Max Memory (MB): {max_memory}")
         
@@ -402,6 +384,23 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             # 2. Test SWA Model (if enabled via args)
             if self.args.use_swa and self.swa_n > 0:
                 self.test(setting, test=1, swa_tag="_swa")
+
+            # Save to disk after test completes if bestmodel is False and we are in training run
+            if getattr(self.args, 'is_training', 0) == 1 and not getattr(self.args, 'bestmodel', False):
+                path = os.path.join(self.args.checkpoints, setting)
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                
+                # Clear best model from memory without saving to disk
+                self.best_model_state = None
+                
+                if self.swa_model_state is not None:
+                    swa_path = os.path.join(path, 'checkpoint_swa.pth')
+                    torch.save(self.swa_model_state, swa_path)
+                    print(f">>> [Post-Test Save] SWA model saved to disk: {swa_path}")
+                    # Clear from memory to free space
+                    self.swa_model_state = None
+
             return
 
         # zero shot
@@ -415,7 +414,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             print(f'loading model for {swa_tag if swa_tag else "best"} test')
             if swa_tag == "_swa":
                 # Try memory first for SWA, then disk
-                if getattr(self.args, 'bestmodel', False) and hasattr(self, 'swa_model_state') and self.swa_model_state is not None:
+                if getattr(self, 'swa_model_state', None) is not None:
                     print('Loading SWA model from memory...')
                     self.model.load_state_dict(self.swa_model_state)
                 else:
@@ -439,6 +438,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                         print(f"Best model checkpoint not found!")
             else:
                 print("Using current model state for test.")
+
+        # EF (Evolutionary Forecasting) extrapolation mode:
+        # ONLY active if use_ef is True and is_training == 0
+        if getattr(self.args, 'use_ef', False) and self.args.is_training == 0:
+            self._test_ef(test_data, test_loader, swa_tag=swa_tag)
+            return
 
         # Incremental metrics to avoid ArrayMemoryError on large datasets
         sum_mae, sum_mse, sum_mape, sum_mspe = 0, 0, 0, 0
@@ -591,3 +596,124 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         print(f'>>> Test results saved to: {csv_path}')
         
         return
+
+    def _test_ef(self, test_data, test_loader, swa_tag=""):
+        """
+        EF（进化预测）外推推理。
+        """
+        import math
+
+        EF_HORIZONS = [96, 192, 336, 720]
+        block_len   = self.args.pred_len   # 推理块长度 L
+        seq_len     = self.args.seq_len    # 输入窗口长度 T
+        cycle_len   = self.args.cycle      # TQ 周期长度
+        test_branch = self.args.test_branch
+
+        # Solar 数据集有真实的 cycle_index 数组；其他数据集为 dummy 0
+        has_real_cycle = hasattr(test_data, 'cycle_index') and isinstance(
+            test_data.cycle_index, np.ndarray
+        )
+        total_data_len = len(test_data.data_y)  # 测试集 data_y 总时间步数
+
+        print("\n" + "=" * 62)
+        print(f"[EF Inference{swa_tag}] block_len={block_len}, seq_len={seq_len}, cycle={cycle_len}")
+        print("-" * 62)
+
+        self.model.eval()
+
+        for H in EF_HORIZONS:
+            n_blocks        = math.ceil(H / block_len)
+            sum_mae         = 0.0
+            sum_mse         = 0.0
+            total_elements  = 0
+            n_valid_samples = 0
+            current_global_idx = 0  # 当前在测试集中的全局样本索引
+
+            with torch.no_grad():
+                for batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle in test_loader:
+                    batch_x = batch_x.float().to(self.device)
+                    B, _, M = batch_x.shape
+
+                    # ---- 解析基准 cycle_index ----
+                    if isinstance(batch_cycle, list):
+                        base_cycle_idx = batch_cycle[0].long().to(self.device)  # (B,)
+                    else:
+                        bc = batch_cycle
+                        if torch.is_tensor(bc):
+                            base_cycle_idx = bc.long().to(self.device)          # (B,)
+                        else:
+                            base_cycle_idx = torch.zeros(B, dtype=torch.long, device=self.device)
+
+                    # ---- 自回归块推理 ----
+                    window = batch_x[:, -seq_len:, :].clone()  # (B, seq_len, M)
+                    collected_blocks = []
+
+                    for step in range(n_blocks):
+                        step_offset = step * block_len
+
+                        # 当前输入窗口末尾对应的 cycle 位置
+                        cur_cycle_idx = (base_cycle_idx + step_offset) % cycle_len  # (B,)
+
+                        # 当前预测块内各时间步的 cycle 位置
+                        if has_real_cycle:
+                            fut_offsets = torch.arange(
+                                block_len, dtype=torch.long, device=self.device
+                            ).unsqueeze(0)                                              # (1, block_len)
+                            cur_future_cycle = (
+                                base_cycle_idx.unsqueeze(1) + step_offset + 1 + fut_offsets
+                            ) % cycle_len                                               # (B, block_len)
+                        else:
+                            cur_future_cycle = None
+
+                        # 单步前向传播
+                        out = self.model(
+                            window,
+                            cycle_index=cur_cycle_idx,
+                            future_cycle_index=cur_future_cycle,
+                        )
+                        pred_block = out[f'outputs_{test_branch}'][:, -block_len:, :]  # (B, block_len, M)
+                        collected_blocks.append(pred_block)
+
+                        # 滑动窗口
+                        combined = torch.cat([window, pred_block], dim=1)   # (B, seq_len+block_len, M)
+                        window   = combined[:, -seq_len:, :]                # (B, seq_len, M)
+
+                    # 拼接所有块，截取前 H 步
+                    full_pred    = torch.cat(collected_blocks, dim=1)[:, :H, :]  # (B, H, M)
+                    full_pred_np = full_pred.detach().cpu().numpy()
+
+                    # ---- 逐样本比对真实值 ----
+                    for j in range(B):
+                        sample_idx = current_global_idx + j
+                        s_end      = sample_idx + seq_len
+
+                        # 真实数据不足 H 步 → 跳过
+                        if s_end + H > total_data_len:
+                            continue
+
+                        true_H = test_data.data_y[s_end : s_end + H]  # (H, M) numpy
+                        pred_H = full_pred_np[j]                       # (H, M)
+
+                        sum_mae        += np.sum(np.abs(pred_H - true_H))
+                        sum_mse        += np.sum((pred_H - true_H) ** 2)
+                        total_elements += H * M
+                        n_valid_samples += 1
+
+                    current_global_idx += B
+
+            # 打印结果
+            if total_elements > 0:
+                mse = sum_mse / total_elements
+                mae = sum_mae / total_elements
+                print(
+                    f"[EF{swa_tag}] Horizon={H:4d} | MSE={mse:.6f} | MAE={mae:.6f}"
+                    f"  ({n_blocks} block(s), {n_valid_samples} valid samples)"
+                )
+            else:
+                print(
+                    f"[EF{swa_tag}] Horizon={H:4d} | "
+                    f"No valid samples (dataset too short for this horizon)."
+                )
+
+        print("=" * 62 + "\n")
+

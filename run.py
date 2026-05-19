@@ -146,6 +146,8 @@ if __name__ == '__main__':
     parser.add_argument('--test_branch', type=str, default='time', choices=['time', 'text'], help='which branch to use for testing/validation')
     parser.add_argument('--mlp_res_w', type=float, default=0.0, help='weight of the residual connection after MLP')
     parser.add_argument('--out_mlp_layers', type=int, default=2, help='number of MLP layers in the output head')
+    parser.add_argument('--use_ef', action='store_true', default=False,
+                        help='Enable Evolutionary Forecasting (EF) inference: autoregressive block extrapolation at test time for horizons 96/192/336/720')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
@@ -246,5 +248,5 @@ if __name__ == '__main__':
 
         exp = Exp(args)  # set experiments
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-        exp.test(setting, test=1)
+        exp.test(setting)
         torch.cuda.empty_cache()
