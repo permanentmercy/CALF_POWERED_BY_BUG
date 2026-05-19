@@ -60,9 +60,9 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in 2028
+for random_seed in 2026
 do
-for pred_len in 192
+for pred_len in 96
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
