@@ -378,11 +378,28 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # If called from run.py (test=0), dispatch to both Best and SWA tests
         if test == 0 and swa_tag == "":
             print(">>> Initiating Dual-Model Testing...")
+            
+            # In test-only mode (is_training == 0), check which checkpoints actually exist on disk.
+            is_training_mode = (getattr(self.args, 'is_training', 0) == 1)
+            
+            has_best_checkpoint = True
+            has_swa_checkpoint = False
+            
+            if not is_training_mode:
+                best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
+                has_best_checkpoint = os.path.exists(best_model_path)
+                
+                swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
+                has_swa_checkpoint = os.path.exists(swa_path)
+            
             # 1. Test Best Single Model
-            self.test(setting, test=1, swa_tag="_best")
+            if is_training_mode or has_best_checkpoint:
+                self.test(setting, test=1, swa_tag="_best")
+            else:
+                print(">>> [Test Dispatch] Skip best model test because checkpoint.pth does not exist.")
             
             # 2. Test SWA Model (if enabled via args)
-            if self.args.use_swa and self.swa_n > 0:
+            if self.args.use_swa and (self.swa_n > 0 or has_swa_checkpoint):
                 self.test(setting, test=1, swa_tag="_swa")
 
             # Save to disk after test completes if bestmodel is False and we are in training run

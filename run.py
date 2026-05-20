@@ -148,6 +148,8 @@ if __name__ == '__main__':
     parser.add_argument('--out_mlp_layers', type=int, default=2, help='number of MLP layers in the output head')
     parser.add_argument('--use_ef', action='store_true', default=False,
                         help='Enable Evolutionary Forecasting (EF) inference: autoregressive block extrapolation at test time for horizons 96/192/336/720')
+    parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
+                        help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
@@ -222,7 +224,7 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
     else:
         ii = 0
-        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_gpt{}_rl{}_{}_{}'.format(
+        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_gpt{}_rl{}_{}_{}_feature{}_output{}_train_epochs{}_bs{}_dr{}_ld{}_r{}'.format(
             args.task_name,
             args.model_id,
             args.model,
@@ -243,7 +245,14 @@ if __name__ == '__main__':
             args.gpt_layers,
             args.learning_rate,
             args.random_seed,
-            ii)
+            ii,
+            args.feature_w,
+            args.output_w,
+            args.train_epochs,
+            args.batch_size,
+            args.dropout,
+            args.lora_dropout,
+            args.r)
 
 
         exp = Exp(args)  # set experiments

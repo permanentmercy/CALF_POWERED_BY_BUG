@@ -35,6 +35,13 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         return model_class.from_pretrained('gpt2', **kwargs)
 
 class Encoder_PCA(nn.Module):
+    """
+    结合主成分分析 (PCA) 词嵌入的编码器模块，
+    并包含可选的时间查询 (Temporal Query, TQ) 机制以提取时间序列特征。
+    
+    该编码器在输入特征与预训练词嵌入之间使用交叉注意力，
+    并通过时间查询向量进行增强，以捕获季节性/周期性模式。
+    """
     def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
@@ -110,6 +117,11 @@ class Encoder_PCA(nn.Module):
             return x_time, x
 
 class TQ_OutputHead(nn.Module):
+    """
+    专为时间查询 (TQ) 增强架构设计的输出头。
+    包含一个多层感知机 (MLP) 和一个线性投影层，用于将高维特征
+    映射回所需的输出维度（例如，预测长度）。
+    """
     def __init__(self, d_model, output_dim, dropout, out_mlp_layers=2):
         super().__init__()
         layers = []
@@ -130,6 +142,13 @@ class TQ_OutputHead(nn.Module):
         return self.output_proj(h)
 
 class Model(nn.Module):
+    """
+    CALF (用于长期预测的跨模态对齐) 核心架构。
+    
+    该模型采用双分支结构（时间分支和文本分支），利用预训练的语言模型 (GPT-2)，
+    并通过 LoRA 进行微调，以处理时间序列分析任务，包括：
+    预测 (forecasting)、分类 (classification)、插补 (imputation) 和异常检测 (anomaly detection)。
+    """
     def __init__(self, configs, device):
         super(Model, self).__init__()
         self.pred_len = configs.pred_len
@@ -219,6 +238,7 @@ class Model(nn.Module):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
             self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
+            self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
@@ -228,6 +248,17 @@ class Model(nn.Module):
         
 
     def forecast(self, x, cycle_index=None, future_cycle_index=None):
+        """
+        执行长期或短期时间序列预测任务。
+        
+        参数:
+            x (Tensor): 输入的时间序列数据，形状为 (Batch, Seq_len, Features)。
+            cycle_index (Tensor, 可选): 当前时间周期的索引张量。
+            future_cycle_index (Tensor, 可选): 目标未来周期的索引张量。
+            
+        返回:
+            dict: 包含时间分支和文本分支的预测结果，以及它们的中间特征。
+        """
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -257,11 +288,17 @@ class Model(nn.Module):
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
+        # Add physical cycle residual prior if available (before denormalization option)
+        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
+            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+            outputs_time = outputs_time + self.cycle_scale * future_cycle_val
+            outputs_text = outputs_text + self.cycle_scale * future_cycle_val
+
         outputs_text = outputs_text * stdev + means
         outputs_time = outputs_time * stdev + means
 
-        # Add physical cycle residual prior if available
-        if future_cycle_index is not None and hasattr(self, 'cycle_queue'):
+        # Add physical cycle residual prior if available (after denormalization option)
+        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
             future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
@@ -275,6 +312,16 @@ class Model(nn.Module):
 
 
     def classification(self, x, cycle_index=None):
+        """
+        执行时间序列分类任务。
+        
+        参数:
+            x (Tensor): 输入的时间序列数据。
+            cycle_index (Tensor, 可选): 用于时间查询的索引张量。
+            
+        返回:
+            dict: 各个分支的分类预测结果以及中间特征。
+        """
         B, L, M = x.shape
 
         x = rearrange(x, 'b l m -> b m l')
@@ -309,6 +356,17 @@ class Model(nn.Module):
     
 
     def imputation(self, x, mask, cycle_index=None):
+        """
+        执行时间序列缺失值插补任务。
+        
+        参数:
+            x (Tensor): 包含缺失值的输入时间序列数据。
+            mask (Tensor): 布尔掩码，指示观测值 (1) 和缺失值 (0)。
+            cycle_index (Tensor, 可选): 用于时间查询的索引张量。
+            
+        返回:
+            dict: 重构后的时间序列数据以及中间特征。
+        """
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -353,6 +411,16 @@ class Model(nn.Module):
         }
 
     def anomaly_detection(self, x, cycle_index=None):
+        """
+        执行时间序列异常检测任务（通过尝试重构输入数据来实现）。
+        
+        参数:
+            x (Tensor): 输入的时间序列数据。
+            cycle_index (Tensor, 可选): 用于时间查询的索引张量。
+            
+        返回:
+            dict: 重构后的时间序列（用于与原始数据比较计算异常分数）以及中间特征。
+        """
         B, L, M = x.shape
 
         means = x.mean(1, keepdim=True).detach()
@@ -395,6 +463,9 @@ class Model(nn.Module):
 
 
     def forward(self, x, mask=None, cycle_index=None, future_cycle_index=None):
+        """
+        前向传播函数，根据配置中的任务名称路由到对应的特定任务方法。
+        """
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             output = self.forecast(x, cycle_index=cycle_index, future_cycle_index=future_cycle_index)
         if self.task_name == 'classification':

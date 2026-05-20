@@ -47,6 +47,7 @@ if [ ! -d "./logs/$model/$data_name" ]; then
 fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
+is_training=1
 batch_size=16
 accumulation_steps=4
 seq_len=96
@@ -96,17 +97,19 @@ else:
     continue
   fi
 
-  # 如果已记录完成，则跳过
-  if [ -f "$COMPLETED_FILE" ] && grep -Fxq "$combo" "$COMPLETED_FILE"; then
-    echo "already completed: $combo"
-    continue
+  # 如果已记录完成，则跳过（如果是纯测试 is_training 0，则不跳过，即不使用签名过滤）
+  if [ "$is_training" -ne 0 ]; then
+    if [ -f "$COMPLETED_FILE" ] && grep -Fxq "$combo" "$COMPLETED_FILE"; then
+      echo "already completed: $combo"
+      continue
+    fi
   fi
   
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
     --data_path solar_AL.txt \
-    --is_training 1 \
+    --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len \
     --data Solar \
@@ -132,6 +135,7 @@ else:
     --lora_dropout 0.1 \
     --patience 5 \
     --num_workers 0 \
+    --bestmodel \
     --feature_w $feature_w \
     --output_w $output_w \
     --task_w $task_w \
@@ -144,6 +148,8 @@ else:
     --test_branch time \
     --mlp_res_w 0 \
     --out_mlp_layers 3 \
+    --use_ef \
+    --cycle_prior_before_denorm 0 \
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
@@ -157,8 +163,12 @@ else:
      | tee -a logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then
-    echo "$combo" >> "$COMPLETED_FILE"
-    echo "recorded completed combo: $combo"
+    if [ "$is_training" -ne 0 ]; then
+      echo "$combo" >> "$COMPLETED_FILE"
+      echo "recorded completed combo: $combo"
+    else
+      echo "test completed for combo: $combo (is_training=0, skipping signature record)"
+    fi
   else
     echo "run failed for combo: $combo (exit $EXIT_CODE)" >&2
   fi

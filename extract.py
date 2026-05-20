@@ -19,7 +19,7 @@ def parse_log_line(config_line, result_line):
         'gpt_layers', 'learning_rate', 'random_seed', 'ii', 
         'feature_w', 'output_w', 'train_epochs',
         'batch_size', 'dropout', 'lora_dropout', 'lora_r',
-        'mse', 'mae', 'best_epoch'  # 新增
+        'mse', 'mae', 'best_epoch', 'swa'  # 新增
     ]
     for key in base_params:
         data[key] = ""
@@ -81,6 +81,9 @@ def parse_log_line(config_line, result_line):
         else:
             data['task_name'] = prefix_str
 
+    # 4. 判断 swa
+    data['swa'] = 1 if re.search(r'_swa\b', config_line) else 0
+
     return data
 
 def main():
@@ -125,7 +128,7 @@ mse:0.23402352631092072, mae:0.27033278346061707, train_epoch:3
         priority_cols = [
             'task_name', 'model', 'data', 'seq_len', 'pred_len', 
             'lora_r', 'lora_dropout', 'dropout', 'batch_size',
-            'learning_rate', 'train_epochs', 'best_epoch',  # best_epoch 靠近 train_epochs
+            'learning_rate', 'train_epochs', 'best_epoch', 'swa',  # best_epoch 靠近 train_epochs, swa紧随其后
             'feature_w', 'output_w', 
             'mse', 'mae'
         ]
