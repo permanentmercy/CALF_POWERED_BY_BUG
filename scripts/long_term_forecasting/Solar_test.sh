@@ -61,7 +61,7 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in 2026
+for random_seed in 2027 2028
 do
 for pred_len in 96
 do
@@ -153,6 +153,7 @@ else:
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
+    --use_norm 1 \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \

@@ -150,6 +150,7 @@ if __name__ == '__main__':
                         help='Enable Evolutionary Forecasting (EF) inference: autoregressive block extrapolation at test time for horizons 96/192/336/720')
     parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
+    parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False

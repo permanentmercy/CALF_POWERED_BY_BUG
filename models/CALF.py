@@ -239,6 +239,7 @@ class Model(nn.Module):
             self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
             self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
             self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
+        self.use_norm = getattr(configs, 'use_norm', 1)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
@@ -261,10 +262,11 @@ class Model(nn.Module):
         """
         B, L, M = x.shape
 
-        means = x.mean(1, keepdim=True).detach()
-        x = x - means
-        stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
-        x /= stdev
+        if self.use_norm:
+            means = x.mean(1, keepdim=True).detach()
+            x = x - means
+            stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
+            x /= stdev
 
         x = rearrange(x, 'b l m -> b m l')
 
@@ -294,8 +296,9 @@ class Model(nn.Module):
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 
-        outputs_text = outputs_text * stdev + means
-        outputs_time = outputs_time * stdev + means
+        if self.use_norm:
+            outputs_text = outputs_text * stdev + means
+            outputs_time = outputs_time * stdev + means
 
         # Add physical cycle residual prior if available (after denormalization option)
         if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
@@ -369,12 +372,14 @@ class Model(nn.Module):
         """
         B, L, M = x.shape
 
-        means = x.mean(1, keepdim=True).detach()
-        x = x - means
-        x = x.masked_fill(mask == 0, 0)
-
-        stdev = torch.sqrt(torch.sum(x**2, dim=1) / torch.sum(mask == 1, dim=1) + 1e-5).unsqueeze(1).detach()
-        x /= stdev
+        if self.use_norm:
+            means = x.mean(1, keepdim=True).detach()
+            x = x - means
+            x = x.masked_fill(mask == 0, 0)
+            stdev = torch.sqrt(torch.sum(x**2, dim=1) / torch.sum(mask == 1, dim=1) + 1e-5).unsqueeze(1).detach()
+            x /= stdev
+        else:
+            x = x.masked_fill(mask == 0, 0)
 
         x = rearrange(x, 'b l m -> b m l')
 
@@ -400,8 +405,9 @@ class Model(nn.Module):
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
-        outputs_text = outputs_text * stdev + means
-        outputs_time = outputs_time * stdev + means
+        if self.use_norm:
+            outputs_text = outputs_text * stdev + means
+            outputs_time = outputs_time * stdev + means
 
         return {
             'outputs_text': outputs_text,
@@ -423,10 +429,11 @@ class Model(nn.Module):
         """
         B, L, M = x.shape
 
-        means = x.mean(1, keepdim=True).detach()
-        x = x - means
-        stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
-        x /= stdev
+        if self.use_norm:
+            means = x.mean(1, keepdim=True).detach()
+            x = x - means
+            stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
+            x /= stdev
 
         x = rearrange(x, 'b l m -> b m l')
 
@@ -451,8 +458,9 @@ class Model(nn.Module):
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
-        outputs_text = outputs_text * stdev + means
-        outputs_time = outputs_time * stdev + means
+        if self.use_norm:
+            outputs_text = outputs_text * stdev + means
+            outputs_time = outputs_time * stdev + means
 
         return {
             'outputs_text': outputs_text,
