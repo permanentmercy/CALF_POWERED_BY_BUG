@@ -42,11 +42,14 @@ class Encoder_PCA(nn.Module):
     该编码器在输入特征与预训练词嵌入之间使用交叉注意力，
     并通过时间查询向量进行增强，以捕获季节性/周期性模式。
     """
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True, tq_inject_target='pca'):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
         self.tq_mode = tq_mode
         self.use_tq = use_tq
+        # 'pca': 周期向量注入到 PCA 的 K/V (w_embed) 侧（原始行为）
+        # 'q'  : 周期向量注入到时序特征的 Q 侧
+        self.tq_inject_target = tq_inject_target
         self.linear = nn.Linear(input_dim, hidden_dim)
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
@@ -81,12 +84,18 @@ class Encoder_PCA(nn.Module):
         w_embed = self.word_embedding_base.unsqueeze(0).expand(B, -1, -1)
 
         # 核心开关：只有在 use_tq 为 True 且提供了索引时，才注入周期性向量
+        tq_vec = None
         if self.use_tq and cycle_index is not None:
             tq = self.temporal_query[cycle_index] # (B, 768)
-            if self.tq_mode == 'mul':
-                w_embed = w_embed * (torch.sigmoid(self.tq_dropout(tq.unsqueeze(1))) * 2)
+            if self.tq_inject_target == 'pca':
+                # 原始行为：调制 PCA 词嵌入 (K/V 侧)
+                if self.tq_mode == 'mul':
+                    w_embed = w_embed * (torch.sigmoid(self.tq_dropout(tq.unsqueeze(1))) * 2)
+                else:
+                    w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
             else:
-                w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
+                # 'q' 模式：将 TQ 向量缓存，稍后注入时序 Q 侧
+                tq_vec = self.tq_dropout(tq.unsqueeze(1))  # (B, 1, hidden_dim)
 
         x = self.linear(x)
         x_time = x
@@ -95,6 +104,12 @@ class Encoder_PCA(nn.Module):
         for layer in self.layers:
             # Cross-Attention: Query from x, Key/Value from w_embed
             q = x.transpose(0, 1)
+            # 'q' 注入模式：在 Q 上叠加周期向量（broadcast 到所有 token）
+            if tq_vec is not None:
+                if self.tq_mode == 'mul':
+                    q = q * (torch.sigmoid(tq_vec.transpose(0, 1)) * 2)
+                else:
+                    q = q + tq_vec.transpose(0, 1)
             k = v = w_embed.transpose(0, 1)
             
             attn_output, _ = layer['cross_attention'](q, k, v)
@@ -219,7 +234,8 @@ class Model(nn.Module):
             use_tq_gate=configs.use_tq_gate, # 是否使用门控
             tq_dropout=getattr(configs, 'tq_dropout', 0.0), # TQ Dropout
             tq_mode=getattr(configs, 'tq_mode', 'mul'),     # TQ 调制模式: add/mul
-            use_tq=getattr(configs, 'use_tq', 1)            # 是否开启 TQ 注入
+            use_tq=getattr(configs, 'use_tq', 1),            # 是否开启 TQ 注入
+            tq_inject_target=getattr(configs, 'tq_inject_target', 'pca')  # 注入目标: 'pca'(K/V侧) 或 'q'(Q侧)
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':

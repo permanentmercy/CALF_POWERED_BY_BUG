@@ -141,6 +141,8 @@ if __name__ == '__main__':
     parser.add_argument('--tq_lr_factor', type=float, default=10.0, help='learning rate factor for TQ related parameters')
     parser.add_argument('--tq_dropout', type=float, default=0.0, help='dropout probability for TQ injection')
     parser.add_argument('--tq_mode', type=str, default='mul', choices=['add', 'mul'], help='TQ injection mode: add or mul')
+    parser.add_argument('--tq_inject_target', type=str, default='pca', choices=['pca', 'q'],
+                        help='where to inject the cycle feature vector: "pca" injects into PCA K/V (original), "q" injects into temporal Q')
     parser.add_argument('--layer_offset', type=int, default=0, help='offset for time branch layer indexing in feature alignment')
     parser.add_argument('--use_tq', type=int, default=1, help='enable or disable TQ injection completely')
     parser.add_argument('--test_branch', type=str, default='time', choices=['time', 'text'], help='which branch to use for testing/validation')

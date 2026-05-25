@@ -61,9 +61,9 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for random_seed in 2027 2028
+for random_seed in 2026 2027 2028
 do
-for pred_len in 96
+for pred_len in 192 336 720
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
@@ -134,7 +134,7 @@ else:
     --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 5 \
-    --num_workers 0 \
+    --num_workers 2 \
     --bestmodel \
     --feature_w $feature_w \
     --output_w $output_w \
@@ -154,6 +154,7 @@ else:
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
     --use_norm 1 \
+    --tq_inject_target q \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
