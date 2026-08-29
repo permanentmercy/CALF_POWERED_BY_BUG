@@ -47,13 +47,13 @@ if [ ! -d "./logs/$model/$data_name" ]; then
 fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
-is_training=1
+is_training=0
 batch_size=16
-accumulation_steps=1
+accumulation_steps=4
 seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.75
+for task_w in 0.736
 do
 for feature_w in 0.05
 do
@@ -61,9 +61,9 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for percent in 5
+for percent in 100
 do
-for random_seed in 2026 2027 2028
+for random_seed in 2027 
 do
 for pred_len in 96
 do
@@ -120,7 +120,8 @@ else:
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
-    --data_path solar_AL.txt \
+    --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2027_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint_swa.pth \
+    --data_path solar_IL.csv \
     --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
@@ -136,8 +137,8 @@ else:
     --n_heads $n_heads \
     --d_ff $((d_model*4)) \
     --dropout 0.1 \
-    --enc_in 137 \
-    --c_out 137 \
+    --enc_in 105 \
+    --c_out 105 \
     --gpt_layers 1 \
     --itr 1 \
     --model $model \
@@ -148,7 +149,6 @@ else:
     --lora_dropout 0.1 \
     --patience 5 \
     --num_workers 0 \
-    --bestmodel \
     --feature_w $feature_w \
     --output_w $output_w \
     --task_w $task_w \
@@ -161,7 +161,6 @@ else:
     --test_branch time \
     --mlp_res_w 0 \
     --out_mlp_layers 3 \
-    --use_ef \
     --cycle_prior_before_denorm 0 \
     --tq_dropout $tq_dropout \
     --tq_lr_factor $tq_lr_factor \

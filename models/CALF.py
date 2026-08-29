@@ -167,6 +167,8 @@ class Model(nn.Module):
     def __init__(self, configs, device):
         super(Model, self).__init__()
         self.pred_len = configs.pred_len
+        self.enc_in = getattr(configs, 'enc_in', None)
+        self.c_out = getattr(configs, 'c_out', self.enc_in)
         
         peft_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM, 
@@ -276,6 +278,12 @@ class Model(nn.Module):
         返回:
             dict: 包含时间分支和文本分支的预测结果，以及它们的中间特征。
         """
+        # Auto-slice input channels if data has more channels than target enc_in / cycle_queue
+        if hasattr(self, 'cycle_queue') and x.shape[-1] > self.cycle_queue.shape[1]:
+            x = x[:, :, :self.cycle_queue.shape[1]]
+        elif hasattr(self, 'enc_in') and self.enc_in is not None and x.shape[-1] > self.enc_in:
+            x = x[:, :, :self.enc_in]
+
         B, L, M = x.shape
 
         if self.use_norm:
@@ -499,3 +507,28 @@ class Model(nn.Module):
         if self.task_name == "anomaly_detection":
             output = self.anomaly_detection(x, cycle_index=cycle_index)
         return output
+
+    def load_state_dict(self, state_dict, strict=True):
+        """
+        自适应权重加载方法：
+        当模型与预训练权重中的 cycle_queue 通道数 (enc_in) 不一致时：
+        1. 若目标通道数 < 预训练通道数 (如 27 < 127 或 29 < 137)：自动切片截取前 target_enc_in 列，并提示；
+        2. 若目标通道数 > 预训练通道数 (如 137 > 29)：主动抛出 ValueError 错误提示；
+        3. 若通道数一致：正常直接加载。
+        """
+        if 'cycle_queue' in state_dict and hasattr(self, 'cycle_queue'):
+            ckpt_enc_in = state_dict['cycle_queue'].shape[1]
+            curr_enc_in = self.cycle_queue.shape[1]
+            if ckpt_enc_in != curr_enc_in:
+                if curr_enc_in < ckpt_enc_in:
+                    print(f">>> [Adaptive Load] Slicing cycle_queue from checkpoint channels ({ckpt_enc_in}) to target model channels ({curr_enc_in}).")
+                    state_dict = state_dict.copy()
+                    state_dict['cycle_queue'] = state_dict['cycle_queue'][:, :curr_enc_in]
+                else:
+                    raise ValueError(
+                        f"\n[Adaptive Load Error] Insufficient checkpoint channels!\n"
+                        f"Checkpoint cycle_queue has {ckpt_enc_in} channels, but target model requires {curr_enc_in} channels ({curr_enc_in} > {ckpt_enc_in}).\n"
+                        f"Cannot expand fewer channels to larger channels without training."
+                    )
+        return super().load_state_dict(state_dict, strict=strict)
+

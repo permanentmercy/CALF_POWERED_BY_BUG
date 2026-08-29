@@ -353,14 +353,20 @@ class Dataset_Solar(Dataset):
         # cols.remove(self.target)
         # cols.remove('date')
         # df_raw = df_raw[['date'] + cols + [self.target]]
-        df_raw = []
-        with open(os.path.join(self.root_path, self.data_path), "r", encoding='utf-8') as f:
-            for line in f.readlines():
-                line = line.strip('\n').split(',')
-                data_line = np.stack([float(i) for i in line])
-                df_raw.append(data_line)
-        df_raw = np.stack(df_raw, 0)
-        df_raw = pd.DataFrame(df_raw)
+        if os.path.exists(self.data_path) and os.path.isfile(self.data_path):
+            file_path = self.data_path
+        else:
+            file_path = os.path.join(self.root_path, self.data_path)
+        if self.data_path.endswith('.csv'):
+            df_raw = pd.read_csv(file_path)
+            if 'date' in df_raw.columns:
+                df_raw = df_raw.drop(columns=['date'])
+            elif not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
+                df_raw = df_raw.iloc[:, 1:]
+        else:
+            df_raw = pd.read_csv(file_path, header=None)
+            if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
+                df_raw = df_raw.iloc[:, 1:]
         
         num_train = int(len(df_raw) * 0.7)
         num_test = int(len(df_raw) * 0.2)

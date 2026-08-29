@@ -188,7 +188,17 @@ class Exp_Short_Term_Forecast(Exp_Basic):
 
         if test:
             print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+            is_training_mode = (getattr(self.args, 'is_training', 0) == 1)
+            explicit_ckpt = getattr(self.args, 'checkpoint_path', "0")
+            if (not is_training_mode) and explicit_ckpt and str(explicit_ckpt).strip() not in ["0", "None", ""]:
+                ckpt_file = os.path.join(explicit_ckpt, 'checkpoint.pth') if os.path.isdir(explicit_ckpt) else explicit_ckpt
+                if os.path.exists(ckpt_file):
+                    print(f'>>> [Explicit Checkpoint] Loading model weights from: {ckpt_file}')
+                    self.model.load_state_dict(torch.load(ckpt_file, map_location=self.device))
+                else:
+                    raise FileNotFoundError(f'[Explicit Checkpoint Error] Specified checkpoint path does not exist: {ckpt_file}')
+            else:
+                self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth'), map_location=self.device))
 
         folder_path = './test_results/' + setting + '/'
         if not os.path.exists(folder_path):

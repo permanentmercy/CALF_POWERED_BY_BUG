@@ -356,7 +356,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 outputs_ensemble = outputs[f'outputs_{self.args.test_branch}'] 
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
                 
-                batch_y = batch_y[:, -self.args.pred_len:, :].to(self.device)
+                batch_y = batch_y[:, -self.args.pred_len:, :outputs_ensemble.shape[-1]].to(self.device)
 
                 pred = outputs_ensemble.detach().cpu()
                 true = batch_y.detach().cpu()
@@ -379,13 +379,31 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if test == 0 and swa_tag == "":
             print(">>> Initiating Dual-Model Testing...")
             
-            # In test-only mode (is_training == 0), check which checkpoints actually exist on disk.
             is_training_mode = (getattr(self.args, 'is_training', 0) == 1)
-            
+            explicit_ckpt = getattr(self.args, 'checkpoint_path', "0")
+            has_explicit = (not is_training_mode) and bool(explicit_ckpt and str(explicit_ckpt).strip() not in ["0", "None", ""])
+
             has_best_checkpoint = True
             has_swa_checkpoint = False
             
-            if not is_training_mode:
+            if has_explicit:
+                # User specified an explicit checkpoint path in test-only mode (is_training == 0)
+                if os.path.isfile(explicit_ckpt):
+                    # Direct file passed: run single test with this checkpoint
+                    if "swa" in os.path.basename(explicit_ckpt).lower():
+                        self.test(setting, test=1, swa_tag="_swa")
+                    else:
+                        self.test(setting, test=1, swa_tag="_best")
+                    return
+                elif os.path.isdir(explicit_ckpt):
+                    best_model_path = os.path.join(explicit_ckpt, 'checkpoint.pth')
+                    has_best_checkpoint = os.path.exists(best_model_path)
+                    swa_path = os.path.join(explicit_ckpt, 'checkpoint_swa.pth')
+                    has_swa_checkpoint = os.path.exists(swa_path)
+                else:
+                    # Non-existent path, let self.test raise FileNotFoundError
+                    has_best_checkpoint = True
+            elif not is_training_mode:
                 best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
                 has_best_checkpoint = os.path.exists(best_model_path)
                 
@@ -429,7 +447,24 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         
         if test:
             print(f'loading model for {swa_tag if swa_tag else "best"} test')
-            if swa_tag == "_swa":
+            is_training_mode = (getattr(self.args, 'is_training', 0) == 1)
+            explicit_ckpt = getattr(self.args, 'checkpoint_path', "0")
+            if (not is_training_mode) and explicit_ckpt and str(explicit_ckpt).strip() not in ["0", "None", ""]:
+                # User specified an explicit checkpoint path in test-only mode (is_training == 0)
+                if os.path.isdir(explicit_ckpt):
+                    if swa_tag == "_swa" and os.path.exists(os.path.join(explicit_ckpt, 'checkpoint_swa.pth')):
+                        ckpt_file = os.path.join(explicit_ckpt, 'checkpoint_swa.pth')
+                    else:
+                        ckpt_file = os.path.join(explicit_ckpt, 'checkpoint.pth')
+                else:
+                    ckpt_file = explicit_ckpt
+                
+                if os.path.exists(ckpt_file):
+                    print(f'>>> [Explicit Checkpoint] Loading model weights from: {ckpt_file}')
+                    self.model.load_state_dict(torch.load(ckpt_file, map_location=self.device))
+                else:
+                    raise FileNotFoundError(f'[Explicit Checkpoint Error] Specified checkpoint path does not exist: {ckpt_file}')
+            elif swa_tag == "_swa":
                 # Try memory first for SWA, then disk
                 if getattr(self, 'swa_model_state', None) is not None:
                     print('Loading SWA model from memory...')
@@ -438,7 +473,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
                     if os.path.exists(swa_path):
                         print(f'Loading SWA model from {swa_path}...')
-                        self.model.load_state_dict(torch.load(swa_path))
+                        self.model.load_state_dict(torch.load(swa_path, map_location=self.device))
                     else:
                         print("SWA checkpoint not found!")
             elif swa_tag == "_best" or (getattr(self.args, 'bestmodel', False) and getattr(self, 'best_model_state', None) is not None):
@@ -450,7 +485,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
                     if os.path.exists(best_model_path):
                         print(f'Loading best model from disk: {best_model_path}...')
-                        self.model.load_state_dict(torch.load(best_model_path))
+                        self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
                     else:
                         print(f"Best model checkpoint not found!")
             else:
@@ -493,7 +528,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 outputs_ensemble = outputs[f'outputs_{self.args.test_branch}']
                 outputs_ensemble = outputs_ensemble[:, -self.args.pred_len:, :]
                 
-                batch_y = batch_y[:, -self.args.pred_len:, :]
+                batch_y = batch_y[:, -self.args.pred_len:, :outputs_ensemble.shape[-1]]
 
                 pred = outputs_ensemble.detach().cpu().numpy()
                 true = batch_y.detach().cpu().numpy()

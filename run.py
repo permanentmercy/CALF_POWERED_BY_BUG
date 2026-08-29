@@ -153,6 +153,8 @@ if __name__ == '__main__':
     parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
+    parser.add_argument('--checkpoint_path', type=str, default="0",
+                        help='Explicit path to checkpoint file (.pth) or directory to load for testing when is_training=0. If "0", uses default path based on setting.')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
