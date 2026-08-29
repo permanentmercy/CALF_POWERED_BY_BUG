@@ -1,0 +1,173 @@
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p5       Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_AL.txt        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             137                 Dec In:             7                   
+  C Out:              137                 d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         16                  
+  Patience:           5                   Learning Rate:      0.0001              
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            1                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.2                 Task Weight:        0.75                
+
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,468,593
+Trainable parameters: 13,099,633
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+>>>>>>>start training : long_term_forecast_CALF_96_96_p5_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0001_2026_0_feature0.05_output0.2_train_epochs100_bs16_dr0.1_ld0.1_r8>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 1739
+val 5161
+test 10417
+Mixed Precision Training (AMP) Enabled
+	iters: 100, epoch: 1 | AvgLoss: 0.1763690 (T:0.2096 O:0.0194 F:0.3062 | Time:0.2043 Text:0.2148)
+	speed: 0.0478s/iter; left time: 511.3942s
+Epoch: 1 cost time: 4.901862382888794
+Best model stored in memory (Vali Loss: 0.296625)
+Epoch: 1, Steps: 108 | Train: 0.1717271 (Task:0.2039 Out:0.0197 Feat:0.2967 | Time:0.1989 Text:0.2090) Vali: 0.2966252 Test: 0.2782616
+lr = 0.0000975531
+Validation loss decreased (inf --> 0.296625).  Saving model ...
+	iters: 100, epoch: 2 | AvgLoss: 0.1202903 (T:0.1441 O:0.0234 F:0.1508 | Time:0.1405 Text:0.1477)
+	speed: 0.1945s/iter; left time: 2060.6456s
+Epoch: 2 cost time: 4.362602710723877
+Best model stored in memory (Vali Loss: 0.293771)
+Epoch: 2, Steps: 108 | Train: 0.1199892 (Task:0.1439 Out:0.0229 Feat:0.1492 | Time:0.1403 Text:0.1476) Vali: 0.2937711 Test: 0.2506354
+lr = 0.0000904518
+Validation loss decreased (0.296625 --> 0.293771).  Saving model ...
+	iters: 100, epoch: 3 | AvgLoss: 0.1122164 (T:0.1364 O:0.0201 F:0.1176 | Time:0.1329 Text:0.1399)
+	speed: 0.1964s/iter; left time: 2059.6154s
+Epoch: 3 cost time: 4.40770149230957
+Best model stored in memory (Vali Loss: 0.264183)
+Epoch: 3, Steps: 108 | Train: 0.1112546 (Task:0.1353 Out:0.0198 Feat:0.1168 | Time:0.1318 Text:0.1388) Vali: 0.2641834 Test: 0.2334448
+lr = 0.0000793913
+Validation loss decreased (0.293771 --> 0.264183).  Saving model ...
+	iters: 100, epoch: 4 | AvgLoss: 0.1087199 (T:0.1340 O:0.0166 F:0.0975 | Time:0.1312 Text:0.1368)
+	speed: 0.1937s/iter; left time: 2009.9749s
+Epoch: 4 cost time: 4.298107862472534
+Epoch: 4, Steps: 108 | Train: 0.1071352 (Task:0.1320 Out:0.0165 Feat:0.0969 | Time:0.1292 Text:0.1348) Vali: 0.2772247 Test: 0.2337375
+lr = 0.0000654543
+EarlyStopping counter: 1 out of 5
+>>> [SWA] Enabled: Starting with Best Model (Vali Loss: 0.264183)
+>>> [SWA] Skipped: Vali Loss (0.277225) exceeds 4% threshold (>0.274751)
+	iters: 100, epoch: 5 | AvgLoss: 0.1044735 (T:0.1298 O:0.0144 F:0.0844 | Time:0.1274 Text:0.1323)
+	speed: 0.1949s/iter; left time: 2001.0642s
+Epoch: 5 cost time: 4.321579933166504
+Epoch: 5, Steps: 108 | Train: 0.1038614 (Task:0.1291 Out:0.0142 Feat:0.0839 | Time:0.1268 Text:0.1314) Vali: 0.2643369 Test: 0.2276532
+lr = 0.0000500050
+EarlyStopping counter: 2 out of 5
+>>> [SWA] Updated: Current model added to average (Total models: 2)
+	iters: 100, epoch: 6 | AvgLoss: 0.1004262 (T:0.1257 O:0.0123 F:0.0729 | Time:0.1242 Text:0.1273)
+	speed: 0.1933s/iter; left time: 1963.8005s
+Epoch: 6 cost time: 4.226035118103027
+Epoch: 6, Steps: 108 | Train: 0.1009934 (Task:0.1265 Out:0.0123 Feat:0.0726 | Time:0.1250 Text:0.1281) Vali: 0.2787848 Test: 0.2298890
+lr = 0.0000345557
+EarlyStopping counter: 3 out of 5
+>>> [SWA] Skipped: Vali Loss (0.278785) exceeds 4% threshold (>0.274751)
+	iters: 100, epoch: 7 | AvgLoss: 0.0975022 (T:0.1227 O:0.0113 F:0.0639 | Time:0.1214 Text:0.1240)
+	speed: 0.1902s/iter; left time: 1911.6568s
+Epoch: 7 cost time: 4.190168857574463
+Best model stored in memory (Vali Loss: 0.261192)
+Epoch: 7, Steps: 108 | Train: 0.0987132 (Task:0.1244 Out:0.0112 Feat:0.0637 | Time:0.1231 Text:0.1256) Vali: 0.2611922 Test: 0.2226613
+lr = 0.0000206187
+Validation loss decreased (0.264183 --> 0.261192).  Saving model ...
+>>> [SWA] Reset: New global best found (0.261192), clearing previous averages.
+	iters: 100, epoch: 8 | AvgLoss: 0.0964288 (T:0.1220 O:0.0104 F:0.0566 | Time:0.1209 Text:0.1232)
+	speed: 0.1915s/iter; left time: 1904.0232s
+Epoch: 8 cost time: 4.293595552444458
+Epoch: 8, Steps: 108 | Train: 0.0973938 (Task:0.1233 Out:0.0104 Feat:0.0564 | Time:0.1221 Text:0.1245) Vali: 0.2790942 Test: 0.2246764
+lr = 0.0000095582
+EarlyStopping counter: 1 out of 5
+>>> [SWA] Skipped: Vali Loss (0.279094) exceeds 4% threshold (>0.271640)
+	iters: 100, epoch: 9 | AvgLoss: 0.0964535 (T:0.1226 O:0.0101 F:0.0503 | Time:0.1213 Text:0.1238)
+	speed: 0.1923s/iter; left time: 1891.2079s
+Epoch: 9 cost time: 4.215340852737427
+Epoch: 9, Steps: 108 | Train: 0.0963902 (Task:0.1225 Out:0.0102 Feat:0.0501 | Time:0.1212 Text:0.1237) Vali: 0.2674851 Test: 0.2219815
+lr = 0.0000024569
+EarlyStopping counter: 2 out of 5
+>>> [SWA] Updated: Current model added to average (Total models: 2)
+	iters: 100, epoch: 10 | AvgLoss: 0.0967760 (T:0.1235 O:0.0094 F:0.0450 | Time:0.1225 Text:0.1245)
+	speed: 0.1886s/iter; left time: 1834.7887s
+Epoch: 10 cost time: 4.197779893875122
+Epoch: 10, Steps: 108 | Train: 0.0958211 (Task:0.1222 Out:0.0095 Feat:0.0448 | Time:0.1212 Text:0.1232) Vali: 0.2736578 Test: 0.2224828
+lr = 0.0000000100
+EarlyStopping counter: 3 out of 5
+>>> [SWA] Skipped: Vali Loss (0.273658) exceeds 4% threshold (>0.271640)
+	iters: 100, epoch: 11 | AvgLoss: 0.0968148 (T:0.1240 O:0.0091 F:0.0401 | Time:0.1233 Text:0.1246)
+	speed: 0.1898s/iter; left time: 1825.7164s
+Epoch: 11 cost time: 4.2429211139678955
+Epoch: 11, Steps: 108 | Train: 0.0952938 (Task:0.1220 Out:0.0091 Feat:0.0399 | Time:0.1213 Text:0.1227) Vali: 0.2736983 Test: 0.2221875
+lr = 0.0000024569
+EarlyStopping counter: 4 out of 5
+>>> [SWA] Skipped: Vali Loss (0.273698) exceeds 4% threshold (>0.271640)
+	iters: 100, epoch: 12 | AvgLoss: 0.0952959 (T:0.1221 O:0.0095 F:0.0361 | Time:0.1214 Text:0.1229)
+	speed: 0.1903s/iter; left time: 1810.5732s
+Epoch: 12 cost time: 4.256150722503662
+Epoch: 12, Steps: 108 | Train: 0.0950669 (Task:0.1219 Out:0.0094 Feat:0.0359 | Time:0.1211 Text:0.1226) Vali: 0.2732694 Test: 0.2222816
+lr = 0.0000095582
+EarlyStopping counter: 5 out of 5
+>>> [SWA] Skipped: Vali Loss (0.273269) exceeds 4% threshold (>0.271640)
+Early stopping
+>>> Finalizing SWA: Averaged 2 models.
+>>> SWA Model stored in memory.
+average training time: 4.326154 s
+>>> Using SWA averaged model for testing.
+Max Memory (MB): 2416.056640625
+>>>>>>>testing : long_term_forecast_CALF_96_96_p5_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0001_2026_0_feature0.05_output0.2_train_epochs100_bs16_dr0.1_ld0.1_r8<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+Loading best model from memory...
+Computational complexity(MACs): 4.45 GMac, Number of parameters: 13.1 M
+mse:0.2214350844981446, mae:0.23656715858039623
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.2_mse0.2214_mae0.2366_best.csv
+test 10417
+loading model for _swa test
+Loading SWA model from memory...
+Computational complexity(MACs): 4.45 GMac, Number of parameters: 13.1 M
+mse:0.22089363690230754, mae:0.2347121587763845
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.2_mse0.2209_mae0.2347_swa.csv

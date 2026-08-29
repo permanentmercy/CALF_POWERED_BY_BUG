@@ -49,11 +49,11 @@ fi
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 is_training=1
 batch_size=16
-accumulation_steps=4
+accumulation_steps=1
 seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.736
+for task_w in 0.75
 do
 for feature_w in 0.05
 do
@@ -61,9 +61,11 @@ for d_model in 768
 do
 for n_heads in 4
 do
+for percent in 5
+do
 for random_seed in 2026 2027 2028
 do
-for pred_len in 192 336 720
+for pred_len in 96
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
@@ -81,7 +83,7 @@ else:
     continue
   fi
 
-  combo="${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
+  combo="p${percent}_${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
 
   # 检查是否是显式跳过的组合
   SKIP_COMBOS=("")
@@ -93,7 +95,7 @@ else:
     fi
   done
   if [ "$skip" == true ]; then
-    echo "skip specific hyperparameters: output_w=$output_w, task_w=$task_w, feature_w=$feature_w"
+    echo "skip specific hyperparameters: percent=$percent, output_w=$output_w, task_w=$task_w, feature_w=$feature_w"
     continue
   fi
 
@@ -105,17 +107,28 @@ else:
     fi
   fi
   
+  echo ""
+  echo "=========================================================================================================="
+  echo ">>> [Starting Experiment] Data: $data_name | Percent: ${percent}% | Seed: $random_seed | Horizon: $pred_len"
+  echo ">>> Loss Weights : task_w=$task_w, feature_w=$feature_w, output_w=$output_w (Loss: smooth_l1)"
+  echo ">>> Train Config : batch_size=$batch_size, accum_steps=$accumulation_steps, lr=$learning_rate, epochs=100 (patience=5)"
+  echo ">>> Model Config : d_model=$d_model, n_heads=$n_heads, gpt_layers=1, lora(r=8, alpha=32)"
+  echo ">>> TQ / Cycle   : cycle=144, mode=add, inject=q, lr_factor=$tq_lr_factor, dropout=$tq_dropout, swa=1"
+  echo ">>> Model ID     : ${model}_${seq_len}_${pred_len}_p${percent}"
+  echo "=========================================================================================================="
+
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
     --data_path solar_AL.txt \
     --is_training $is_training \
     --task_name long_term_forecast \
-    --model_id $model'_'$seq_len'_'$pred_len \
+    --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
     --data Solar \
     --seq_len $seq_len \
     --label_len 0 \
     --pred_len $pred_len \
+    --percent $percent \
     --batch_size $batch_size \
     --learning_rate $learning_rate \
     --train_epochs 100 \
@@ -134,7 +147,7 @@ else:
     --lora_alpha 32 \
     --lora_dropout 0.1 \
     --patience 5 \
-    --num_workers 2 \
+    --num_workers 0 \
     --bestmodel \
     --feature_w $feature_w \
     --output_w $output_w \
@@ -162,7 +175,7 @@ else:
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
     --cycle 144 \
-     | tee -a logs/$model/$data_name/${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
+     | tee -a logs/$model/$data_name/p${percent}_${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then
     if [ "$is_training" -ne 0 ]; then
@@ -174,6 +187,7 @@ else:
   else
     echo "run failed for combo: $combo (exit $EXIT_CODE)" >&2
   fi
+done
 done
 done
 done

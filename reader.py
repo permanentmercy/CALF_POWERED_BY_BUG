@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import tkinter as tk
 from tkinter import ttk, messagebox
-
+import extract
 # 配置信息
 DATA_ROOT = "./datasets/Solar/"
 DATA_PATH = "solar_AL.txt"
@@ -303,6 +303,7 @@ class ResultViewer:
             print(f"Plotting error: {e}")
 
 if __name__ == "__main__":
+    extract.main()
     root = tk.Tk()
     app = ResultViewer(root)
     root.mainloop()
