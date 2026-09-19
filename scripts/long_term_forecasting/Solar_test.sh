@@ -63,7 +63,7 @@ for n_heads in 4
 do
 for percent in 100
 do
-for random_seed in 2027 
+for random_seed in 2027
 do
 for pred_len in 96
 do

@@ -5,6 +5,18 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 
 
 class AccustumGPT2Model(GPT2Model):
+    def __init__(self, config):
+        super().__init__(config)
+        # 禁用因果掩码：将 self.bias (下三角矩阵) 替换为全 True 矩阵，
+        # 使所有通道（token）可以双向互相关注。
+        # 在 CALF 中，每个通道被视为一个 GPT-2 "token"，
+        # 因果掩码会导致通道间信息不对称（通道 0 只能看自己，通道 M-1 能看所有），
+        # 这对时间序列是不合理的。
+        for block in self.h:
+            attn = block.attn
+            if not attn.is_cross_attention:
+                attn.bias.fill_(True)
+
     def accustum_forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,

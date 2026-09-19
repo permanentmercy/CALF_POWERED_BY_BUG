@@ -120,6 +120,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             print("Mixed Precision Training (AMP) Enabled")
         
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=self.args.tmax, eta_min=1e-8)
+        loss_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(loss_optim, T_max=self.args.tmax, eta_min=1e-8)
         
         epoch_times = []
         best_val = np.Inf
@@ -255,9 +256,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
             if self.args.cos:
                 scheduler.step()
+                loss_scheduler.step()
                 print("lr = {:.10f}".format(model_optim.param_groups[0]['lr']))
             else:
                 adjust_learning_rate(model_optim, epoch + 1, self.args)
+                adjust_learning_rate(loss_optim, epoch + 1, self.args)
 
             # 打印 TQ 门控值，观察模型对时间信息的依赖程度
             if hasattr(self.model.in_layer, 'tq_gate'):
@@ -330,6 +333,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         self.model.out_layer.eval()
         self.model.time_proj.eval()
         self.model.text_proj.eval()
+        self.model.gpt2.eval()
+        self.model.gpt2_text.eval()
 
         with torch.no_grad(): 
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, batch_cycle) in enumerate(vali_loader):
@@ -371,6 +376,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         self.model.out_layer.train()
         self.model.time_proj.train()
         self.model.text_proj.train()
+        self.model.gpt2.train()
+        self.model.gpt2_text.train()
 
         return total_loss
 
