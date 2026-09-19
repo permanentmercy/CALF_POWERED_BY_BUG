@@ -47,7 +47,7 @@ if [ ! -d "./logs/$model/$data_name" ]; then
 fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
-is_training=0
+is_training=1
 batch_size=16
 accumulation_steps=4
 seq_len=96
@@ -121,7 +121,7 @@ else:
   python -u run.py \
     --root_path ./datasets/Solar/ \
     --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2027_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint_swa.pth \
-    --data_path solar_IL.csv \
+    --data_path solar_AL.txt \
     --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
@@ -137,8 +137,8 @@ else:
     --n_heads $n_heads \
     --d_ff $((d_model*4)) \
     --dropout 0.1 \
-    --enc_in 105 \
-    --c_out 105 \
+    --enc_in 137 \
+    --c_out 137 \
     --gpt_layers 1 \
     --itr 1 \
     --model $model \
@@ -166,6 +166,7 @@ else:
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
     --use_norm 1 \
+    --bestmodel \
     --tq_inject_target q \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \

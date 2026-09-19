@@ -3,19 +3,16 @@ GPU=0
 
 model=CALF
 data_name=Solar
-set -o pipefail
-
-
 
 # 记录文件和签名
 ROOT_LOG_DIR=logs/$model/$data_name
 COMPLETED_FILE=$ROOT_LOG_DIR/completed_combos.txt
-SIGN_FILE=$ROOT_LOG_DIR/seed_search.signature
+SIGN_FILE=$ROOT_LOG_DIR/Solar_test.signature
 
 # 计算当前脚本签名（用于判断参数或脚本是否改动）
 CUR_SIG=$(python - <<'PY'
 import hashlib,sys,re
-fn=r"f:/DOWNLOAD/参考文献-大模型/CALF-main/CALF-main/scripts/long_term_forecasting/seed_search.sh"
+fn=r"./scripts/long_term_forecasting/Solar_test.sh"
 text=open(fn,'rb').read().decode('utf-8',errors='ignore')
 # 移除命令行中的 --batch_size <value> 以及任何 batch_size=... 赋值，视为无变化
 text=re.sub(r'--batch_size\s+\S+','',text)
@@ -40,77 +37,111 @@ if [ "$CUR_SIG" != "$OLD_SIG" ]; then
 fi
 
 if [ ! -d "./logs" ]; then
-  mkdir ./logs
+    mkdir ./logs
 fi
 if [ ! -d "./logs/$model" ]; then
-  mkdir ./logs/$model
+    mkdir ./logs/$model
 fi
 if [ ! -d "./logs/$model/$data_name" ]; then
-  mkdir ./logs/$model/$data_name
+    mkdir ./logs/$model/$data_name
 fi
 
-# 定义要跳过的组合
-SKIP_COMBOS=("")
-
-# 待加入调整的参数：2个loss系数
+# 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
+is_training=1
+batch_size=16
 accumulation_steps=1
 seq_len=96
-for feature_w in  $(seq 0.00005 0.000001 0.00008)
+tq_lr_factor=5
+tq_dropout=0.1
+for lr_constant in 0.000003125 0.00000625 0.0000125
 do
-for output_w in 1.3
-do 
-# 检查是否是跳过的组合
-  combo="${feature_w}_${output_w}"
+for task_w in 0.65 0.70 0.736 0.78 0.82
+do
+for feature_w in 0.02 0.05
+do
+for d_model in 768
+do
+for n_heads in 4
+do
+for percent in 10 20
+do
+for random_seed in 2027 
+do
+for pred_len in 96 
+do
+  learning_rate=$(python -c "print('{:.8f}'.format($lr_constant*$batch_size*$accumulation_steps))")
+
+  # 由 task_w 和 feature_w 计算 output_w
+  output_w=$(python -c "
+o = 1.0 - $task_w - $feature_w
+if o < 0:
+    print(-1)
+else:
+    print('{:.6f}'.format(o))
+")
+  # 如果 output_w <= 0 则跳过该组合
+  if python -c "import sys; sys.exit(0 if $output_w < 0 else 1)"; then
+    echo "skip (output_w<=0): task_w=$task_w, feature_w=$feature_w -> output_w=$output_w"
+    continue
+  fi
+
+  combo="p${percent}_${feature_w}_${output_w}_${task_w}_${learning_rate}_${d_model}_${n_heads}_${random_seed}_${pred_len}"
+
+  # 检查是否是显式跳过的组合
+  SKIP_COMBOS=("")
   skip=false
-    
   for skip_combo in "${SKIP_COMBOS[@]}"; do
     if [ "$combo" == "$skip_combo" ]; then
       skip=true
       break
     fi
   done
-  
   if [ "$skip" == true ]; then
-    echo "skip specific hyperparameters: feature_w=$feature_w, output_w=$output_w"
+    echo "skip specific hyperparameters: percent=$percent, output_w=$output_w, task_w=$task_w, feature_w=$feature_w"
     continue
   fi
 
-  # 如果已记录完成，则跳过
-  if grep -Fxq "$combo" "$COMPLETED_FILE"; then
-    echo "already completed: feature_w=$feature_w, output_w=$output_w"
-    continue
+  # 如果已记录完成，则跳过（如果是纯测试 is_training 0，则不跳过，即不使用签名过滤）
+  if [ "$is_training" -ne 0 ]; then
+    if [ -f "$COMPLETED_FILE" ] && grep -Fxq "$combo" "$COMPLETED_FILE"; then
+      echo "already completed: $combo"
+      continue
+    fi
   fi
-for learning_rate in   0.0001
-do
-for d_model in 768
-do
-for n_heads in 4
-do
-for random_seed in 2026
-do
-for pred_len in 96
-do
+  
+  echo ""
+  echo "=========================================================================================================="
+  echo ">>> [Starting Experiment] Data: $data_name | Percent: ${percent}% | Seed: $random_seed | Horizon: $pred_len"
+  echo ">>> Loss Weights : task_w=$task_w, feature_w=$feature_w, output_w=$output_w (Loss: smooth_l1)"
+  echo ">>> Train Config : batch_size=$batch_size, accum_steps=$accumulation_steps, lr=$learning_rate, epochs=100 (patience=5)"
+  echo ">>> Model Config : d_model=$d_model, n_heads=$n_heads, gpt_layers=1, lora(r=8, alpha=32)"
+  echo ">>> TQ / Cycle   : cycle=144, mode=add, inject=q, lr_factor=$tq_lr_factor, dropout=$tq_dropout, swa=1"
+  echo ">>> Model ID     : ${model}_${seq_len}_${pred_len}_p${percent}"
+  echo "=========================================================================================================="
+
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
+    --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2027_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint_swa.pth \
     --data_path solar_AL.txt \
-    --is_training 1 \
+    --is_training $is_training \
     --task_name long_term_forecast \
-    --model_id $model'_'$seq_len'_'$pred_len \
+    --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
     --data Solar \
     --seq_len $seq_len \
     --label_len 0 \
     --pred_len $pred_len \
-    --batch_size 32 \
+    --percent $percent \
+    --batch_size $batch_size \
     --learning_rate $learning_rate \
-    --train_epochs 3 \
+    --train_epochs 100 \
     --d_model $d_model \
     --n_heads $n_heads \
-    --d_ff $((d_model * 4)) \
-    --dropout 0.2 \
+    --d_ff $((d_model*4)) \
+    --dropout 0.1 \
     --enc_in 137 \
     --c_out 137 \
-    --gpt_layers 3 \
+    --gpt_layers 1 \
     --itr 1 \
     --model $model \
     --cos 1 \
@@ -118,22 +149,43 @@ do
     --r 8 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    --patience 1 \
+    --patience 5 \
+    --num_workers 0 \
     --feature_w $feature_w \
     --output_w $output_w \
-    --bestmodel \
+    --task_w $task_w \
+    --use_swa 1 \
     --use_amp \
+    --tq_mode add \
+    --bestmodel \
+    --use_tq_gate 0 \
+    --layer_offset 0 \
+    --e_layers 1 \
+    --test_branch time \
+    --mlp_res_w 0 \
+    --out_mlp_layers 3 \
+    --cycle_prior_before_denorm 0 \
+    --tq_dropout $tq_dropout \
+    --tq_lr_factor $tq_lr_factor \
+    --eval_test_every_epoch \
+    --use_norm 1 \
+    --tq_inject_target q \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \
     --feature_loss smooth_l1 \
     --output_loss smooth_l1 \
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
-     | tee -a logs/$model/$data_name/$feature_w'_'$output_w'_'$model'_'$seq_len'_'$pred_len'_'$d_model'_'$n_heads'_'$learning_rate'_'$random_seed.logs
+    --cycle 144 \
+     | tee -a logs/$model/$data_name/p${percent}_${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then
-    echo "$combo" >> "$COMPLETED_FILE"
-    echo "recorded completed combo: $combo"
+    if [ "$is_training" -ne 0 ]; then
+      echo "$combo" >> "$COMPLETED_FILE"
+      echo "recorded completed combo: $combo"
+    else
+      echo "test completed for combo: $combo (is_training=0, skipping signature record)"
+    fi
   else
     echo "run failed for combo: $combo (exit $EXIT_CODE)" >&2
   fi
@@ -144,6 +196,4 @@ done
 done
 done
 done
-# 汇总每组不同 random_seed 的结果，写入 best_seeds_summary.txt
-# python3 scripts/long_term_forecasting/select_best_seed.py --logs_dir logs/$model/$data_name --out_file logs/$model/$data_name/best_seeds_summary.txt
-
+done
