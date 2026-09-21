@@ -9,6 +9,7 @@ from torch import optim
 from torch.cuda.amp import autocast, GradScaler
 import os
 import time
+from datetime import datetime
 import warnings
 import numpy as np
 import torch.nn.functional as F
@@ -348,6 +349,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
         f = open("result_long_term_forecast.txt", 'a')
+        f.write('time:{}\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         f.write(setting + "  \n")
         f.write('mse:{}, mae:{},train_epoch:{}'.format(mse, mae, self.best_model_epoch))
         f.write('\n')

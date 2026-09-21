@@ -1,4 +1,11 @@
 #!/bin/bash
+set -o pipefail
+
+# 以脚本位置为基准，避免从其他工作目录启动时相对路径失效
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
+cd "$PROJECT_ROOT" || exit 1
+
 GPU=0
 
 model=CALF
@@ -8,11 +15,12 @@ data_name=Solar
 ROOT_LOG_DIR=logs/$model/$data_name
 COMPLETED_FILE=$ROOT_LOG_DIR/completed_combos.txt
 SIGN_FILE=$ROOT_LOG_DIR/Solar_test.signature
+PYTHON_BIN=${PYTHON_BIN:-python}
 
 # 计算当前脚本签名（用于判断参数或脚本是否改动）
-CUR_SIG=$(python - <<'PY'
+CUR_SIG=$($PYTHON_BIN - "$SCRIPT_DIR/Solar_test.sh" <<'PY'
 import hashlib,sys,re
-fn=r"./scripts/long_term_forecasting/Solar_test.sh"
+fn=sys.argv[1]
 text=open(fn,'rb').read().decode('utf-8',errors='ignore')
 # 移除命令行中的 --batch_size <value> 以及任何 batch_size=... 赋值，视为无变化
 text=re.sub(r'--batch_size\s+\S+','',text)
@@ -23,6 +31,10 @@ clean='\n'.join(lines)
 print(hashlib.md5(clean.encode('utf-8')).hexdigest())
 PY
 )
+if [ $? -ne 0 ] || [ -z "$CUR_SIG" ]; then
+  echo "ERROR: signature calculation failed" >&2
+  exit 1
+fi
 
 # 如果签名变化则清空已完成记录
 if [ -f "$SIGN_FILE" ]; then
@@ -48,14 +60,14 @@ fi
 
 # 待加入调整的参数：3个loss权重 (output_w 由 task_w 和 feature_w 计算)
 is_training=1
-batch_size=16
-accumulation_steps=4
+batch_size=8
+accumulation_steps=8
 seq_len=96
 tq_lr_factor=5
 tq_dropout=0.1
-for task_w in 0.736
+for task_w in  0.71 0.72 0.73
 do
-for feature_w in 0.05
+for feature_w in 0.05 0.06 0.07 0.08
 do
 for d_model in 768
 do
@@ -63,7 +75,7 @@ for n_heads in 4
 do
 for percent in 100
 do
-for random_seed in 2027
+for random_seed in 2026 2027 2028 
 do
 for pred_len in 96
 do
@@ -147,7 +159,7 @@ else:
     --r 8 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    --patience 5 \
+    --patience 3 \
     --num_workers 0 \
     --feature_w $feature_w \
     --output_w $output_w \
@@ -175,6 +187,7 @@ else:
     --accumulation_steps $accumulation_steps \
     --random_seed $random_seed \
     --cycle 144 \
+    --use_cpq 0 \
      | tee -a logs/$model/$data_name/p${percent}_${feature_w}_${output_w}_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.logs
   EXIT_CODE=${PIPESTATUS[0]}
   if [ $EXIT_CODE -eq 0 ]; then

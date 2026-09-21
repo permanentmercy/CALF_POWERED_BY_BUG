@@ -145,6 +145,10 @@ if __name__ == '__main__':
                         help='where to inject the cycle feature vector: "pca" injects into PCA K/V (original), "q" injects into temporal Q')
     parser.add_argument('--layer_offset', type=int, default=0, help='offset for time branch layer indexing in feature alignment')
     parser.add_argument('--use_tq', type=int, default=1, help='enable or disable TQ injection completely')
+    parser.add_argument('--use_cpq', type=int, default=0,
+                        help='use Continuous Phase Query (1) instead of discrete lookup table (0)')
+    parser.add_argument('--cpq_num_freqs', type=int, default=None,
+                        help='number of learnable Fourier frequencies for CPQ (default: auto)')
     parser.add_argument('--test_branch', type=str, default='time', choices=['time', 'text'], help='which branch to use for testing/validation')
     parser.add_argument('--mlp_res_w', type=float, default=0.0, help='weight of the residual connection after MLP')
     parser.add_argument('--out_mlp_layers', type=int, default=2, help='number of MLP layers in the output head')

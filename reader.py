@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import re
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +14,7 @@ DATA_ROOT = "./datasets/Solar/"
 DATA_PATH = "solar_AL.txt"
 RESULTS_DIR = "./results/Solar/"
 CACHE_FILE = os.path.join(RESULTS_DIR, "scaler_cache.json")
+SORT_CONFIG_FILE = os.path.join(RESULTS_DIR, "reader_sort_config.json")
 
 class ResultViewer:
     def __init__(self, root):
@@ -30,6 +32,10 @@ class ResultViewer:
         self.station_buttons = {}
         self.canvas = None
         self.toolbar = None
+        sort_settings = self.load_sort_settings()
+        self.sort_metric_var = tk.StringVar(value=sort_settings["metric"])
+        self.sort_order_var = tk.StringVar(value=sort_settings["order"])
+        self.hide_non_swa_var = tk.BooleanVar(value=sort_settings["hide_non_swa"])
         
         self.create_layout()
         self.refresh_files()
@@ -103,8 +109,28 @@ class ResultViewer:
 
         # 1. 文件列表 (多选高亮)
         ttk.Label(self.right_sidebar, text="📂 Result Files (Double-Click to Toggle):", font=("Arial", 10, "bold")).pack(anchor=tk.W)
+
+        sort_frame = ttk.Frame(self.right_sidebar)
+        sort_frame.pack(fill=tk.X, pady=(2, 5))
+        sort_metric = ttk.Combobox(
+            sort_frame, textvariable=self.sort_metric_var,
+            values=("Time", "MSE", "MAE"), state="readonly", width=8
+        )
+        sort_metric.pack(side=tk.LEFT, padx=(0, 5))
+        sort_order = ttk.Combobox(
+            sort_frame, textvariable=self.sort_order_var,
+            values=("Ascending", "Descending"), state="readonly", width=12
+        )
+        sort_order.pack(side=tk.LEFT)
+        sort_metric.bind("<<ComboboxSelected>>", self.on_sort_changed)
+        sort_order.bind("<<ComboboxSelected>>", self.on_sort_changed)
+        ttk.Checkbutton(
+            sort_frame, text="Hide non-SWA", variable=self.hide_non_swa_var,
+            command=self.on_filter_changed
+        ).pack(side=tk.LEFT, padx=(8, 0))
+
         list_frame = ttk.Frame(self.right_sidebar)
-        list_frame.pack(fill=tk.BOTH, expand=True, pady=(2, 10))
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
         sb = ttk.Scrollbar(list_frame)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
@@ -112,13 +138,17 @@ class ResultViewer:
         self.file_listbox = tk.Listbox(list_frame, font=("Consolas", 9), 
                                        yscrollcommand=sb.set, bg="#fdfdfd", 
                                        selectmode=tk.SINGLE, highlightthickness=0,
-                                       activestyle='none') # 去掉下划线
+                                       activestyle='none', selectbackground="#d9d9d9",
+                                       selectforeground="black")
         self.file_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb.config(command=self.file_listbox.yview)
+
+        self.file_context_menu = tk.Menu(self.root, tearoff=0)
+        self.file_context_menu.add_command(label="Delete File", command=self.delete_selected_file)
         
         # 绑定事件
-        self.file_listbox.bind('<Button-1>', lambda e: self.root.after(1, lambda: self.file_listbox.selection_clear(0, tk.END))) # 强行去掉蓝色选中
         self.file_listbox.bind('<Double-1>', self.toggle_selection)
+        self.file_listbox.bind('<Button-3>', self.show_file_context_menu)
 
         # 2. 答题卡式电站选择
         ttk.Label(self.right_sidebar, text="📍 Select Station (0-9):", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=(10, 5))
@@ -166,14 +196,125 @@ class ResultViewer:
         self.toolbar.update()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
+    @staticmethod
+    def load_sort_settings():
+        defaults = {"metric": "Time", "order": "Descending", "hide_non_swa": False}
+        try:
+            with open(SORT_CONFIG_FILE, "r", encoding="utf-8") as file:
+                settings = json.load(file)
+            if settings.get("metric") in ("Time", "MSE", "MAE"):
+                defaults["metric"] = settings["metric"]
+            if settings.get("order") in ("Ascending", "Descending"):
+                defaults["order"] = settings["order"]
+            if isinstance(settings.get("hide_non_swa"), bool):
+                defaults["hide_non_swa"] = settings["hide_non_swa"]
+        except (OSError, json.JSONDecodeError):
+            pass
+        return defaults
+
+    def save_sort_settings(self):
+        try:
+            os.makedirs(os.path.dirname(SORT_CONFIG_FILE), exist_ok=True)
+            with open(SORT_CONFIG_FILE, "w", encoding="utf-8") as file:
+                json.dump({
+                    "metric": self.sort_metric_var.get(),
+                    "order": self.sort_order_var.get(),
+                    "hide_non_swa": self.hide_non_swa_var.get()
+                }, file, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
+
+    def on_sort_changed(self, event=None):
+        self.save_sort_settings()
+        self.refresh_files()
+
+    def on_filter_changed(self):
+        self.save_sort_settings()
+        self.refresh_files()
+
+    def show_file_context_menu(self, event):
+        index = self.file_listbox.nearest(event.y)
+        if index >= self.file_listbox.size():
+            return
+        self.file_listbox.selection_clear(0, tk.END)
+        self.file_listbox.selection_set(index)
+        self.file_listbox.activate(index)
+        self.file_context_menu.tk_popup(event.x_root, event.y_root)
+
+    def delete_selected_file(self):
+        selection = self.file_listbox.curselection()
+        if not selection:
+            return
+
+        index = selection[0]
+        if index >= len(self.files):
+            return
+        file_path = self.files[index]
+        file_name = os.path.basename(file_path)
+        if not messagebox.askyesno("Confirm Delete", f"Delete this file?\n\n{file_name}"):
+            return
+
+        try:
+            os.remove(file_path)
+        except OSError as error:
+            messagebox.showerror("Delete Failed", f"Cannot delete file:\n{error}")
+            return
+
+        self.selected_indices.discard(index)
+        self.refresh_files()
+        self.plot_action()
+
     def refresh_files(self):
+        selected_files = {
+            self.files[index] for index in self.selected_indices
+            if index < len(self.files)
+        }
         pattern = os.path.join(self.results_dir, "*.csv")
-        self.files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
+        files = glob.glob(pattern)
+        if self.hide_non_swa_var.get():
+            files = [path for path in files if "_swa" in os.path.basename(path).lower()]
+        metric = self.sort_metric_var.get()
+        reverse = self.sort_order_var.get() == "Descending"
+        if metric == "Time":
+            self.files = sorted(files, key=os.path.getmtime, reverse=reverse)
+        else:
+            self.files = sorted(
+                files,
+                key=lambda path: self.get_sort_key(path, metric, reverse),
+                reverse=reverse
+            )
+
+        self.selected_indices = {
+            index for index, path in enumerate(self.files)
+            if path in selected_files
+        }
         self.file_listbox.delete(0, tk.END)
         for f in self.files:
-            self.file_listbox.insert(tk.END, f" {os.path.basename(f)}")
+            display_name = os.path.basename(f)
+            if metric != "Time":
+                metric_value = self.get_metric_from_filename(f, metric)
+                metric_text = f"{metric_value:.4f}" if metric_value is not None else "N/A"
+                display_name = f"{metric}={metric_text} | {display_name}"
+            self.file_listbox.insert(tk.END, f" {display_name}")
         # 恢复之前的颜色
         self.sync_listbox_colors()
+
+    @staticmethod
+    def get_metric_from_filename(file_path, metric):
+        metric_name = metric.lower()
+        match = re.search(
+            rf"(?:^|_){metric_name}(-?[0-9]+(?:\.[0-9]+)?)(?=_|\.|$)",
+            os.path.basename(file_path),
+            re.IGNORECASE
+        )
+        return float(match.group(1)) if match else None
+
+    @classmethod
+    def get_sort_key(cls, file_path, metric, reverse):
+        value = cls.get_metric_from_filename(file_path, metric)
+        if value is None:
+            return float("-inf" if reverse else "inf")
+        return value
 
     def full_refresh(self):
         self.selected_indices.clear()

@@ -34,6 +34,68 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         print("local GPT2 model not found, downloading from huggingface (gpt2)...")
         return model_class.from_pretrained('gpt2', **kwargs)
 
+class ContinuousPhaseQuery(nn.Module):
+    """
+    连续相位查询 (CPQ): 将离散的周期索引映射为连续的傅里叶特征向量。
+    
+    核心思想: 
+    1. 相位映射: index → φ = 2π * index / cycle_len
+    2. 傅里叶特征: φ → [sin(ω₁φ), cos(ω₁φ), ..., sin(ωₖφ), cos(ωₖφ)]
+    3. 线性投影: 2K维 → hidden_dim
+    
+    频率 ω_k 是可学习的参数，初始化为整数 1,2,...,K，
+    允许模型自适应微调以捕捉非严格整数周期（如季节性漂移）。
+    """
+    def __init__(self, cycle_len, hidden_dim, num_freqs=None):
+        super().__init__()
+        self.cycle_len = cycle_len
+        # 频率数量 K: 默认取 min(hidden_dim // 2, max(cycle_len // 2, 16))
+        if num_freqs is None:
+            num_freqs = min(hidden_dim // 2, max(cycle_len // 2, 16))
+        self.num_freqs = num_freqs
+        
+        # 可学习频谱基: 初始化为 1, 2, ..., K
+        # 使用 softplus 的逆函数初始化，使得 softplus(raw) ≈ k
+        init_freqs = torch.arange(1, num_freqs + 1, dtype=torch.float32)
+        self.raw_freqs = nn.Parameter(torch.log(torch.exp(init_freqs) - 1))
+        
+        # 将 2K 维傅里叶特征投影到 hidden_dim
+        self.proj = nn.Linear(num_freqs * 2, hidden_dim)
+    
+    @property
+    def freqs(self):
+        """通过 softplus 保证频率始终为正"""
+        return F.softplus(self.raw_freqs)
+    
+    def forward(self, cycle_index):
+        """
+        Args:
+            cycle_index: (B,) 整数索引 ∈ [0, cycle_len)，或标量 0 (dummy)
+        Returns:
+            (B, hidden_dim) 连续相位特征向量
+        """
+        # 转换为浮点并计算相位角
+        if not isinstance(cycle_index, torch.Tensor):
+            cycle_index = torch.tensor([cycle_index], dtype=torch.float32,
+                                       device=self.raw_freqs.device)
+        phi = 2 * torch.pi * cycle_index.float() / self.cycle_len  # (B,)
+        
+        # 确保 phi 至少是 1D
+        if phi.dim() == 0:
+            phi = phi.unsqueeze(0)
+        
+        # 扩展维度以和 K 个频率做外积: (B, 1) * (K,) → (B, K)
+        freqs = self.freqs  # (K,)
+        phi_expanded = phi.unsqueeze(-1) * freqs.unsqueeze(0)  # (B, K)
+        
+        # 傅里叶特征: [sin(ω₁φ), cos(ω₁φ), ..., sin(ωₖφ), cos(ωₖφ)]
+        fourier_feat = torch.cat([torch.sin(phi_expanded),
+                                  torch.cos(phi_expanded)], dim=-1)  # (B, 2K)
+        
+        # 投影到 hidden_dim
+        return self.proj(fourier_feat)  # (B, hidden_dim)
+
+
 class Encoder_PCA(nn.Module):
     """
     结合主成分分析 (PCA) 词嵌入的编码器模块，
@@ -42,17 +104,22 @@ class Encoder_PCA(nn.Module):
     该编码器在输入特征与预训练词嵌入之间使用交叉注意力，
     并通过时间查询向量进行增强，以捕获季节性/周期性模式。
     """
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True, tq_inject_target='pca'):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True, tq_inject_target='pca', use_cpq=False, cpq_num_freqs=None):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
         self.tq_mode = tq_mode
         self.use_tq = use_tq
+        self.use_cpq = use_cpq
         # 'pca': 周期向量注入到 PCA 的 K/V (w_embed) 侧（原始行为）
         # 'q'  : 周期向量注入到时序特征的 Q 侧
         self.tq_inject_target = tq_inject_target
         self.linear = nn.Linear(input_dim, hidden_dim)
 
-        self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
+        # CPQ (连续相位查询) 或 离散查找表
+        if use_cpq:
+            self.cpq = ContinuousPhaseQuery(cycle_len, hidden_dim, num_freqs=cpq_num_freqs)
+        else:
+            self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
         self.tq_dropout = nn.Dropout(tq_dropout)
 
         self.layers = nn.ModuleList([
@@ -86,7 +153,10 @@ class Encoder_PCA(nn.Module):
         # 核心开关：只有在 use_tq 为 True 且提供了索引时，才注入周期性向量
         tq_vec = None
         if self.use_tq and cycle_index is not None:
-            tq = self.temporal_query[cycle_index] # (B, 768)
+            if self.use_cpq:
+                tq = self.cpq(cycle_index)  # (B, hidden_dim) 连续相位
+            else:
+                tq = self.temporal_query[cycle_index] # (B, 768) 离散查表
             if self.tq_inject_target == 'pca':
                 # 原始行为：调制 PCA 词嵌入 (K/V 侧)
                 if self.tq_mode == 'mul':
@@ -237,7 +307,9 @@ class Model(nn.Module):
             tq_dropout=getattr(configs, 'tq_dropout', 0.0), # TQ Dropout
             tq_mode=getattr(configs, 'tq_mode', 'mul'),     # TQ 调制模式: add/mul
             use_tq=getattr(configs, 'use_tq', 1),            # 是否开启 TQ 注入
-            tq_inject_target=getattr(configs, 'tq_inject_target', 'pca')  # 注入目标: 'pca'(K/V侧) 或 'q'(Q侧)
+            tq_inject_target=getattr(configs, 'tq_inject_target', 'pca'),  # 注入目标: 'pca'(K/V侧) 或 'q'(Q侧)
+            use_cpq=getattr(configs, 'use_cpq', 0),          # 是否使用连续相位查询 (CPQ)
+            cpq_num_freqs=getattr(configs, 'cpq_num_freqs', None),  # CPQ 傅里叶频率数
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':

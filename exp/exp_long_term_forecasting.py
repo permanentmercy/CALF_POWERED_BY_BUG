@@ -10,6 +10,7 @@ from torch import optim
 from torch.cuda.amp import autocast, GradScaler
 import os
 import time
+from datetime import datetime
 import warnings
 import numpy as np
 import torch.nn.functional as F
@@ -67,14 +68,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
     def _select_optimizer(self):
         # 分组 1: TQ 相关参数（周期表和门控），使用高学习率
-        tq_params = [p for n, p in self.model.named_parameters() if p.requires_grad and ('temporal_query' in n or 'tq_gate' in n)]
+        tq_params = [p for n, p in self.model.named_parameters() if p.requires_grad and ('temporal_query' in n or 'tq_gate' in n or 'cpq' in n)]
         
         # 分组 2: 投影层参数（_proj），由 loss_optim 独立控制
         proj_params = [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n]
         
         # 分组 3: 其他所有参数
         other_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 
-                        not ('temporal_query' in n or 'tq_gate' in n) and 
+                        not ('temporal_query' in n or 'tq_gate' in n or 'cpq' in n) and 
                         not ('_proj' in n)]
 
         model_optim = optim.Adam([
@@ -577,6 +578,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             os.makedirs(folder_path)
         
         f = open("result_long_term_forecast.txt", 'a')
+        f.write('time:{}\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         f.write(setting + swa_tag + "  \n")
         f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
