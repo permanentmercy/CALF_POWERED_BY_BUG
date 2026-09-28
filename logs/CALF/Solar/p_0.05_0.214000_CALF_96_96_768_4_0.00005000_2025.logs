@@ -1,0 +1,854 @@
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_CT.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+>>> [Adaptive Load] Slicing cycle_queue from checkpoint channels (137) to target model channels (29).
+[Few-Shot] È¨ÖØ¼ÓÔØÍê³É£¬½«Ê¹ÓÃ 10% Êý¾Ý½øÐÐÎ¢µ÷¡£
+>>>>>>>start training : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 3574
+val 5161
+test 10417
+	iters: 100, epoch: 1 | AvgLoss: 0.0770551 (T:0.1024 O:0.0079 F:0.0003 | Time:0.1015 Text:0.1032)
+	speed: 0.0223s/iter; left time: 991.4210s
+	iters: 200, epoch: 1 | AvgLoss: 0.0738122 (T:0.0983 O:0.0067 F:0.0003 | Time:0.0980 Text:0.0987)
+	speed: 0.0162s/iter; left time: 717.2781s
+	iters: 300, epoch: 1 | AvgLoss: 0.0715585 (T:0.0954 O:0.0063 F:0.0003 | Time:0.0950 Text:0.0957)
+	speed: 0.0414s/iter; left time: 1835.1173s
+	iters: 400, epoch: 1 | AvgLoss: 0.0699838 (T:0.0933 O:0.0060 F:0.0003 | Time:0.0929 Text:0.0937)
+	speed: 0.0497s/iter; left time: 2197.7097s
+Epoch: 1 cost time: 14.876521587371826
+Best model stored in memory (Vali Loss: 0.268473)
+Epoch: 1, Steps: 446 | Train: 0.0697767 (Task:0.0931 Out:0.0059 Feat:0.0003 | Time:0.0927 Text:0.0934) Vali: 0.2684730 Test: 0.1698699
+lr = 0.0000487767
+Validation loss decreased (inf --> 0.268473).  Saving model ...
+	iters: 100, epoch: 2 | AvgLoss: 0.0647391 (T:0.0865 O:0.0049 F:0.0002 | Time:0.0866 Text:0.0865)
+	speed: 0.2459s/iter; left time: 10831.5567s
+	iters: 200, epoch: 2 | AvgLoss: 0.0649368 (T:0.0867 O:0.0053 F:0.0002 | Time:0.0868 Text:0.0866)
+	speed: 0.0468s/iter; left time: 2059.0588s
+	iters: 300, epoch: 2 | AvgLoss: 0.0648279 (T:0.0865 O:0.0054 F:0.0002 | Time:0.0866 Text:0.0865)
+	speed: 0.0251s/iter; left time: 1102.4021s
+	iters: 400, epoch: 2 | AvgLoss: 0.0650924 (T:0.0869 O:0.0052 F:0.0002 | Time:0.0868 Text:0.0870)
+	speed: 0.0167s/iter; left time: 729.5670s
+Epoch: 2 cost time: 14.107795715332031
+Best model stored in memory (Vali Loss: 0.265633)
+Epoch: 2, Steps: 446 | Train: 0.0649657 (Task:0.0867 Out:0.0053 Feat:0.0002 | Time:0.0866 Text:0.0868) Vali: 0.2656330 Test: 0.1702490
+lr = 0.0000452264
+Validation loss decreased (0.268473 --> 0.265633).  Saving model ...
+	iters: 100, epoch: 3 | AvgLoss: 0.0634773 (T:0.0845 O:0.0059 F:0.0002 | Time:0.0848 Text:0.0843)
+	speed: 0.1105s/iter; left time: 4817.5299s
+	iters: 200, epoch: 3 | AvgLoss: 0.0632510 (T:0.0843 O:0.0056 F:0.0002 | Time:0.0844 Text:0.0842)
+	speed: 0.0161s/iter; left time: 700.3720s
+	iters: 300, epoch: 3 | AvgLoss: 0.0625014 (T:0.0833 O:0.0057 F:0.0002 | Time:0.0834 Text:0.0831)
+	speed: 0.0159s/iter; left time: 690.7747s
+	iters: 400, epoch: 3 | AvgLoss: 0.0625514 (T:0.0834 O:0.0055 F:0.0001 | Time:0.0833 Text:0.0834)
+	speed: 0.0159s/iter; left time: 690.4902s
+Epoch: 3 cost time: 7.151140451431274
+Epoch: 3, Steps: 446 | Train: 0.0627532 (Task:0.0837 Out:0.0054 Feat:0.0002 | Time:0.0836 Text:0.0838) Vali: 0.2680468 Test: 0.1680072
+lr = 0.0000396967
+EarlyStopping counter: 1 out of 5
+	iters: 100, epoch: 4 | AvgLoss: 0.0607918 (T:0.0810 O:0.0055 F:0.0001 | Time:0.0811 Text:0.0809)
+	speed: 0.1011s/iter; left time: 4362.2886s
+	iters: 200, epoch: 4 | AvgLoss: 0.0605148 (T:0.0806 O:0.0054 F:0.0001 | Time:0.0805 Text:0.0808)
+	speed: 0.0161s/iter; left time: 691.2633s
+	iters: 300, epoch: 4 | AvgLoss: 0.0604798 (T:0.0805 O:0.0056 F:0.0001 | Time:0.0804 Text:0.0807)
+	speed: 0.0162s/iter; left time: 695.9637s
+	iters: 400, epoch: 4 | AvgLoss: 0.0613211 (T:0.0817 O:0.0056 F:0.0001 | Time:0.0815 Text:0.0818)
+	speed: 0.0162s/iter; left time: 694.4162s
+Epoch: 4 cost time: 7.175612926483154
+Epoch: 4, Steps: 446 | Train: 0.0611116 (Task:0.0814 Out:0.0056 Feat:0.0001 | Time:0.0812 Text:0.0816) Vali: 0.2739279 Test: 0.1675943
+lr = 0.0000327289
+EarlyStopping counter: 2 out of 5
+	iters: 100, epoch: 5 | AvgLoss: 0.0611176 (T:0.0815 O:0.0052 F:0.0001 | Time:0.0820 Text:0.0810)
+	speed: 0.1067s/iter; left time: 4555.8867s
+	iters: 200, epoch: 5 | AvgLoss: 0.0597699 (T:0.0797 O:0.0053 F:0.0001 | Time:0.0798 Text:0.0795)
+	speed: 0.0171s/iter; left time: 728.6451s
+	iters: 300, epoch: 5 | AvgLoss: 0.0587123 (T:0.0783 O:0.0052 F:0.0001 | Time:0.0784 Text:0.0781)
+	speed: 0.0176s/iter; left time: 748.1302s
+	iters: 400, epoch: 5 | AvgLoss: 0.0589372 (T:0.0785 O:0.0055 F:0.0001 | Time:0.0786 Text:0.0784)
+	speed: 0.0180s/iter; left time: 762.1660s
+Epoch: 5 cost time: 7.724638223648071
+Epoch: 5, Steps: 446 | Train: 0.0595374 (Task:0.0793 Out:0.0055 Feat:0.0001 | Time:0.0794 Text:0.0791) Vali: 0.2769957 Test: 0.1676053
+lr = 0.0000250050
+EarlyStopping counter: 3 out of 5
+	iters: 100, epoch: 6 | AvgLoss: 0.0577633 (T:0.0766 O:0.0065 F:0.0001 | Time:0.0772 Text:0.0759)
+	speed: 0.1065s/iter; left time: 4501.5207s
+	iters: 200, epoch: 6 | AvgLoss: 0.0586793 (T:0.0780 O:0.0060 F:0.0001 | Time:0.0785 Text:0.0775)
+	speed: 0.0241s/iter; left time: 1016.1974s
+	iters: 300, epoch: 6 | AvgLoss: 0.0588238 (T:0.0782 O:0.0060 F:0.0001 | Time:0.0785 Text:0.0779)
+	speed: 0.0394s/iter; left time: 1656.0429s
+	iters: 400, epoch: 6 | AvgLoss: 0.0579808 (T:0.0771 O:0.0058 F:0.0001 | Time:0.0773 Text:0.0769)
+	speed: 0.0199s/iter; left time: 835.3096s
+Epoch: 6 cost time: 12.079118013381958
+Epoch: 6, Steps: 446 | Train: 0.0582786 (Task:0.0775 Out:0.0058 Feat:0.0001 | Time:0.0778 Text:0.0772) Vali: 0.2721640 Test: 0.1665471
+lr = 0.0000172811
+EarlyStopping counter: 4 out of 5
+	iters: 100, epoch: 7 | AvgLoss: 0.0576233 (T:0.0767 O:0.0056 F:0.0001 | Time:0.0777 Text:0.0756)
+	speed: 0.2208s/iter; left time: 9236.2545s
+	iters: 200, epoch: 7 | AvgLoss: 0.0554037 (T:0.0737 O:0.0054 F:0.0001 | Time:0.0741 Text:0.0733)
+	speed: 0.0188s/iter; left time: 786.4992s
+	iters: 300, epoch: 7 | AvgLoss: 0.0559651 (T:0.0745 O:0.0054 F:0.0001 | Time:0.0750 Text:0.0739)
+	speed: 0.0190s/iter; left time: 792.2690s
+	iters: 400, epoch: 7 | AvgLoss: 0.0569126 (T:0.0757 O:0.0057 F:0.0001 | Time:0.0762 Text:0.0751)
+	speed: 0.0203s/iter; left time: 840.9200s
+Epoch: 7 cost time: 11.365532636642456
+Epoch: 7, Steps: 446 | Train: 0.0570484 (Task:0.0758 Out:0.0058 Feat:0.0001 | Time:0.0764 Text:0.0753) Vali: 0.2739621 Test: 0.1680174
+lr = 0.0000103133
+EarlyStopping counter: 5 out of 5
+Early stopping
+average training time: 10.640051 s
+>>> Loading best model from memory for testing.
+Max Memory (MB): 1328.40478515625
+>>>>>>>testing : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+Loading best model from memory...
+Computational complexity(MACs): 1.4 GMac, Number of parameters: 13.08 M
+mse:0.17003775876604263, mae:0.22837711741042174
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.214_mse0.1700_mae0.2284_best.csv
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_DE.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+[Few-Shot] È¨ÖØ¼ÓÔØÍê³É£¬½«Ê¹ÓÃ 10% Êý¾Ý½øÐÐÎ¢µ÷¡£
+>>>>>>>start training : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 3574
+val 5161
+test 10417
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_DE.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             16                  Dec In:             7                   
+  C Out:              16                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,451,169
+Trainable parameters: 13,082,209
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+>>> [Adaptive Load] Slicing cycle_queue from checkpoint channels (29) to target model channels (16).
+[Few-Shot] È¨ÖØ¼ÓÔØÍê³É£¬½«Ê¹ÓÃ 10% Êý¾Ý½øÐÐÎ¢µ÷¡£
+>>>>>>>start training : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 3574
+val 5161
+test 10417
+	iters: 100, epoch: 1 | AvgLoss: 0.0941715 (T:0.1256 O:0.0067 F:0.0066 | Time:0.1217 Text:0.1294)
+	speed: 0.0392s/iter; left time: 1745.1693s
+	iters: 200, epoch: 1 | AvgLoss: 0.0903956 (T:0.1202 O:0.0075 F:0.0064 | Time:0.1157 Text:0.1247)
+	speed: 0.0337s/iter; left time: 1495.5071s
+	iters: 300, epoch: 1 | AvgLoss: 0.0885594 (T:0.1175 O:0.0082 F:0.0062 | Time:0.1126 Text:0.1225)
+	speed: 0.0337s/iter; left time: 1494.7916s
+	iters: 400, epoch: 1 | AvgLoss: 0.0852640 (T:0.1129 O:0.0087 F:0.0060 | Time:0.1080 Text:0.1179)
+	speed: 0.0336s/iter; left time: 1482.9789s
+Epoch: 1 cost time: 15.333353042602539
+Best model stored in memory (Vali Loss: 0.288096)
+Epoch: 1, Steps: 446 | Train: 0.0849512 (Task:0.1124 Out:0.0089 Feat:0.0059 | Time:0.1075 Text:0.1174) Vali: 0.2880955 Test: 0.1972845
+lr = 0.0000487767
+Validation loss decreased (inf --> 0.288096).  Saving model ...
+	iters: 100, epoch: 2 | AvgLoss: 0.0761657 (T:0.1001 O:0.0105 F:0.0049 | Time:0.0953 Text:0.1049)
+	speed: 0.2463s/iter; left time: 10851.0874s
+	iters: 200, epoch: 2 | AvgLoss: 0.0790924 (T:0.1038 O:0.0116 F:0.0048 | Time:0.0989 Text:0.1087)
+	speed: 0.0438s/iter; left time: 1926.2752s
+	iters: 300, epoch: 2 | AvgLoss: 0.0798975 (T:0.1047 O:0.0121 F:0.0047 | Time:0.0993 Text:0.1101)
+	speed: 0.0501s/iter; left time: 2198.2769s
+	iters: 400, epoch: 2 | AvgLoss: 0.0784395 (T:0.1028 O:0.0119 F:0.0045 | Time:0.0977 Text:0.1080)
+	speed: 0.0489s/iter; left time: 2141.6466s
+Epoch: 2 cost time: 21.204775094985962
+Epoch: 2, Steps: 446 | Train: 0.0783746 (Task:0.1027 Out:0.0121 Feat:0.0045 | Time:0.0974 Text:0.1080) Vali: 0.3035536 Test: 0.2056167
+lr = 0.0000452264
+EarlyStopping counter: 1 out of 5
+	iters: 100, epoch: 3 | AvgLoss: 0.0762289 (T:0.0993 O:0.0137 F:0.0038 | Time:0.0942 Text:0.1044)
+	speed: 0.2683s/iter; left time: 11700.1127s
+	iters: 200, epoch: 3 | AvgLoss: 0.0763914 (T:0.0996 O:0.0136 F:0.0037 | Time:0.0950 Text:0.1042)
+	speed: 0.0446s/iter; left time: 1939.8333s
+	iters: 300, epoch: 3 | AvgLoss: 0.0756752 (T:0.0988 O:0.0129 F:0.0036 | Time:0.0942 Text:0.1034)
+	speed: 0.0475s/iter; left time: 2063.9154s
+	iters: 400, epoch: 3 | AvgLoss: 0.0745275 (T:0.0972 O:0.0130 F:0.0035 | Time:0.0926 Text:0.1018)
+	speed: 0.0463s/iter; left time: 2007.3121s
+Epoch: 3 cost time: 19.987497806549072
+Epoch: 3, Steps: 446 | Train: 0.0746488 (Task:0.0974 Out:0.0130 Feat:0.0035 | Time:0.0929 Text:0.1020) Vali: 0.3168561 Test: 0.2038542
+lr = 0.0000396967
+EarlyStopping counter: 2 out of 5
+	iters: 100, epoch: 4 | AvgLoss: 0.0714320 (T:0.0925 O:0.0151 F:0.0030 | Time:0.0880 Text:0.0969)
+	speed: 0.2383s/iter; left time: 10286.9191s
+	iters: 200, epoch: 4 | AvgLoss: 0.0716340 (T:0.0929 O:0.0147 F:0.0029 | Time:0.0880 Text:0.0978)
+	speed: 0.0481s/iter; left time: 2070.9310s
+	iters: 300, epoch: 4 | AvgLoss: 0.0709553 (T:0.0921 O:0.0143 F:0.0028 | Time:0.0873 Text:0.0968)
+	speed: 0.0426s/iter; left time: 1831.1070s
+	iters: 400, epoch: 4 | AvgLoss: 0.0721171 (T:0.0937 O:0.0141 F:0.0027 | Time:0.0890 Text:0.0984)
+	speed: 0.0337s/iter; left time: 1443.8972s
+Epoch: 4 cost time: 18.612552165985107
+Epoch: 4, Steps: 446 | Train: 0.0723022 (Task:0.0940 Out:0.0141 Feat:0.0027 | Time:0.0892 Text:0.0987) Vali: 0.3325097 Test: 0.2054061
+lr = 0.0000327289
+EarlyStopping counter: 3 out of 5
+	iters: 100, epoch: 5 | AvgLoss: 0.0735280 (T:0.0956 O:0.0144 F:0.0024 | Time:0.0916 Text:0.0995)
+	speed: 0.1295s/iter; left time: 5531.1530s
+	iters: 200, epoch: 5 | AvgLoss: 0.0705371 (T:0.0916 O:0.0140 F:0.0023 | Time:0.0873 Text:0.0960)
+	speed: 0.0179s/iter; left time: 763.3861s
+	iters: 300, epoch: 5 | AvgLoss: 0.0689468 (T:0.0896 O:0.0135 F:0.0022 | Time:0.0857 Text:0.0935)
+	speed: 0.0180s/iter; left time: 763.8616s
+	iters: 400, epoch: 5 | AvgLoss: 0.0694154 (T:0.0902 O:0.0136 F:0.0022 | Time:0.0865 Text:0.0940)
+	speed: 0.0182s/iter; left time: 772.7755s
+Epoch: 5 cost time: 8.453077554702759
+Epoch: 5, Steps: 446 | Train: 0.0698265 (Task:0.0908 Out:0.0134 Feat:0.0022 | Time:0.0870 Text:0.0946) Vali: 0.3198652 Test: 0.2018894
+lr = 0.0000250050
+EarlyStopping counter: 4 out of 5
+	iters: 100, epoch: 6 | AvgLoss: 0.0708820 (T:0.0913 O:0.0167 F:0.0020 | Time:0.0881 Text:0.0946)
+	speed: 0.2053s/iter; left time: 8679.3120s
+	iters: 200, epoch: 6 | AvgLoss: 0.0685181 (T:0.0886 O:0.0150 F:0.0019 | Time:0.0855 Text:0.0917)
+	speed: 0.0333s/iter; left time: 1403.8596s
+	iters: 300, epoch: 6 | AvgLoss: 0.0680065 (T:0.0881 O:0.0142 F:0.0019 | Time:0.0850 Text:0.0913)
+	speed: 0.0336s/iter; left time: 1411.7498s
+	iters: 400, epoch: 6 | AvgLoss: 0.0667153 (T:0.0866 O:0.0136 F:0.0019 | Time:0.0835 Text:0.0896)
+	speed: 0.0337s/iter; left time: 1412.8793s
+Epoch: 6 cost time: 14.998687744140625
+Epoch: 6, Steps: 446 | Train: 0.0676837 (Task:0.0878 Out:0.0137 Feat:0.0018 | Time:0.0845 Text:0.0912) Vali: 0.3300093 Test: 0.2048288
+lr = 0.0000172811
+EarlyStopping counter: 5 out of 5
+Early stopping
+average training time: 16.431657 s
+>>> Loading best model from memory for testing.
+Max Memory (MB): 1128.31884765625
+>>>>>>>testing : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+Loading best model from memory...
+Computational complexity(MACs): 1.04 GMac, Number of parameters: 13.08 M
+mse:0.19734314490400662, mae:0.2506015776275677
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.214_mse0.1973_mae0.2506_best.csv
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_IL.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             106                 Dec In:             7                   
+  C Out:              106                 d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,464,129
+Trainable parameters: 13,095,169
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_IL.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             105                 Dec In:             7                   
+  C Out:              105                 d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,463,985
+Trainable parameters: 13,095,025
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_IL.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+[Few-Shot] È¨ÖØ¼ÓÔØÍê³É£¬½«Ê¹ÓÃ 10% Êý¾Ý½øÐÐÎ¢µ÷¡£
+>>>>>>>start training : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct>>>>>>>>>>>>>>>>>>>>>>>>>>
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_IL.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             106                 Dec In:             7                   
+  C Out:              106                 d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,464,129
+Trainable parameters: 13,095,169
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        0                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_CT.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Test-Only | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+>>>>>>>testing : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+>>> [Explicit Checkpoint] Loading model weights from: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        0                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_CT.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Zero-Shot Evaluation | target_data=ETTm1 | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+>>>>>>>testing : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        0                   
+  Model ID:           CALF_96_96_p        Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_CT.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-05               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Test-Only | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+>>>>>>>testing : long_term_forecast_CALF_96_96_p_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-05_2025_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+>>> [Explicit Checkpoint] Loading model weights from: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Computational complexity(MACs): 1.4 GMac, Number of parameters: 13.08 M
+mse:0.2077742257659595, mae:0.2679031154590068
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.214_mse0.2078_mae0.2679_best.csv

@@ -125,11 +125,20 @@ if __name__ == '__main__':
     parser.add_argument('--gpt2_path', type=str, default=None, help='path or huggingface id for GPT-2 model (optional)')
     
     # few shot percentage
-    parser.add_argument('--percent', type=int, default=100, help='few shot percentage')
+    parser.add_argument('--percent', type=int, default=100,
+                        help='少样本微调时使用的训练数据百分比（1-99）。'
+                             '仅在 is_training=1 时控制训练集大小。'
+                             '当 percent<100 时自动开启少样本模式，此时必须通过 --checkpoint_path '
+                             '指定预训练权重（从该权重出发微调）。默认100（全量从头训练）。')
     
     # zero shot
     parser.add_argument('--zero_shot', type=int, default=0, help='1 for training zero shot')
     parser.add_argument('--target_data', type=str, default="ETTm1", help='target data for zero shot')
+
+    # few-shot fine-tuning options
+    parser.add_argument('--freeze_backbone', action='store_true', default=False,
+                        help='少样本微调时冻结 GPT2 主干（gpt2/gpt2_text），只训练投影层和输出头，'
+                             '防止在极少数据下过拟合。仅在 is_training=1, percent<100 时生效。')
 
     # evaluation
     parser.add_argument('--eval_test_every_epoch', action='store_true', help='evaluate test set every epoch during training', default=False)
@@ -154,7 +163,13 @@ if __name__ == '__main__':
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
     parser.add_argument('--checkpoint_path', type=str, default="0",
-                        help='Explicit path to checkpoint file (.pth) or directory to load for testing when is_training=0. If "0", uses default path based on setting.')
+                        help='权重文件路径（.pth 文件或含 checkpoint.pth 的目录）。'
+                             '生效场景：'
+                             '(1) 少样本微调（is_training=1, percent<100）：作为微调起点预训练权重；'
+                             '(2) 零样本评估（is_training=0, zero_shot=1）：直接用此权重推理；'
+                             '(3) 纯测试（is_training=0）：加载此权重做测试。'
+                             '普通全量训练（is_training=1, percent=100）时此参数被忽略。'
+                             '若为 "0" 则使用默认 setting 路径。')
 
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
@@ -167,7 +182,34 @@ if __name__ == '__main__':
 
     print('Args in experiment:')
     print_args(args)
-    
+
+    # ── 实验模式检测 ─────────────────────────────────────────────────
+    _ckpt = str(getattr(args, 'checkpoint_path', '0')).strip()
+    _ckpt_valid = _ckpt not in ['0', 'None', '']
+
+    _is_few_shot  = (args.is_training == 1 and args.percent < 100)
+    _is_zero_shot = (args.is_training == 0 and args.zero_shot == 1)
+    _is_test_only = (args.is_training == 0 and args.zero_shot == 0)
+    _is_full_train = (args.is_training == 1 and args.percent == 100)
+
+    if _is_few_shot:
+        if not _ckpt_valid:
+            raise ValueError(
+                "少样本模式（is_training=1, percent<100）需要通过 --checkpoint_path 指定预训练权重，"
+                "当前值为空或 '0'。"
+            )
+        print(f"[Mode] Few-Shot Fine-Tuning | percent={args.percent}% | ckpt={args.checkpoint_path}")
+    elif _is_zero_shot:
+        print(f"[Mode] Zero-Shot Evaluation | target_data={args.target_data} | ckpt={args.checkpoint_path}")
+    elif _is_test_only:
+        print(f"[Mode] Test-Only | ckpt={args.checkpoint_path if _ckpt_valid else '(default setting path)'}")
+    elif _is_full_train:
+        if _ckpt_valid:
+            print(f"[Warning] 普通全量训练模式下 --checkpoint_path='{args.checkpoint_path}' 无效，已忽略。")
+            args.checkpoint_path = "0"   # 强制清空，防止误加载
+        print("[Mode] Full Training from Scratch | percent=100%")
+    # ─────────────────────────────────────────────────────────────────
+
     # random seed
     fix_seed = args.random_seed
     random.seed(fix_seed)
@@ -220,6 +262,11 @@ if __name__ == '__main__':
                 args.dropout,
                 args.lora_dropout,
                 args.r)
+
+            # 少样本模式：在 setting 末尾追加 _fewshotXpct 标识，
+            # 确保微调后的 checkpoint 保存到独立目录，不会覆盖全量训练的权重。
+            if _is_few_shot:
+                setting += f'_fewshot{args.percent}pct'
 
             print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
             exp.train(setting)

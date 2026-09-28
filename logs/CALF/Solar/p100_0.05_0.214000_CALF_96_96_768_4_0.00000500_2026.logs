@@ -1,0 +1,155 @@
+Args in experiment:
+[1mBasic Config[0m
+  Task Name:          long_term_forecast  Is Training:        1                   
+  Model ID:           CALF_96_96_p100     Model:              CALF                
+
+[1mData Loader[0m
+  Data:               Solar               Root Path:          ./datasets/Solar/   
+  Data Path:          solar_CT.csv        Features:           M                   
+  Target:             OT                  Freq:               h                   
+  Checkpoints:        ./checkpoints/      
+
+[1mForecasting Task[0m
+  Seq Len:            96                  Label Len:          0                   
+  Pred Len:           96                  Seasonal Patterns:  Monthly             
+  Inverse:            0                   
+
+[1mModel Parameters[0m
+  Top k:              5                   Num Kernels:        6                   
+  Enc In:             29                  Dec In:             7                   
+  C Out:              29                  d model:            768                 
+  n heads:            4                   e layers:           1                   
+  d layers:           1                   d FF:               3072                
+  Moving Avg:         25                  Factor:             1                   
+  Distil:             1                   Dropout:            0.1                 
+  Embed:              timeF               Activation:         gelu                
+  Output Attention:   0                   Out MLP Layers:     3                   
+
+[1mRun Parameters[0m
+  Num Workers:        0                   Itr:                1                   
+  Train Epochs:       100                 Batch Size:         8                   
+  Patience:           5                   Learning Rate:      5e-06               
+  Des:                test                Feature Loss:       smooth_l1           Output Loss:        smooth_l1           Task Loss:          smooth_l1           
+  Lradj:              type1               Use Amp:            0                   
+
+[1mGPU[0m
+  Use GPU:            1                   GPU:                0                   
+  Use Multi GPU:      0                   Devices:            0,1,2,3             
+
+[1mDe-stationary Projector Params[0m
+  P Hidden Dims:      128, 128            P Hidden Layers:    2                   
+
+[1mDistill Loss Weight[0m
+  Feature Weight:     0.05                Output Weight:      0.214               Task Weight:        0.736               
+
+[Mode] Few-Shot Fine-Tuning | percent=10% | ckpt=./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+Use GPU: cuda:0
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+trying to load GPT2 model from provided path/id: ./models/gpt2 (local only)...
+>>> Pruning GPT-2 Text: keeping layers [0:1]
+>>> Pruning GPT-2 Time: keeping layers [0:1]
+
+============================================================
+MODEL CONFIGURATION DIAGNOSTIC
+============================================================
+gpt_layers parameter: 1
+actual gpt2.h length: 1
+config.gpt_layers: 12
+Total parameters: 104,453,041
+Trainable parameters: 13,084,081
+time_proj length: 2
+text_proj length: 2
+============================================================
+
+[Few-Shot] ÕýÔÚ¼ÓÔØÔ¤ÑµÁ·È¨ÖØ: ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth
+>>> [Adaptive Load] Slicing cycle_queue from checkpoint channels (137) to target model channels (29).
+[Few-Shot] È¨ÖØ¼ÓÔØÍê³É£¬½«Ê¹ÓÃ 10% Êý¾Ý½øÐÐÎ¢µ÷¡£
+>>>>>>>start training : long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-06_2026_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct>>>>>>>>>>>>>>>>>>>>>>>>>>
+train 3574
+val 5161
+test 10417
+	iters: 100, epoch: 1 | AvgLoss: 0.0811651 (T:0.1065 O:0.0130 F:0.0002 | Time:0.1077 Text:0.1052)
+	speed: 0.0233s/iter; left time: 1037.9202s
+	iters: 200, epoch: 1 | AvgLoss: 0.0767339 (T:0.1009 O:0.0114 F:0.0002 | Time:0.1019 Text:0.1000)
+	speed: 0.0162s/iter; left time: 718.7265s
+	iters: 300, epoch: 1 | AvgLoss: 0.0752074 (T:0.0993 O:0.0100 F:0.0002 | Time:0.1000 Text:0.0985)
+	speed: 0.0170s/iter; left time: 751.0624s
+	iters: 400, epoch: 1 | AvgLoss: 0.0743140 (T:0.0983 O:0.0091 F:0.0002 | Time:0.0989 Text:0.0977)
+	speed: 0.0170s/iter; left time: 751.3445s
+Epoch: 1 cost time: 7.905982494354248
+Best model stored in memory (Vali Loss: 0.257058)
+Epoch: 1, Steps: 446 | Train: 0.0745525 (Task:0.0987 Out:0.0088 Feat:0.0002 | Time:0.0994 Text:0.0980) Vali: 0.2570575 Test: 0.1766640
+lr = 0.0000048779
+Validation loss decreased (inf --> 0.257058).  Saving model ...
+	iters: 100, epoch: 2 | AvgLoss: 0.0712283 (T:0.0950 O:0.0062 F:0.0002 | Time:0.0946 Text:0.0953)
+	speed: 0.1171s/iter; left time: 5157.6676s
+	iters: 200, epoch: 2 | AvgLoss: 0.0707149 (T:0.0943 O:0.0059 F:0.0002 | Time:0.0944 Text:0.0943)
+	speed: 0.0178s/iter; left time: 784.4061s
+	iters: 300, epoch: 2 | AvgLoss: 0.0705434 (T:0.0941 O:0.0059 F:0.0002 | Time:0.0943 Text:0.0940)
+	speed: 0.0173s/iter; left time: 757.0088s
+	iters: 400, epoch: 2 | AvgLoss: 0.0702555 (T:0.0937 O:0.0058 F:0.0002 | Time:0.0941 Text:0.0934)
+	speed: 0.0162s/iter; left time: 707.7108s
+Epoch: 2 cost time: 7.748176097869873
+Epoch: 2, Steps: 446 | Train: 0.0706002 (Task:0.0942 Out:0.0059 Feat:0.0002 | Time:0.0946 Text:0.0938) Vali: 0.2601555 Test: 0.1737837
+lr = 0.0000045235
+EarlyStopping counter: 1 out of 5
+	iters: 100, epoch: 3 | AvgLoss: 0.0680682 (T:0.0909 O:0.0056 F:0.0002 | Time:0.0914 Text:0.0903)
+	speed: 0.1101s/iter; left time: 4800.0142s
+	iters: 200, epoch: 3 | AvgLoss: 0.0686826 (T:0.0917 O:0.0057 F:0.0002 | Time:0.0924 Text:0.0909)
+	speed: 0.0161s/iter; left time: 701.2844s
+	iters: 300, epoch: 3 | AvgLoss: 0.0694023 (T:0.0926 O:0.0058 F:0.0002 | Time:0.0934 Text:0.0919)
+	speed: 0.0165s/iter; left time: 717.2256s
+	iters: 400, epoch: 3 | AvgLoss: 0.0691713 (T:0.0923 O:0.0056 F:0.0002 | Time:0.0931 Text:0.0916)
+	speed: 0.0162s/iter; left time: 702.5936s
+Epoch: 3 cost time: 7.337620496749878
+Epoch: 3, Steps: 446 | Train: 0.0692405 (Task:0.0924 Out:0.0056 Feat:0.0002 | Time:0.0932 Text:0.0917) Vali: 0.2615734 Test: 0.1726456
+lr = 0.0000039715
+EarlyStopping counter: 2 out of 5
+	iters: 100, epoch: 4 | AvgLoss: 0.0662429 (T:0.0885 O:0.0052 F:0.0002 | Time:0.0892 Text:0.0878)
+	speed: 0.1049s/iter; left time: 4527.5230s
+	iters: 200, epoch: 4 | AvgLoss: 0.0683469 (T:0.0913 O:0.0055 F:0.0002 | Time:0.0921 Text:0.0904)
+	speed: 0.0163s/iter; left time: 703.3235s
+	iters: 300, epoch: 4 | AvgLoss: 0.0680056 (T:0.0908 O:0.0053 F:0.0002 | Time:0.0915 Text:0.0901)
+	speed: 0.0164s/iter; left time: 705.5090s
+	iters: 400, epoch: 4 | AvgLoss: 0.0683526 (T:0.0913 O:0.0054 F:0.0002 | Time:0.0921 Text:0.0904)
+	speed: 0.0163s/iter; left time: 698.5866s
+Epoch: 4 cost time: 7.283643484115601
+Epoch: 4, Steps: 446 | Train: 0.0682680 (Task:0.0912 Out:0.0054 Feat:0.0002 | Time:0.0920 Text:0.0904) Vali: 0.2594743 Test: 0.1720035
+lr = 0.0000032760
+EarlyStopping counter: 3 out of 5
+	iters: 100, epoch: 5 | AvgLoss: 0.0649400 (T:0.0868 O:0.0050 F:0.0002 | Time:0.0878 Text:0.0857)
+	speed: 0.1043s/iter; left time: 4454.4739s
+	iters: 200, epoch: 5 | AvgLoss: 0.0669330 (T:0.0894 O:0.0054 F:0.0002 | Time:0.0905 Text:0.0883)
+	speed: 0.0170s/iter; left time: 726.5873s
+	iters: 300, epoch: 5 | AvgLoss: 0.0674663 (T:0.0901 O:0.0054 F:0.0002 | Time:0.0912 Text:0.0890)
+	speed: 0.0427s/iter; left time: 1814.3271s
+	iters: 400, epoch: 5 | AvgLoss: 0.0672504 (T:0.0898 O:0.0054 F:0.0002 | Time:0.0907 Text:0.0888)
+	speed: 0.0469s/iter; left time: 1988.8077s
+Epoch: 5 cost time: 14.547832727432251
+Epoch: 5, Steps: 446 | Train: 0.0674197 (Task:0.0900 Out:0.0054 Feat:0.0002 | Time:0.0909 Text:0.0891) Vali: 0.2611510 Test: 0.1716984
+lr = 0.0000025050
+EarlyStopping counter: 4 out of 5
+	iters: 100, epoch: 6 | AvgLoss: 0.0682555 (T:0.0912 O:0.0054 F:0.0002 | Time:0.0925 Text:0.0898)
+	speed: 0.2362s/iter; left time: 9985.9713s
+	iters: 200, epoch: 6 | AvgLoss: 0.0661626 (T:0.0883 O:0.0053 F:0.0002 | Time:0.0897 Text:0.0870)
+	speed: 0.0449s/iter; left time: 1895.0997s
+	iters: 300, epoch: 6 | AvgLoss: 0.0673009 (T:0.0899 O:0.0053 F:0.0002 | Time:0.0912 Text:0.0886)
+	speed: 0.0424s/iter; left time: 1785.3086s
+	iters: 400, epoch: 6 | AvgLoss: 0.0671818 (T:0.0897 O:0.0054 F:0.0002 | Time:0.0908 Text:0.0886)
+	speed: 0.0379s/iter; left time: 1592.6059s
+Epoch: 6 cost time: 18.85757064819336
+Epoch: 6, Steps: 446 | Train: 0.0670169 (Task:0.0895 Out:0.0054 Feat:0.0002 | Time:0.0905 Text:0.0885) Vali: 0.2619230 Test: 0.1715154
+lr = 0.0000017340
+EarlyStopping counter: 5 out of 5
+Early stopping
+average training time: 10.613471 s
+>>> Loading best model from memory for testing.
+Max Memory (MB): 1135.91796875
+>>>>>>>testing : long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl5e-06_2026_0_feature0.05_output0.214_train_epochs100_bs8_dr0.1_ld0.1_r8_fewshot10pct<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+>>> Initiating Dual-Model Testing...
+test 10417
+loading model for _best test
+Loading best model from memory...
+Computational complexity(MACs): 1.4 GMac, Number of parameters: 13.08 M
+mse:0.1764162313601156, mae:0.23768424994317208
+>>> Test results saved to: ./results/Solar/fw0.05_ow0.214_mse0.1764_mae0.2377_best.csv

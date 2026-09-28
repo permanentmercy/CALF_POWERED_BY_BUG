@@ -10,6 +10,7 @@ from torch import optim
 from torch.cuda.amp import autocast, GradScaler
 import os
 import time
+from datetime import datetime
 import warnings
 import numpy as np
 import torch.nn.functional as F
@@ -67,14 +68,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
     def _select_optimizer(self):
         # 分组 1: TQ 相关参数（周期表和门控），使用高学习率
-        tq_params = [p for n, p in self.model.named_parameters() if p.requires_grad and ('temporal_query' in n or 'tq_gate' in n)]
+        tq_params = [p for n, p in self.model.named_parameters() if p.requires_grad and ('temporal_query' in n or 'tq_gate' in n or 'cpq' in n)]
         
         # 分组 2: 投影层参数（_proj），由 loss_optim 独立控制
         proj_params = [p for n, p in self.model.named_parameters() if p.requires_grad and '_proj' in n]
         
         # 分组 3: 其他所有参数
         other_params = [p for n, p in self.model.named_parameters() if p.requires_grad and 
-                        not ('temporal_query' in n or 'tq_gate' in n) and 
+                        not ('temporal_query' in n or 'tq_gate' in n or 'cpq' in n) and 
                         not ('_proj' in n)]
 
         model_optim = optim.Adam([
@@ -433,7 +434,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if not os.path.exists(path):
                     os.makedirs(path)
                 
-                # Clear best model from memory without saving to disk
+                if self.best_model_state is not None:
+                    best_path = os.path.join(path, 'checkpoint.pth')
+                    torch.save(self.best_model_state, best_path)
+                    print(f">>> [Post-Test Save] Best model saved to disk: {best_path}")
+
                 self.best_model_state = None
                 
                 if self.swa_model_state is not None:
@@ -456,6 +461,14 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             print(f'loading model for {swa_tag if swa_tag else "best"} test')
             is_training_mode = (getattr(self.args, 'is_training', 0) == 1)
             explicit_ckpt = getattr(self.args, 'checkpoint_path', "0")
+
+            # NOTE: --checkpoint_path 的生效边界：
+            #   · is_training=0（纯测试 / 零样本）：此处加载指定权重用于推理
+            #   · is_training=1, percent<100（少样本微调）：预训练权重已在 Exp_Basic.__init__
+            #     中加载完毕；训练结束后 test() 使用的是 early-stop / SWA 筛选出的最佳权重，
+            #     此处不再重复加载 checkpoint_path，checkpoint_path 对训练后的 test 无效。
+            #   · is_training=1, percent=100（普通全量训练）：checkpoint_path 完全无效，
+            #     run.py 已在模式检测阶段将其强制清空为 "0"。
             if (not is_training_mode) and explicit_ckpt and str(explicit_ckpt).strip() not in ["0", "None", ""]:
                 # User specified an explicit checkpoint path in test-only mode (is_training == 0)
                 if os.path.isdir(explicit_ckpt):
@@ -577,6 +590,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             os.makedirs(folder_path)
         
         f = open("result_long_term_forecast.txt", 'a')
+        f.write('time:{}\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         f.write(setting + swa_tag + "  \n")
         f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
