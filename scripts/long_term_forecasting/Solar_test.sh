@@ -50,7 +50,7 @@ fi
 is_training=1
 batch_size=16
 accumulation_steps=4
-seq_len=96
+seq_len=720
 tq_lr_factor=5
 tq_dropout=0.1
 for task_w in 0.736
@@ -61,11 +61,9 @@ for d_model in 768
 do
 for n_heads in 4
 do
-for percent in 100
-do
 for random_seed in 2025
 do
-for pred_len in 96
+for pred_len in 144
 do
   learning_rate=$(python -c "print('{:.8f}'.format(0.00000625*$batch_size*$accumulation_steps))")
 
@@ -120,8 +118,7 @@ else:
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
-    --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth \
-    --data_path solar_CT.csv \
+    --data_path solar_AL.txt \
     --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
@@ -129,7 +126,6 @@ else:
     --seq_len $seq_len \
     --label_len 0 \
     --pred_len $pred_len \
-    --percent $percent \
     --batch_size $batch_size \
     --learning_rate $learning_rate \
     --train_epochs 100 \
@@ -137,8 +133,8 @@ else:
     --n_heads $n_heads \
     --d_ff $((d_model*4)) \
     --dropout 0.1 \
-    --enc_in 29 \
-    --c_out 29 \
+    --enc_in 137 \
+    --c_out 137 \
     --gpt_layers 1 \
     --itr 1 \
     --model $model \
@@ -159,6 +155,7 @@ else:
     --e_layers 1 \
     --test_branch time \
     --mlp_res_w 0 \
+    --bestmodel \
     --out_mlp_layers 3 \
     --cycle_prior_before_denorm 0 \
     --tq_dropout $tq_dropout \
@@ -187,7 +184,7 @@ else:
   fi
 done
 done
-done
+
 done
 done
 done

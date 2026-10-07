@@ -34,6 +34,51 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
         print("local GPT2 model not found, downloading from huggingface (gpt2)...")
         return model_class.from_pretrained('gpt2', **kwargs)
 
+class MultiScaleTemporalConv(nn.Module):
+    """
+    轻量多尺度时序卷积 (MTC) 模块：
+    沿时间序列维度提取局部趋势与多频段波动特征（k=3, 5, 7 分别对应高频、中频与宏观形态），
+    并融合投影至 hidden_dim，作为输入端全局线性投影的有力补充。
+    """
+    def __init__(self, seq_len, hidden_dim, dropout=0.1):
+        super(MultiScaleTemporalConv, self).__init__()
+        self.conv3 = nn.Conv1d(1, 16, kernel_size=3, padding=1)
+        self.conv5 = nn.Conv1d(1, 16, kernel_size=5, padding=2)
+        self.conv7 = nn.Conv1d(1, 16, kernel_size=7, padding=3)
+        self.fuse = nn.Conv1d(48, 1, kernel_size=1)
+        self.act = nn.GELU()
+        self.linear = nn.Linear(seq_len, hidden_dim)
+        self.norm = nn.LayerNorm(hidden_dim)
+        self.dropout = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        # x: (B, M, seq_len)
+        B, M, L = x.shape
+        x_in = x.reshape(B * M, 1, L)
+        c3 = self.act(self.conv3(x_in))
+        c5 = self.act(self.conv5(x_in))
+        c7 = self.act(self.conv7(x_in))
+        c = self.fuse(torch.cat([c3, c5, c7], dim=1))
+        c = c.reshape(B, M, L)
+        out = self.dropout(self.linear(c))
+        return self.norm(out)
+
+class ResMLPBlock(nn.Module):
+    """
+    带有 Pre-LayerNorm 和残差连接的 MLP 模块，
+    防止多层感知机在深层投影时的梯度退化并加速收敛。
+    """
+    def __init__(self, d_model, dropout=0.1):
+        super().__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.fc1 = nn.Linear(d_model, d_model)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(d_model, d_model)
+        self.drop = nn.Dropout(dropout)
+        
+    def forward(self, x):
+        return x + self.drop(self.fc2(self.act(self.fc1(self.norm(x)))))
+
 class Encoder_PCA(nn.Module):
     """
     结合主成分分析 (PCA) 词嵌入的编码器模块，
@@ -41,16 +86,25 @@ class Encoder_PCA(nn.Module):
     
     该编码器在输入特征与预训练词嵌入之间使用交叉注意力，
     并通过时间查询向量进行增强，以捕获季节性/周期性模式。
+    同时支持多尺度时序卷积 (MTC) 增强与时间分支 TQ 相位注入。
     """
-    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True, tq_inject_target='pca'):
+    def __init__(self, input_dim, word_embedding, hidden_dim=768, num_heads=12, num_encoder_layers=1, dim_feedforward=2048, cycle_len=24, use_tq_gate=False, tq_dropout=0.0, tq_mode='mul', use_tq=True, tq_inject_target='pca', use_conv_emb=True, use_tq_time=True):
         super(Encoder_PCA, self).__init__()
         self.use_tq_gate = use_tq_gate
         self.tq_mode = tq_mode
         self.use_tq = use_tq
+        self.use_conv_emb = use_conv_emb
+        self.use_tq_time = use_tq_time
         # 'pca': 周期向量注入到 PCA 的 K/V (w_embed) 侧（原始行为）
         # 'q'  : 周期向量注入到时序特征的 Q 侧
         self.tq_inject_target = tq_inject_target
         self.linear = nn.Linear(input_dim, hidden_dim)
+
+        if self.use_conv_emb:
+            self.conv_emb = MultiScaleTemporalConv(input_dim, hidden_dim, dropout=tq_dropout)
+            self.conv_gate = nn.Parameter(torch.zeros(1))
+        if self.use_tq_time:
+            self.tq_time_gate = nn.Parameter(torch.zeros(1))
 
         self.temporal_query = nn.Parameter(torch.randn(cycle_len, hidden_dim))
         self.tq_dropout = nn.Dropout(tq_dropout)
@@ -94,11 +148,24 @@ class Encoder_PCA(nn.Module):
                 else:
                     w_embed = w_embed + self.tq_dropout(tq.unsqueeze(1))
             else:
-                # 'q' 模式：将 TQ 向量缓存，稍后注入时序 Q 侧
+                # 'q' 模式：将 TQ 向量缓存，稍后注入时序侧
                 tq_vec = self.tq_dropout(tq.unsqueeze(1))  # (B, 1, hidden_dim)
 
-        x = self.linear(x)
-        x_time = x
+        x_raw = x
+        x_lin = self.linear(x_raw)
+        if self.use_conv_emb:
+            x_time = x_lin + self.conv_gate * self.conv_emb(x_raw)
+        else:
+            x_time = x_lin
+
+        # 核心架构增强：时间分支感知日周期 TQ 相位（零初始化平滑演进）
+        if self.use_tq_time and tq_vec is not None:
+            if self.tq_mode == 'mul':
+                x_time = x_time * (1.0 + self.tq_time_gate * torch.tanh(tq_vec))
+            else:
+                x_time = x_time + self.tq_time_gate * tq_vec
+
+        x = x_time
 
         # 多层特征提取
         for layer in self.layers:
@@ -128,14 +195,13 @@ class Encoder_PCA(nn.Module):
             x_fused = (1 - gate_weight) * x_time + gate_weight * x
             return x_time, x_fused
         else:
-            # 之前的老逻辑：直接使用 TQ 增强后的特征
+            # 直接使用 TQ 增强后的特征
             return x_time, x
 
 class TQ_OutputHead(nn.Module):
     """
     专为时间查询 (TQ) 增强架构设计的输出头。
-    包含一个多层感知机 (MLP) 和一个线性投影层，用于将高维特征
-    映射回所需的输出维度（例如，预测长度）。
+    包含多层感知机 (MLP) 和线性投影层，支持零初始化残差跳跃连接。
     """
     def __init__(self, d_model, output_dim, dropout, out_mlp_layers=2):
         super().__init__()
@@ -144,6 +210,7 @@ class TQ_OutputHead(nn.Module):
             layers.append(nn.Linear(d_model, d_model))
             layers.append(nn.GELU())
         self.mlp = nn.Sequential(*layers)
+        self.res_alpha = nn.Parameter(torch.zeros(1))
         self.output_proj = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(d_model, output_dim)
@@ -151,7 +218,7 @@ class TQ_OutputHead(nn.Module):
 
     def forward(self, x, res_w=0.0):
         # x: (batch, seq, d_model)
-        h = self.mlp(x)
+        h = self.mlp(x) + self.res_alpha * x
         if res_w != 0:
             h = h + res_w * x
         return self.output_proj(h)
@@ -170,13 +237,16 @@ class Model(nn.Module):
         self.enc_in = getattr(configs, 'enc_in', None)
         self.c_out = getattr(configs, 'c_out', self.enc_in)
         
+        target_modules = ["c_attn"]
+        if getattr(configs, 'lora_target_proj', 0):
+            target_modules = ["c_attn", "c_proj"]
         peft_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM, 
             inference_mode=False, 
             r=configs.r,
             lora_alpha=configs.lora_alpha,
             lora_dropout=configs.lora_dropout,
-            target_modules=["c_attn"]
+            target_modules=target_modules
         )
     
         self.task_name = configs.task_name
@@ -237,7 +307,9 @@ class Model(nn.Module):
             tq_dropout=getattr(configs, 'tq_dropout', 0.0), # TQ Dropout
             tq_mode=getattr(configs, 'tq_mode', 'mul'),     # TQ 调制模式: add/mul
             use_tq=getattr(configs, 'use_tq', 1),            # 是否开启 TQ 注入
-            tq_inject_target=getattr(configs, 'tq_inject_target', 'pca')  # 注入目标: 'pca'(K/V侧) 或 'q'(Q侧)
+            tq_inject_target=getattr(configs, 'tq_inject_target', 'pca'),  # 注入目标: 'pca'(K/V侧) 或 'q'(Q侧)
+            use_conv_emb=bool(getattr(configs, 'use_conv_emb', 1)),
+            use_tq_time=bool(getattr(configs, 'use_tq_time', 1))
         )
         
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
@@ -257,11 +329,19 @@ class Model(nn.Module):
             self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
             self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
             self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
+            # Direct autoregressive linear transition skip connection (ReZero)
+            self.direct_trend = nn.Linear(configs.seq_len, configs.pred_len, bias=False)
+            nn.init.orthogonal_(self.direct_trend.weight)
+            self.trend_gate = nn.Parameter(torch.zeros(1))
         self.use_norm = getattr(configs, 'use_norm', 1)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
             layer.train()
+        if hasattr(self, 'direct_trend'):
+            self.direct_trend.to(device=device)
+            self.direct_trend.train()
+        self.to(device=device)
         
         self.cnt = 0
         
@@ -291,6 +371,7 @@ class Model(nn.Module):
             x = x - means
             stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
             x /= stdev
+        x_norm = x
 
         x = rearrange(x, 'b l m -> b m l')
 
@@ -314,9 +395,15 @@ class Model(nn.Module):
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
+        # Direct autoregressive linear trend skip in normalized space (ReZero)
+        if hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
+            trend = self.direct_trend(x_norm.transpose(1, 2)).transpose(1, 2)
+            outputs_time = outputs_time + self.trend_gate * trend
+            outputs_text = outputs_text + self.trend_gate * trend
+
         # Add physical cycle residual prior if available (before denormalization option)
         if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
-            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+            future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 
@@ -326,7 +413,7 @@ class Model(nn.Module):
 
         # Add physical cycle residual prior if available (after denormalization option)
         if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
-            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+            future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 
@@ -530,5 +617,16 @@ class Model(nn.Module):
                         f"Checkpoint cycle_queue has {ckpt_enc_in} channels, but target model requires {curr_enc_in} channels ({curr_enc_in} > {ckpt_enc_in}).\n"
                         f"Cannot expand fewer channels to larger channels without training."
                     )
+        if 'cycle_scale' in state_dict and hasattr(self, 'cycle_scale'):
+            ckpt_scale = state_dict['cycle_scale']
+            if ckpt_scale.shape != self.cycle_scale.shape:
+                state_dict = state_dict.copy()
+                if ckpt_scale.numel() == 1:
+                    state_dict['cycle_scale'] = self.cycle_scale.clone().fill_(ckpt_scale.item())
+                elif ckpt_scale.shape[-1] != self.cycle_scale.shape[-1]:
+                    min_c = min(ckpt_scale.shape[-1], self.cycle_scale.shape[-1])
+                    new_scale = self.cycle_scale.clone()
+                    new_scale[:, :, :min_c] = ckpt_scale[:, :, :min_c]
+                    state_dict['cycle_scale'] = new_scale
         return super().load_state_dict(state_dict, strict=strict)
 

@@ -162,6 +162,10 @@ if __name__ == '__main__':
     parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
+    parser.add_argument('--use_conv_emb', type=int, default=0, help='enable Multi-Scale Temporal Conv in Encoder_PCA')
+    parser.add_argument('--use_tq_time', type=int, default=0, help='inject TQ vector into time branch x_time')
+    parser.add_argument('--task_time_ratio', type=float, default=0.5, help='weight ratio for time branch in supervised task loss')
+    parser.add_argument('--lora_target_proj', type=int, default=0, help='also adapt c_proj in GPT2 with LoRA')
     parser.add_argument('--checkpoint_path', type=str, default="0",
                         help='权重文件路径（.pth 文件或含 checkpoint.pth 的目录）。'
                              '生效场景：'

@@ -95,7 +95,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                            self.args.feature_w, 
                            self.args.output_w, 
                            self.args.task_w,
-                           getattr(self.args, 'layer_offset', 0))
+                           getattr(self.args, 'layer_offset', 0),
+                           getattr(self.args, 'task_time_ratio', 0.5))
         return criterion
 
     def train(self, setting):
@@ -110,7 +111,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         time_now = time.time()
 
         train_steps = len(train_loader)
-        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+        early_stopping = EarlyStopping(patience=self.args.patience, verbose=True, bestmodel=getattr(self.args, 'bestmodel', False))
 
         model_optim, loss_optim = self._select_optimizer()
         criterion = self._select_criterion()

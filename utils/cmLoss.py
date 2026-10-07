@@ -19,12 +19,13 @@ loss_dict = {
 
 
 class cmLoss(nn.Module):
-    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0, layer_offset=0):
+    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0, layer_offset=0, task_time_ratio=0.5):
         super(cmLoss, self).__init__()
         self.task_w = task_w
         self.output_w = output_w
         self.feature_w = feature_w
         self.layer_offset = layer_offset
+        self.task_time_ratio = task_time_ratio
 
         self.feature_loss = loss_dict[feature_loss]
         self.output_loss = loss_dict[output_loss]
@@ -76,11 +77,11 @@ class cmLoss(nn.Module):
         if self.task_name == "long_term_forecast":
             task_loss_time = self.task_loss(outputs_time, batch_y)
             task_loss_text = self.task_loss(outputs_text, batch_y)
-            task_loss = (task_loss_time + task_loss_text) / 2.0
+            task_loss = self.task_time_ratio * task_loss_time + (1.0 - self.task_time_ratio) * task_loss_text
         elif self.task_name == "short_term_forecast":
             task_loss_time = self.task_loss(in_sample, freq_map, outputs_time, batch_y, batch_y_mark)
             task_loss_text = self.task_loss(in_sample, freq_map, outputs_text, batch_y, batch_y_mark)
-            task_loss = (task_loss_time + task_loss_text) / 2.0
+            task_loss = self.task_time_ratio * task_loss_time + (1.0 - self.task_time_ratio) * task_loss_text
         elif self.task_name == "classification":
             task_loss = self.task_loss(outputs_time, batch_y)
             task_loss_time = task_loss
