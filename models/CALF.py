@@ -343,13 +343,18 @@ class Model(nn.Module):
             nn.init.zeros_(self.harmonic_linear.weight)
             self.harmonic_gate = nn.Parameter(torch.zeros(1))
 
-            # Diurnal Phase Gate (DPG) initialized with physical daylight curve
+            # Diurnal Phase Gate (DPG) initialized with smooth raised-cosine solar daylight curve
             init_logit = torch.ones(self.cycle_len, 1) * 8.0
             if self.cycle_len == 144:
-                init_logit[0:30] = -8.0
-                init_logit[115:144] = -8.0
-                init_logit[30:36] = torch.linspace(-6.0, 6.0, 6).unsqueeze(1)
-                init_logit[110:115] = torch.linspace(6.0, -6.0, 5).unsqueeze(1)
+                smooth_gate = torch.zeros(self.cycle_len, 1)
+                smooth_gate[44:101] = 1.0
+                t_dawn = torch.arange(28, 44).float()
+                smooth_gate[28:44, 0] = 0.5 * (1.0 - torch.cos(np.pi * (t_dawn - 28.0) / 16.0))
+                t_dusk = torch.arange(101, 117).float()
+                smooth_gate[101:117, 0] = 0.5 * (1.0 + torch.cos(np.pi * (t_dusk - 101.0) / 16.0))
+                eps = 1e-4
+                clamped = torch.clamp(smooth_gate, eps, 1.0 - eps)
+                init_logit = torch.clamp(torch.log(clamped / (1.0 - clamped)), -8.0, 8.0)
             self.diurnal_gate_logit = nn.Parameter(init_logit)
 
             # Physical Non-negativity Night Floor (raw 0.0 kW in standardized space)
@@ -479,9 +484,11 @@ class Model(nn.Module):
             # Diurnal Phase Gate (gate -> 0 at night, gate -> 1 during day)
             gate = torch.sigmoid(self.diurnal_gate_logit[fc_idx]) # (B, pred_len, 1)
             
-            # Physical Non-negativity Bound (predictions cannot drop below station physical zero floor)
-            outputs_time_phys = torch.maximum(outputs_time, self.night_floor)
-            outputs_text_phys = torch.maximum(outputs_text, self.night_floor)
+            # Soft Non-negativity Bound (smooth softplus relaxation to eliminate hard step clamping)
+            time_diff = outputs_time - self.night_floor
+            text_diff = outputs_text - self.night_floor
+            outputs_time_phys = self.night_floor + F.softplus(time_diff, beta=10.0)
+            outputs_text_phys = self.night_floor + F.softplus(text_diff, beta=10.0)
             
             # Smooth diurnal gating: nighttime smoothly clamps to night_floor, daytime retains neural forecast
             outputs_time = gate * outputs_time_phys + (1.0 - gate) * self.night_floor
