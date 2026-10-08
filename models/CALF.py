@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import gc
 import os
+import numpy as np
+import pandas as pd
 from einops import rearrange
 from peft import LoraConfig, TaskType, get_peft_model
 from models.GPT2_arch import AccustumGPT2Model
@@ -329,10 +331,46 @@ class Model(nn.Module):
             self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
             self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
             self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
+            self.cycle_len = getattr(configs, 'cycle', 144)
+
             # Direct autoregressive linear transition skip connection (ReZero)
             self.direct_trend = nn.Linear(configs.seq_len, configs.pred_len, bias=False)
             nn.init.orthogonal_(self.direct_trend.weight)
             self.trend_gate = nn.Parameter(torch.zeros(1))
+
+            # Diurnal Harmonic Phase Projection (24h, 12h, 8h, 6h harmonics)
+            self.harmonic_linear = nn.Linear(8, configs.enc_in, bias=False)
+            nn.init.zeros_(self.harmonic_linear.weight)
+            self.harmonic_gate = nn.Parameter(torch.zeros(1))
+
+            # Diurnal Phase Gate (DPG) initialized with physical daylight curve
+            init_logit = torch.ones(self.cycle_len, 1) * 8.0
+            if self.cycle_len == 144:
+                init_logit[0:30] = -8.0
+                init_logit[115:144] = -8.0
+                init_logit[30:36] = torch.linspace(-6.0, 6.0, 6).unsqueeze(1)
+                init_logit[110:115] = torch.linspace(6.0, -6.0, 5).unsqueeze(1)
+            self.diurnal_gate_logit = nn.Parameter(init_logit)
+
+            # Physical Non-negativity Night Floor (raw 0.0 kW in standardized space)
+            night_init = torch.full((1, 1, configs.enc_in), -0.713238)
+            data_file = os.path.join(getattr(configs, 'root_path', './datasets/Solar/'), getattr(configs, 'data_path', 'solar_AL.txt'))
+            if os.path.exists(data_file):
+                try:
+                    df_raw = pd.read_csv(data_file, header=None)
+                    if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
+                        df_raw = df_raw.iloc[:, 1:]
+                    train_len = int(len(df_raw) * 0.7)
+                    train_vals = df_raw.values[:train_len]
+                    means = train_vals.mean(axis=0)
+                    stds = np.sqrt(np.var(train_vals, axis=0)) + 1e-5
+                    emp_zero = -means / stds
+                    if len(emp_zero) >= configs.enc_in:
+                        night_init = torch.tensor(emp_zero[:configs.enc_in], dtype=torch.float32).view(1, 1, -1)
+                        print(f">>> [CALF Diurnal Prior] Initialized station night_floor for {configs.enc_in} channels.")
+                except Exception as e:
+                    print(f">>> [CALF Diurnal Prior] Fallback to default night floor: {e}")
+            self.night_floor = nn.Parameter(night_init)
         self.use_norm = getattr(configs, 'use_norm', 1)
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
@@ -341,6 +379,9 @@ class Model(nn.Module):
         if hasattr(self, 'direct_trend'):
             self.direct_trend.to(device=device)
             self.direct_trend.train()
+        if hasattr(self, 'harmonic_linear'):
+            self.harmonic_linear.to(device=device)
+            self.harmonic_linear.train()
         self.to(device=device)
         
         self.cnt = 0
@@ -416,6 +457,35 @@ class Model(nn.Module):
             future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
+
+        # Diurnal Harmonic Phase Projection and Diurnal Phase Gate (DPG) with Physical Bound
+        if future_cycle_index is not None and hasattr(self, 'diurnal_gate_logit') and hasattr(self, 'night_floor'):
+            fc_idx = future_cycle_index.to(self.diurnal_gate_logit.device) # (B, pred_len)
+            
+            # Harmonic Phase Projection
+            if hasattr(self, 'harmonic_linear') and hasattr(self, 'harmonic_gate'):
+                cycle_len = getattr(self, 'cycle_len', 144)
+                phi = 2.0 * np.pi * fc_idx.float() / cycle_len
+                harmonics = torch.stack([
+                    torch.sin(phi), torch.cos(phi),
+                    torch.sin(2.0 * phi), torch.cos(2.0 * phi),
+                    torch.sin(3.0 * phi), torch.cos(3.0 * phi),
+                    torch.sin(4.0 * phi), torch.cos(4.0 * phi)
+                ], dim=-1)
+                h_out = self.harmonic_linear(harmonics) # (B, pred_len, M)
+                outputs_time = outputs_time + self.harmonic_gate * h_out
+                outputs_text = outputs_text + self.harmonic_gate * h_out
+
+            # Diurnal Phase Gate (gate -> 0 at night, gate -> 1 during day)
+            gate = torch.sigmoid(self.diurnal_gate_logit[fc_idx]) # (B, pred_len, 1)
+            
+            # Physical Non-negativity Bound (predictions cannot drop below station physical zero floor)
+            outputs_time_phys = torch.maximum(outputs_time, self.night_floor)
+            outputs_text_phys = torch.maximum(outputs_text, self.night_floor)
+            
+            # Smooth diurnal gating: nighttime smoothly clamps to night_floor, daytime retains neural forecast
+            outputs_time = gate * outputs_time_phys + (1.0 - gate) * self.night_floor
+            outputs_text = gate * outputs_text_phys + (1.0 - gate) * self.night_floor
 
         return {
             'outputs_text': outputs_text,

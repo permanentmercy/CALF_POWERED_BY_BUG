@@ -4,6 +4,7 @@ import os
 
 python_exe = r"D:\software\conda\envs\calf\python.exe"
 
+seed = sys.argv[1] if len(sys.argv) > 1 else "2025"
 cmd = [
     python_exe, "-u", "run.py",
     "--root_path", "./datasets/Solar/",
@@ -56,8 +57,9 @@ cmd = [
     "--task_loss", "smooth_l1",
     "--feature_loss", "smooth_l1",
     "--output_loss", "smooth_l1",
-    "--random_seed", "2025",
+    "--random_seed", str(seed),
     "--cycle", "144",
+    "--eval_test_every_epoch",
     "--use_conv_emb", "0",
     "--use_tq_time", "0",
     "--task_time_ratio", "0.5",
@@ -66,7 +68,7 @@ cmd = [
 
 log_dir = os.path.join("logs", "CALF", "Solar")
 os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, "opt_arch_CALF_96_96_768_4_0.0004_2025.log")
+log_file = os.path.join(log_dir, f"opt_arch_CALF_96_96_768_4_0.0004_{seed}.log")
 
 print(f"Launching training with command:\n{' '.join(cmd)}")
 print(f"Logging to: {log_file}")
