@@ -12,35 +12,32 @@ class Exp_Basic(object):
         self.device = self._acquire_device()
         self.model = self._build_model().to(self.device)
 
-        # ── 少样本模式：加载预训练权重后再微调 ──────────────────────────
-        # 触发条件：is_training=1（训练模式）且 percent<100（使用部分数据）
-        # 其他情况（普通全量训练）checkpoint_path 完全无效
-        is_few_shot = (
-            getattr(args, 'is_training', 0) == 1
-            and getattr(args, 'percent', 100) < 100
-        )
-        if is_few_shot:
-            ckpt = getattr(args, 'checkpoint_path', '0')
-            if not ckpt or str(ckpt).strip() in ['0', 'None', '']:
-                raise ValueError(
-                    "[Few-Shot] 少样本模式（percent<100）必须通过 --checkpoint_path 指定预训练权重路径，"
-                    "当前值为空或 '0'。"
-                )
-            # 支持传入目录（自动寻找 checkpoint.pth）或直接文件路径
-            if os.path.isdir(ckpt):
-                ckpt = os.path.join(ckpt, 'checkpoint.pth')
-            if not os.path.isfile(ckpt):
-                raise FileNotFoundError(
-                    f"[Few-Shot] 指定的预训练权重文件不存在: {ckpt}"
-                )
-            print(f"[Few-Shot] 正在加载预训练权重: {ckpt}")
-            state = torch.load(ckpt, map_location=self.device)
-            missing, unexpected = self.model.load_state_dict(state, strict=False)
-            if missing:
-                print(f"[Few-Shot] 以下参数在 checkpoint 中缺失（将使用随机初始化）: {missing}")
-            if unexpected:
-                print(f"[Few-Shot] checkpoint 中存在当前模型不需要的参数（已忽略）: {unexpected}")
-            print(f"[Few-Shot] 权重加载完成，将使用 {args.percent}% 数据进行微调。")
+        # ── 训练集百分比缩减与权重加载控制 ──────────────────────────
+        is_training = (getattr(args, 'is_training', 0) == 1)
+        percent = getattr(args, 'percent', 100)
+        ckpt = getattr(args, 'checkpoint_path', '0')
+        ckpt_valid = ckpt and str(ckpt).strip() not in ['0', 'None', '']
+
+        if is_training and percent < 100:
+            if ckpt_valid:
+                # 显式指定了 checkpoint，执行预训练权重加载与少样本微调
+                if os.path.isdir(ckpt):
+                    ckpt = os.path.join(ckpt, 'checkpoint.pth')
+                if not os.path.isfile(ckpt):
+                    raise FileNotFoundError(
+                        f"[Few-Shot] 指定的预训练权重文件不存在: {ckpt}"
+                    )
+                print(f"[Few-Shot] 正在加载预训练权重: {ckpt}")
+                state = torch.load(ckpt, map_location=self.device)
+                missing, unexpected = self.model.load_state_dict(state, strict=False)
+                if missing:
+                    print(f"[Few-Shot] 以下参数在 checkpoint 中缺失（将使用随机初始化）: {missing}")
+                if unexpected:
+                    print(f"[Few-Shot] checkpoint 中存在当前模型不需要的参数（已忽略）: {unexpected}")
+                print(f"[Few-Shot] 权重加载完成，将使用 {percent}% 数据进行微调。")
+            else:
+                # 未指定 checkpoint，使用 percent% 数据从头训练全新的模型
+                print(f"[Scratch Train] 从头训练全新模型：使用前 {percent}% 的训练数据进行端到端优化（无预训练权重）。")
 
             # ── 可选：冻结 GPT2 主干，只训练投影层和输出头 ──────────────
             if getattr(args, 'freeze_backbone', False):
