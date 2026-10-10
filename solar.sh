@@ -94,6 +94,7 @@ do
     --use_direct_trend 1 \
     --use_harmonic 1 \
     --use_cycle_prior 1 \
+    --data_split 6:2:2 \
     --eval_test_every_epoch \
     --use_conv_emb 0 \
     --use_tq_time 0 \
@@ -169,6 +170,7 @@ do
     --use_direct_trend 1 \
     --use_harmonic 1 \
     --use_cycle_prior 1 \
+    --data_split 6:2:2 \
     --eval_test_every_epoch \
     --use_conv_emb 0 \
     --use_tq_time 0 \
