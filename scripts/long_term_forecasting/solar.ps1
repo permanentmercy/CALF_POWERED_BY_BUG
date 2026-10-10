@@ -90,6 +90,10 @@ foreach ($random_seed in $seeds) {
         --output_loss smooth_l1 `
         --random_seed $random_seed `
         --cycle 144 `
+        --use_dpg 1 `
+        --use_direct_trend 1 `
+        --use_harmonic 1 `
+        --use_cycle_prior 1 `
         --eval_test_every_epoch `
         --use_conv_emb 0 `
         --use_tq_time 0 `
@@ -162,6 +166,10 @@ foreach ($pred_len in $horizons) {
         --output_loss smooth_l1 `
         --random_seed $random_seed `
         --cycle 144 `
+        --use_dpg 1 `
+        --use_direct_trend 1 `
+        --use_harmonic 1 `
+        --use_cycle_prior 1 `
         --eval_test_every_epoch `
         --use_conv_emb 0 `
         --use_tq_time 0 `
