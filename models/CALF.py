@@ -343,6 +343,11 @@ class Model(nn.Module):
             nn.init.zeros_(self.harmonic_linear.weight)
             self.harmonic_gate = nn.Parameter(torch.zeros(1))
 
+            self.use_dpg = getattr(configs, 'use_dpg', 1)
+            self.use_direct_trend = getattr(configs, 'use_direct_trend', 1)
+            self.use_cycle_prior = getattr(configs, 'use_cycle_prior', 1)
+            self.use_harmonic = getattr(configs, 'use_harmonic', 1)
+
             # Diurnal Phase Gate (DPG) initialized with smooth raised-cosine solar daylight curve
             init_logit = torch.ones(self.cycle_len, 1) * 8.0
             if self.cycle_len == 144:
@@ -442,13 +447,13 @@ class Model(nn.Module):
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
         # Direct autoregressive linear trend skip in normalized space (ReZero)
-        if hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
+        if getattr(self, 'use_direct_trend', 1) and hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
             trend = self.direct_trend(x_norm.transpose(1, 2)).transpose(1, 2)
             outputs_time = outputs_time + self.trend_gate * trend
             outputs_text = outputs_text + self.trend_gate * trend
 
         # Add physical cycle residual prior if available (before denormalization option)
-        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
+        if getattr(self, 'use_cycle_prior', 1) and future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
             future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
@@ -458,7 +463,7 @@ class Model(nn.Module):
             outputs_time = outputs_time * stdev + means
 
         # Add physical cycle residual prior if available (after denormalization option)
-        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
+        if getattr(self, 'use_cycle_prior', 1) and future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
             future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
@@ -468,7 +473,7 @@ class Model(nn.Module):
             fc_idx = future_cycle_index.to(self.diurnal_gate_logit.device) # (B, pred_len)
             
             # Harmonic Phase Projection
-            if hasattr(self, 'harmonic_linear') and hasattr(self, 'harmonic_gate'):
+            if getattr(self, 'use_harmonic', 1) and hasattr(self, 'harmonic_linear') and hasattr(self, 'harmonic_gate'):
                 cycle_len = getattr(self, 'cycle_len', 144)
                 phi = 2.0 * np.pi * fc_idx.float() / cycle_len
                 harmonics = torch.stack([
@@ -482,23 +487,24 @@ class Model(nn.Module):
                 outputs_text = outputs_text + self.harmonic_gate * h_out
 
             # Diurnal Phase Gate (gate -> 0 at night, gate -> 1 during day)
-            gate = torch.sigmoid(self.diurnal_gate_logit[fc_idx]) # (B, pred_len, 1)
-            
-            # Soft Non-negativity Bound (smooth softplus relaxation to eliminate hard step clamping)
-            time_diff = outputs_time - self.night_floor
-            text_diff = outputs_text - self.night_floor
-            outputs_time_phys = self.night_floor + F.softplus(time_diff, beta=10.0)
-            outputs_text_phys = self.night_floor + F.softplus(text_diff, beta=10.0)
-            
-            # Smooth diurnal gating: nighttime smoothly clamps to night_floor, daytime retains neural forecast
-            outputs_time = gate * outputs_time_phys + (1.0 - gate) * self.night_floor
-            outputs_text = gate * outputs_text_phys + (1.0 - gate) * self.night_floor
+            if getattr(self, 'use_dpg', 1):
+                gate = torch.sigmoid(self.diurnal_gate_logit[fc_idx]) # (B, pred_len, 1)
+
+                # Soft Non-negativity Bound (smooth softplus relaxation to eliminate hard step clamping)
+                time_diff = outputs_time - self.night_floor
+                text_diff = outputs_text - self.night_floor
+                outputs_time_phys = self.night_floor + F.softplus(time_diff, beta=10.0)
+                outputs_text_phys = self.night_floor + F.softplus(text_diff, beta=10.0)
+                
+                # Smooth diurnal gating: nighttime smoothly clamps to night_floor, daytime retains neural forecast
+                outputs_time = gate * outputs_time_phys + (1.0 - gate) * self.night_floor
+                outputs_text = gate * outputs_text_phys + (1.0 - gate) * self.night_floor
 
         return {
             'outputs_text': outputs_text,
-            'outputs_time':outputs_time,
-            'intermidiate_time':intermidiate_feat_time,
-            'intermidiate_text':intermidiate_feat_text,
+            'outputs_time': outputs_time,
+            'intermidiate_time': intermidiate_feat_time,
+            'intermidiate_text': intermidiate_feat_text,
         }
 
 

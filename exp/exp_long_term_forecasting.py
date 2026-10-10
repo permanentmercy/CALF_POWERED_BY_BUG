@@ -96,7 +96,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                            self.args.output_w, 
                            self.args.task_w,
                            getattr(self.args, 'layer_offset', 0),
-                           getattr(self.args, 'task_time_ratio', 0.5))
+                           getattr(self.args, 'task_time_ratio', 0.5),
+                           getattr(self.args, 'one_way_distill', 0))
         return criterion
 
     def train(self, setting):
@@ -140,6 +141,26 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             if epoch == 0:
                 self.swa_n = 0
                 self.swa_enabled = False
+
+            # Feature alignment weight annealing schedule
+            if getattr(self.args, 'feat_anneal', 0):
+                init_fw = self.args.feature_w
+                min_fw = getattr(self.args, 'feat_w_min', 0.0)
+                warmup_ep = getattr(self.args, 'feat_warmup_epochs', 3)
+                anneal_ep = getattr(self.args, 'feat_anneal_epochs', 10)
+                if epoch + 1 <= warmup_ep:
+                    current_fw = init_fw
+                elif epoch + 1 >= anneal_ep:
+                    current_fw = min_fw
+                else:
+                    progress = (epoch + 1 - warmup_ep) / float(anneal_ep - warmup_ep)
+                    if getattr(self.args, 'feat_anneal_type', 'cosine') == 'cosine':
+                        current_fw = min_fw + 0.5 * (init_fw - min_fw) * (1.0 + np.cos(np.pi * progress))
+                    else:
+                        current_fw = init_fw - progress * (init_fw - min_fw)
+                criterion.feature_w = float(current_fw)
+                criterion.task_w = float(self.args.task_w + (init_fw - current_fw))
+                print(f">>> [Feature Annealing] Epoch {epoch + 1}: feature_w={criterion.feature_w:.6f}, task_w={criterion.task_w:.6f}")
 
             self.model.train()
             epoch_time = time.time()

@@ -311,7 +311,7 @@ class Dataset_Solar(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100,
-                 task_loss='l1', cycle=24):
+                 task_loss='l1', cycle=24, data_split='6:2:2'):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -336,6 +336,7 @@ class Dataset_Solar(Dataset):
         self.percent = percent
         self.task_loss = task_loss
         self.cycle = cycle
+        self.data_split = data_split
         
         self.root_path = root_path
         self.data_path = data_path
@@ -368,10 +369,18 @@ class Dataset_Solar(Dataset):
             if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
                 df_raw = df_raw.iloc[:, 1:]
         
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        # num_vali = len(df_raw) - num_train - num_test
-        num_vali = int(len(df_raw) * 0.1)
+        # Dataset split ratio: support custom split such as '6:2:2' or '7:1:2'
+        split_str = getattr(self, 'data_split', '6:2:2')
+        if isinstance(split_str, str) and ':' in split_str:
+            parts = [float(x) for x in split_str.split(':')]
+            total = sum(parts)
+            r_train, r_vali, r_test = parts[0] / total, parts[1] / total, parts[2] / total
+        else:
+            r_train, r_vali, r_test = 0.6, 0.2, 0.2
+        
+        num_train = int(len(df_raw) * r_train)
+        num_test = int(len(df_raw) * r_test)
+        num_vali = int(len(df_raw) * r_vali)
         
         border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, len(df_raw)]

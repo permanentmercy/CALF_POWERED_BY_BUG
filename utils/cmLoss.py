@@ -19,19 +19,22 @@ loss_dict = {
 
 
 class cmLoss(nn.Module):
-    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0, layer_offset=0, task_time_ratio=0.5):
+    def __init__(self, feature_loss, output_loss, task_loss, task_name, feature_w=0.01, output_w=1.0, task_w=1.0, layer_offset=0, task_time_ratio=0.5, one_way_distill=0):
         super(cmLoss, self).__init__()
         self.task_w = task_w
         self.output_w = output_w
         self.feature_w = feature_w
         self.layer_offset = layer_offset
         self.task_time_ratio = task_time_ratio
+        self.one_way_distill = bool(one_way_distill)
 
         self.feature_loss = loss_dict[feature_loss]
         self.output_loss = loss_dict[output_loss]
         self.task_loss = loss_dict[task_loss]
         
         self.task_name = task_name
+        if self.one_way_distill:
+            print(">>> [cmLoss] Asymmetric One-Way Distillation Enabled: text features and text output detached in alignment.")
 
     def forward(self, outputs, batch_y, in_sample=None, freq_map=None, batch_y_mark=None):
         outputs_text, outputs_time, intermidiate_feat_time, intermidiate_feat_text = (
@@ -45,26 +48,28 @@ class cmLoss(nn.Module):
         # 此时时间的第 i 层物理上已经是 GPT-2 的第 i + layer_offset 层
         # 文本的第 i 层物理上是 GPT-2 的第 i 层
         # 所以直接一对一对齐即可
+        feat_text_target = [f.detach() if self.one_way_distill else f for f in intermidiate_feat_text]
         feature_loss = sum(
             [
                 (0.8**idx) * self.feature_loss(feat_time, feat_text)
                 for idx, (feat_time, feat_text) in enumerate(
-                    zip(intermidiate_feat_time[::-1], intermidiate_feat_text[::-1])
+                    zip(intermidiate_feat_time[::-1], feat_text_target[::-1])
                 )
             ]
         )
 
         # output consistency loss
+        out_text_target = outputs_text.detach() if self.one_way_distill else outputs_text
         if self.task_name == "long_term_forecast":
-            output_loss = self.output_loss(outputs_time, outputs_text)
+            output_loss = self.output_loss(outputs_time, out_text_target)
         elif self.task_name == "short_term_forecast":
-            output_loss = self.output_loss(in_sample, freq_map, outputs_time, outputs_text, batch_y_mark)
+            output_loss = self.output_loss(in_sample, freq_map, outputs_time, out_text_target, batch_y_mark)
         elif self.task_name == "classification":
-            output_loss = self.output_loss(outputs_time, outputs_text)
+            output_loss = self.output_loss(outputs_time, out_text_target)
         elif self.task_name == "imputation":
-            output_loss = self.output_loss(outputs_time, outputs_text)
+            output_loss = self.output_loss(outputs_time, out_text_target)
         elif self.task_name == "anomaly_detection":
-            output_loss = self.output_loss(outputs_time, outputs_text)
+            output_loss = self.output_loss(outputs_time, out_text_target)
             
 
         batch_y = batch_y.to(output_loss.device)
@@ -96,5 +101,4 @@ class cmLoss(nn.Module):
             task_loss = (task_loss_time + task_loss_text) / 2.0
         
         total_loss = self.task_w * task_loss + self.output_w * output_loss + self.feature_w * feature_loss
-        
         return total_loss, task_loss, output_loss, feature_loss, task_loss_time, task_loss_text

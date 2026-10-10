@@ -143,6 +143,18 @@ if __name__ == '__main__':
     # evaluation
     parser.add_argument('--eval_test_every_epoch', action='store_true', help='evaluate test set every epoch during training', default=False)
 
+    parser.add_argument('--use_dpg', type=int, default=1, help='1: enable Diurnal Phase Gate & night floor, 0: disable for ablation')
+    parser.add_argument('--use_direct_trend', type=int, default=1, help='1: enable direct trend skip, 0: disable for ablation')
+    parser.add_argument('--use_cycle_prior', type=int, default=1, help='1: enable cycle queue prior, 0: disable for ablation')
+    parser.add_argument('--use_harmonic', type=int, default=1, help='1: enable harmonic skip, 0: disable for ablation')
+    parser.add_argument('--one_way_distill', type=int, default=0, help='1: enable asymmetric one-way knowledge distillation (detach text branch in alignment), 0: bidirectional')
+    parser.add_argument('--feat_anneal', type=int, default=0, help='1: enable dynamic annealing of feature alignment loss weight, 0: fixed weight')
+    parser.add_argument('--feat_warmup_epochs', type=int, default=3, help='number of initial epochs to keep initial feature_w before annealing')
+    parser.add_argument('--feat_anneal_epochs', type=int, default=10, help='target epoch at which feature_w reaches feat_w_min')
+    parser.add_argument('--feat_w_min', type=float, default=0.0, help='minimum feature weight at the end of annealing')
+    parser.add_argument('--feat_anneal_type', type=str, default='cosine', choices=['cosine', 'linear'], help='annealing schedule type')
+    parser.add_argument('--data_split', type=str, default='6:2:2', help='dataset split ratio for train:val:test (e.g. 6:2:2 or 7:1:2)')
+
     # TQNet cycle
     parser.add_argument('--cycle', type=int, default=24, help='cycle length for TQ mechanism')
     parser.add_argument('--use_tq_gate', type=int, default=0, help='whether to use learnable gate for TQ injection')
