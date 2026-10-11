@@ -182,6 +182,8 @@ class Model(nn.Module):
         self.task_name = configs.task_name
         # 支持从外部传入模型路径/ID（优先）
         model_path = getattr(configs, 'gpt2_path', None)
+        if (model_path is None or model_path == '' or model_path == '0') and os.path.exists('./models/gpt2'):
+            model_path = './models/gpt2'
         self.gpt2 = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
         self.gpt2_text = load_gpt2_model(AccustumGPT2Model, model_path=model_path, output_attentions=True, output_hidden_states=True)
 
