@@ -8,6 +8,8 @@ param(
 )
 
 $env:CUDA_VISIBLE_DEVICES = $GPU
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+$env:PYTHONWARNINGS = "ignore"
 
 $MODEL = "CALF"
 $DATA = "Solar"
@@ -20,6 +22,7 @@ $PRED_LEN = 96
 $BATCH_SIZE = 16
 $ACCUM_STEPS = 1
 $CYCLE = 144
+$GPT2_PATH = "./models/gpt2"
 
 # Scale learning rate
 $LR = python -c "print('{:.8f}'.format(0.00000625 * $BATCH_SIZE * $ACCUM_STEPS))"
@@ -118,8 +121,8 @@ foreach ($percent in $PERCENTS) {
             --use_norm 1 `
             --use_direct_trend 1 `
             --bestmodel `
-            --random_seed $seed `
-            2>&1 | Tee-Object -FilePath $LOG_FILE
+            --gpt2_path $GPT2_PATH `
+            --random_seed $seed | Tee-Object -FilePath $LOG_FILE
 
         $EXIT_CODE = $LASTEXITCODE
         $END_TIME = Get-Date

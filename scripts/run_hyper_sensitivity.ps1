@@ -13,6 +13,8 @@ param(
 )
 
 $env:CUDA_VISIBLE_DEVICES = $GPU
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+$env:PYTHONWARNINGS = "ignore"
 
 $MODEL = "CALF"
 $DATA = "Solar"
@@ -25,6 +27,7 @@ $PRED_LEN = 96
 $BATCH_SIZE = 16
 $ACCUM_STEPS = 1
 $CYCLE = 144
+$GPT2_PATH = "./models/gpt2"
 
 # Baseline defaults
 $BASE_GPT_LAYERS = 1
@@ -155,8 +158,8 @@ except:
         --use_norm 1 `
         --use_direct_trend 1 `
         --bestmodel `
-        --random_seed $Seed `
-        2>&1 | Tee-Object -FilePath $log_file
+        --gpt2_path $GPT2_PATH `
+        --random_seed $Seed | Tee-Object -FilePath $log_file
 
     $exit_code = $LASTEXITCODE
     $end_time = Get-Date
