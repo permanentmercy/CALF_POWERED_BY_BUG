@@ -96,7 +96,7 @@ def data_provider(args, flag, vali=False):
             batch_size=batch_size,
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
-            drop_last=drop_last)
+            drop_last=drop_last if len(data_set) >= batch_size else False)
         
         return data_set, data_loader
 

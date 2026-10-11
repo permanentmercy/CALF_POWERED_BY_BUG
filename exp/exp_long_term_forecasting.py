@@ -450,32 +450,33 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             if self.args.use_swa and (self.swa_n > 0 or has_swa_checkpoint):
                 self.test(setting, test=1, swa_tag="_swa")
 
-            # Save to disk after test completes if bestmodel is False and we are in training run
-            if getattr(self.args, 'is_training', 0) == 1 and not getattr(self.args, 'bestmodel', False):
+            # Save to disk after test completes in training run
+            save_ckpt = getattr(self.args, 'save_checkpoint', 1) == 1 and not getattr(self.args, 'no_save_checkpoint', False)
+            if getattr(self.args, 'is_training', 0) == 1 and save_ckpt:
                 path = os.path.join(self.args.checkpoints, setting)
                 if not os.path.exists(path):
                     os.makedirs(path)
                 
-                if self.best_model_state is not None:
-                    best_path = os.path.join(path, 'checkpoint.pth')
-                    torch.save(self.best_model_state, best_path)
-                    print(f">>> [Post-Test Save] Best model saved to disk: {best_path}")
+                best_state = self.best_model_state if getattr(self, 'best_model_state', None) is not None else self.model.state_dict()
+                best_path = os.path.join(path, 'checkpoint.pth')
+                torch.save(best_state, best_path)
+                print(f">>> [Post-Test Save] Best model saved to disk: {best_path}")
 
                 self.best_model_state = None
                 
-                if self.swa_model_state is not None:
+                if getattr(self, 'swa_model_state', None) is not None:
                     swa_path = os.path.join(path, 'checkpoint_swa.pth')
                     torch.save(self.swa_model_state, swa_path)
                     print(f">>> [Post-Test Save] SWA model saved to disk: {swa_path}")
-                    # Clear from memory to free space
                     self.swa_model_state = None
 
             return
 
         # zero shot
         if self.args.zero_shot:
-            self.args.data = self.args.target_data
-            self.args.data_path = f"{self.args.data}.csv"
+            if getattr(self.args, 'target_data', None) and self.args.target_data != self.args.data:
+                self.args.data = self.args.target_data
+                self.args.data_path = f"{self.args.data}.csv"
 
         test_data, test_loader = self._get_data(flag='test')
         
@@ -503,7 +504,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 
                 if os.path.exists(ckpt_file):
                     print(f'>>> [Explicit Checkpoint] Loading model weights from: {ckpt_file}')
-                    self.model.load_state_dict(torch.load(ckpt_file, map_location=self.device))
+                    self.model.load_state_dict(torch.load(ckpt_file, map_location=self.device), strict=False)
                 else:
                     raise FileNotFoundError(f'[Explicit Checkpoint Error] Specified checkpoint path does not exist: {ckpt_file}')
             elif swa_tag == "_swa":

@@ -25,8 +25,7 @@ def load_gpt2_model(model_class, model_path=None, **kwargs):
                 print(f"local model at {model_path} not found, attempting to download from huggingface...")
                 return model_class.from_pretrained(model_path, **kwargs)
             except Exception as e:
-                print(f"failed to load model from provided path/id {model_path}: {e}")
-                raise
+                print(f"failed to load model from provided path/id {model_path}: {e}. Falling back to default 'gpt2'...")
 
     # 否则保持原有逻辑，先尝试本地缓存的 'gpt2'，再回退到下载
     try:
@@ -367,11 +366,18 @@ class Model(nn.Module):
             data_file = os.path.join(getattr(configs, 'root_path', './datasets/Solar/'), getattr(configs, 'data_path', 'solar_AL.txt'))
             if os.path.exists(data_file):
                 try:
-                    df_raw = pd.read_csv(data_file, header=None)
-                    if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
-                        df_raw = df_raw.iloc[:, 1:]
+                    if data_file.endswith('.csv'):
+                        df_raw = pd.read_csv(data_file)
+                        if 'date' in df_raw.columns:
+                            df_raw = df_raw.drop(columns=['date'])
+                        elif not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
+                            df_raw = df_raw.iloc[:, 1:]
+                    else:
+                        df_raw = pd.read_csv(data_file, header=None)
+                        if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
+                            df_raw = df_raw.iloc[:, 1:]
                     train_len = int(len(df_raw) * 0.7)
-                    train_vals = df_raw.values[:train_len]
+                    train_vals = df_raw.values[:train_len].astype(np.float32)
                     means = train_vals.mean(axis=0)
                     stds = np.sqrt(np.var(train_vals, axis=0)) + 1e-5
                     emp_zero = -means / stds
@@ -711,5 +717,43 @@ class Model(nn.Module):
                     new_scale = self.cycle_scale.clone()
                     new_scale[:, :, :min_c] = ckpt_scale[:, :, :min_c]
                     state_dict['cycle_scale'] = new_scale
+
+        # ── 新增物理与归纳偏置组件的自适应跨数据集通道适配 ──
+        if 'harmonic_linear.weight' in state_dict and hasattr(self, 'harmonic_linear'):
+            ckpt_enc_in = state_dict['harmonic_linear.weight'].shape[0]
+            curr_enc_in = self.harmonic_linear.weight.shape[0]
+            if ckpt_enc_in != curr_enc_in:
+                state_dict = state_dict.copy()
+                if curr_enc_in < ckpt_enc_in:
+                    print(f">>> [Adaptive Load] Slicing harmonic_linear.weight from ({ckpt_enc_in}) to target ({curr_enc_in}).")
+                    state_dict['harmonic_linear.weight'] = state_dict['harmonic_linear.weight'][:curr_enc_in, :]
+                else:
+                    print(f">>> [Adaptive Load] Checkpoint harmonic_linear channels ({ckpt_enc_in}) < target ({curr_enc_in}), re-initializing.")
+                    state_dict['harmonic_linear.weight'] = self.harmonic_linear.weight.clone()
+
+        if 'night_floor' in state_dict and hasattr(self, 'night_floor'):
+            ckpt_enc_in = state_dict['night_floor'].shape[-1]
+            curr_enc_in = self.night_floor.shape[-1]
+            if ckpt_enc_in != curr_enc_in:
+                state_dict = state_dict.copy()
+                print(f">>> [Adaptive Load] Target station channels ({curr_enc_in}) != checkpoint ({ckpt_enc_in}). Preserving target dataset empirical night_floor.")
+                state_dict['night_floor'] = self.night_floor.clone()
+
+        if 'diurnal_gate_logit' in state_dict and hasattr(self, 'diurnal_gate_logit'):
+            ckpt_len = state_dict['diurnal_gate_logit'].shape[0]
+            curr_len = self.diurnal_gate_logit.shape[0]
+            if ckpt_len != curr_len:
+                state_dict = state_dict.copy()
+                print(f">>> [Adaptive Load] Diurnal gate length mismatch ({ckpt_len} vs {curr_len}), preserving current gate.")
+                state_dict['diurnal_gate_logit'] = self.diurnal_gate_logit.clone()
+
+        if 'direct_trend.weight' in state_dict and hasattr(self, 'direct_trend'):
+            ckpt_shape = state_dict['direct_trend.weight'].shape
+            curr_shape = self.direct_trend.weight.shape
+            if ckpt_shape != curr_shape:
+                state_dict = state_dict.copy()
+                print(f">>> [Adaptive Load] Direct trend shape mismatch ({ckpt_shape} vs {curr_shape}), preserving current direct_trend.")
+                state_dict['direct_trend.weight'] = self.direct_trend.weight.clone()
+
         return super().load_state_dict(state_dict, strict=strict)
 

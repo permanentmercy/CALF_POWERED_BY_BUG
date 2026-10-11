@@ -4,6 +4,21 @@ GPU=0
 model=CALF
 data_name=Solar
 
+# 智能识别 Python 解释器环境（优先使用具备完整 PyTorch+CUDA 环境的 calf 环境或当前激活的 conda 环境）
+if [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/bin/python" ]; then
+  PYTHON="$CONDA_PREFIX/bin/python"
+elif [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/python.exe" ]; then
+  PYTHON="$CONDA_PREFIX/python.exe"
+elif [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/python" ]; then
+  PYTHON="$CONDA_PREFIX/python"
+elif [ -f "/d/software/conda/envs/calf/python" ]; then
+  PYTHON="/d/software/conda/envs/calf/python"
+elif [ -f "D:/software/conda/envs/calf/python.exe" ]; then
+  PYTHON="D:/software/conda/envs/calf/python.exe"
+else
+  PYTHON="python"
+fi
+
 # 目录创建
 if [ ! -d "./logs" ]; then mkdir ./logs; fi
 if [ ! -d "./logs/$model" ]; then mkdir ./logs/$model; fi
@@ -27,18 +42,19 @@ task_w=0.736
 feature_w=0.05
 output_w=0.214
 
-for percent in 50
+random_seed=2025
+percent=100
+
+# 复现 0.15965 历史最佳基准 (pred_len=96, seed=2025)
+for pred_len in 96
 do
-for random_seed in 2025 2026 2027
-do
-  pred_len=96
   echo ""
   echo "=========================================================================================="
-  echo ">>> [Starting Experiment] Horizon: $pred_len | Seed: $random_seed | Model: $model"
+  echo ">>> [Starting Experiment] Horizon: $pred_len | Seed: $random_seed | Model: $model | Percent: $percent%"
   echo "=========================================================================================="
 
   CUDA_VISIBLE_DEVICES=$GPU \
-  python -u run.py \
+  $PYTHON -u run.py \
     --root_path ./datasets/Solar/ \
     --data_path solar_AL.txt \
     --is_training $is_training \
@@ -56,7 +72,6 @@ do
     --d_model $d_model \
     --n_heads $n_heads \
     --d_ff $d_ff \
-    --percent $percent \
     --dropout 0.1 \
     --enc_in 137 \
     --c_out 137 \
@@ -80,6 +95,8 @@ do
     --test_branch time \
     --mlp_res_w 0 \
     --bestmodel \
+    --no_save_checkpoint \
+    --save_checkpoint 0 \
     --out_mlp_layers 3 \
     --cycle_prior_before_denorm 0 \
     --tq_dropout 0.1 \
@@ -92,16 +109,17 @@ do
     --output_loss smooth_l1 \
     --random_seed $random_seed \
     --cycle 144 \
-    --use_dpg 1 \
-    --use_direct_trend 1 \
-    --use_harmonic 1 \
-    --use_cycle_prior 1 \
-    --data_split 6:2:2 \
     --eval_test_every_epoch \
     --use_conv_emb 0 \
     --use_tq_time 0 \
     --task_time_ratio 0.5 \
     --lora_target_proj 0 \
-    | tee -a logs/$model/$data_name/opt_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.log
-done
+    --use_dpg 1 \
+    --use_direct_trend 1 \
+    --use_harmonic 1 \
+    --use_cycle_prior 1 \
+    --one_way_distill 1 \
+    --data_split 6:2:2 \
+    --percent $percent \
+    | tee logs/$model/$data_name/opt_${model}_${seq_len}_${pred_len}_${d_model}_${n_heads}_${learning_rate}_${random_seed}.log
 done

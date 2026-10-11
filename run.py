@@ -119,14 +119,16 @@ if __name__ == '__main__':
     parser.add_argument('--output_w', type=float, default=1.0)
     # save best model in memory instead of (or as well as) disk
     parser.add_argument('--bestmodel', action='store_true', help='save best model in memory and load from it during test', default=False)
+    parser.add_argument('--no_save_checkpoint', action='store_true', default=False, help='do not save checkpoint to disk')
+    parser.add_argument('--save_checkpoint', type=int, default=1, help='whether to save checkpoint to disk (1: yes, 0: no)')
     
     # gpt
     parser.add_argument('--gpt_layers', type=int, default=32, help='number of hidden layers in gpt')
     parser.add_argument('--gpt2_path', type=str, default=None, help='path or huggingface id for GPT-2 model (optional)')
     
     # training data percentage
-    parser.add_argument('--percent', type=int, default=100,
-                        help='使用的训练数据百分比（1-100）。默认100（全量从头训练）。'
+    parser.add_argument('--percent', type=float, default=100.0,
+                        help='使用的训练数据百分比（支持 100, 10, 5, 1, 0.5, 0.1 等）。默认100（全量从头训练）。'
                              '仅在 is_training=1 时控制训练集大小。'
                              '当 percent<100 时截取训练集前 percent% 的数据从头训练全新模型；'
                              '若同时通过 --checkpoint_path 指定预训练权重，则执行少样本微调。')
@@ -277,7 +279,8 @@ if __name__ == '__main__':
             # 部分数据训练/少样本模式：在 setting 末尾追加 _p{percent} 标识，
             # 确保 checkpoint 和输出目录独立，不会覆盖全量训练的权重。
             if args.percent < 100:
-                setting += f'_p{args.percent}'
+                p_tag = f"{args.percent:g}"
+                setting += f'_p{p_tag}'
 
             print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
             exp.train(setting)
@@ -318,7 +321,8 @@ if __name__ == '__main__':
             args.r)
 
         if args.percent < 100:
-            setting += f'_p{args.percent}'
+            p_tag = f"{args.percent:g}"
+            setting += f'_p{p_tag}'
 
         exp = Exp(args)  # set experiments
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))

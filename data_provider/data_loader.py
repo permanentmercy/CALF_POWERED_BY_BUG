@@ -387,8 +387,10 @@ class Dataset_Solar(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        if self.set_type == 0:
-            border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
+        if self.set_type == 0 and float(self.percent) < 100.0:
+            total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
+            target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
+            border2 = border1 + target_samples + self.seq_len + self.pred_len - 1
 
         # if self.features == 'M' or self.features == 'MS':
         #     cols_data = df_raw.columns[1:]
