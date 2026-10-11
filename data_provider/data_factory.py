@@ -87,7 +87,9 @@ def data_provider(args, flag, vali=False):
             seasonal_patterns=args.seasonal_patterns,
             percent=args.percent,
             cycle=args.cycle,
-            **({'task_loss': args.task_loss} if args.data == 'Solar' else {})
+            **({'task_loss': args.task_loss, 'data_split': getattr(args, 'data_split', '7:1:2')} if args.data == 'Solar'
+               else {'data_split': getattr(args, 'data_split', '7:1:2')} if args.data == 'custom'
+               else {})
         )
         print(flag, len(data_set))
         

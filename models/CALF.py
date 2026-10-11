@@ -193,6 +193,8 @@ class Model(nn.Module):
             
         # 时间分支：根据 layer_offset 决定起始层
         layer_offset = getattr(configs, 'layer_offset', 0)
+        if layer_offset is None:
+            layer_offset = 0
         total_available = len(self.gpt2.h)
         if layer_offset + configs.gpt_layers <= total_available:
             print(f">>> Pruning GPT-2 Time: keeping layers [{layer_offset}:{layer_offset + configs.gpt_layers}]")
@@ -259,9 +261,18 @@ class Model(nn.Module):
             self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
         self.use_norm = getattr(configs, 'use_norm', 1)
 
+        # Direct autoregressive linear transition skip connection (ReZero)
+        self.direct_trend = nn.Linear(configs.seq_len, configs.pred_len, bias=False)
+        nn.init.orthogonal_(self.direct_trend.weight)
+        self.trend_gate = nn.Parameter(torch.zeros(1))
+        self.use_direct_trend = getattr(configs, 'use_direct_trend', 1)
+
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
             layer.train()
+        if hasattr(self, 'direct_trend'):
+            self.direct_trend.to(device=device)
+            self.direct_trend.train()
         
         self.cnt = 0
         
@@ -292,6 +303,8 @@ class Model(nn.Module):
             stdev = torch.sqrt(torch.var(x, dim=1, keepdim=True, unbiased=False) + 1e-5).detach() 
             x /= stdev
 
+        x_norm = x
+
         x = rearrange(x, 'b l m -> b m l')
 
         outputs_time1, outputs_text1 = self.in_layer(x, cycle_index=cycle_index)
@@ -313,6 +326,12 @@ class Model(nn.Module):
 
         outputs_time = rearrange(outputs_time, 'b m l -> b l m')
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
+
+        # Direct autoregressive linear trend skip in normalized space (ReZero)
+        if getattr(self, 'use_direct_trend', 1) and hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
+            trend = self.direct_trend(x_norm.transpose(1, 2)).transpose(1, 2)
+            outputs_time = outputs_time + self.trend_gate * trend
+            outputs_text = outputs_text + self.trend_gate * trend
 
         # Add physical cycle residual prior if available (before denormalization option)
         if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
@@ -530,5 +549,17 @@ class Model(nn.Module):
                         f"Checkpoint cycle_queue has {ckpt_enc_in} channels, but target model requires {curr_enc_in} channels ({curr_enc_in} > {ckpt_enc_in}).\n"
                         f"Cannot expand fewer channels to larger channels without training."
                     )
+        if 'direct_trend.weight' in state_dict and hasattr(self, 'direct_trend'):
+            ckpt_shape = state_dict['direct_trend.weight'].shape
+            curr_shape = self.direct_trend.weight.shape
+            if ckpt_shape != curr_shape:
+                state_dict = state_dict.copy()
+                print(f">>> [Adaptive Load] Direct trend shape mismatch ({ckpt_shape} vs {curr_shape}), preserving current direct_trend.")
+                state_dict['direct_trend.weight'] = self.direct_trend.weight.clone()
+        elif hasattr(self, 'direct_trend') and 'direct_trend.weight' not in state_dict:
+            state_dict = state_dict.copy()
+            state_dict['direct_trend.weight'] = self.direct_trend.weight.clone()
+            state_dict['trend_gate'] = self.trend_gate.clone()
+
         return super().load_state_dict(state_dict, strict=strict)
 

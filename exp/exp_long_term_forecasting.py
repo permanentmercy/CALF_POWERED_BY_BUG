@@ -269,6 +269,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 tq_weight = (0.1 + 0.9 * torch.sigmoid(self.model.in_layer.tq_gate)).item()
                 print(f">>> [Analysis] TQ Gate Weight: {tq_weight:.4f} (1.0 = Max Reliance on TQ)")
 
+            if hasattr(self.model, 'trend_gate') and getattr(self.args, 'use_direct_trend', 1) == 1:
+                print(f">>> [Analysis] Trend Gate α: {self.model.trend_gate.item():.6f}")
+
             early_stopping(vali_loss, self.model, path)
 
             if self.args.use_swa and not self.swa_enabled and early_stopping.counter >= 1:

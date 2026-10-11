@@ -54,8 +54,10 @@ class Dataset_ETT_hour(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        if self.set_type == 0:
-            border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
+        if self.set_type == 0 and float(self.percent) < 100.0:
+            total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
+            target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
+            border2 = border1 + target_samples + self.seq_len + self.pred_len - 1
 
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]
@@ -146,8 +148,10 @@ class Dataset_ETT_minute(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
         
-        if self.set_type == 0:
-            border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
+        if self.set_type == 0 and float(self.percent) < 100.0:
+            total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
+            target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
+            border2 = border1 + target_samples + self.seq_len + self.pred_len - 1
 
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]
@@ -203,7 +207,8 @@ class Dataset_ETT_minute(Dataset):
 class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100):
+                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100,
+                 cycle=24, data_split='7:1:2'):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -226,6 +231,8 @@ class Dataset_Custom(Dataset):
         self.timeenc = timeenc
         self.freq = freq
         self.percent = percent
+        self.cycle = cycle
+        self.data_split = data_split
         
         self.root_path = root_path
         self.data_path = data_path
@@ -244,18 +251,28 @@ class Dataset_Custom(Dataset):
         cols.remove('date')
         df_raw = df_raw[['date'] + cols + [self.target]]
         
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        # num_vali = len(df_raw) - num_train - num_test
-        num_vali = int(len(df_raw) * 0.1)
+        # Dataset split ratio: support custom split such as '7:1:2', '6:2:2', etc.
+        split_str = getattr(self, 'data_split', '7:1:2')
+        if isinstance(split_str, str) and ':' in split_str:
+            parts = [float(x) for x in split_str.split(':')]
+            total = sum(parts)
+            r_train, r_vali, r_test = parts[0] / total, parts[1] / total, parts[2] / total
+        else:
+            r_train, r_vali, r_test = 0.7, 0.1, 0.2
+        
+        num_train = int(len(df_raw) * r_train)
+        num_test = int(len(df_raw) * r_test)
+        num_vali = int(len(df_raw) * r_vali)
         
         border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, len(df_raw)]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        if self.set_type == 0:
-            border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
+        if self.set_type == 0 and float(self.percent) < 100.0:
+            total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
+            target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
+            border2 = border1 + target_samples + self.seq_len + self.pred_len - 1
 
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]
@@ -311,7 +328,7 @@ class Dataset_Solar(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None, percent=100,
-                 task_loss='l1', cycle=24):
+                 task_loss='l1', cycle=24, data_split='7:1:2'):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -336,6 +353,7 @@ class Dataset_Solar(Dataset):
         self.percent = percent
         self.task_loss = task_loss
         self.cycle = cycle
+        self.data_split = data_split
         
         self.root_path = root_path
         self.data_path = data_path
@@ -368,18 +386,28 @@ class Dataset_Solar(Dataset):
             if not np.issubdtype(df_raw.dtypes.iloc[0], np.number):
                 df_raw = df_raw.iloc[:, 1:]
         
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        # num_vali = len(df_raw) - num_train - num_test
-        num_vali = int(len(df_raw) * 0.1)
+        # Dataset split ratio: support custom split such as '7:1:2', '6:2:2', etc.
+        split_str = getattr(self, 'data_split', '7:1:2')
+        if isinstance(split_str, str) and ':' in split_str:
+            parts = [float(x) for x in split_str.split(':')]
+            total = sum(parts)
+            r_train, r_vali, r_test = parts[0] / total, parts[1] / total, parts[2] / total
+        else:
+            r_train, r_vali, r_test = 0.7, 0.1, 0.2
+        
+        num_train = int(len(df_raw) * r_train)
+        num_test = int(len(df_raw) * r_test)
+        num_vali = int(len(df_raw) * r_vali)
         
         border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
         border2s = [num_train, num_train + num_vali, len(df_raw)]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        if self.set_type == 0:
-            border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
+        if self.set_type == 0 and float(self.percent) < 100.0:
+            total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
+            target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
+            border2 = border1 + target_samples + self.seq_len + self.pred_len - 1
 
         # if self.features == 'M' or self.features == 'MS':
         #     cols_data = df_raw.columns[1:]

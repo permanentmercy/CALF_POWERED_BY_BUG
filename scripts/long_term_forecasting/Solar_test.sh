@@ -121,7 +121,7 @@ else:
   python -u run.py \
     --root_path ./datasets/Solar/ \
     --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth \
-    --data_path solar_CT.csv \
+    --data_path solar_AL.txt \
     --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
@@ -137,8 +137,8 @@ else:
     --n_heads $n_heads \
     --d_ff $((d_model*4)) \
     --dropout 0.1 \
-    --enc_in 29 \
-    --c_out 29 \
+    --enc_in 137 \
+    --c_out 137 \
     --gpt_layers 1 \
     --itr 1 \
     --model $model \
