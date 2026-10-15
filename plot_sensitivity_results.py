@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Script: plot_sensitivity_results.py
-Description: Automated Publication-Grade Visualizations for IL Few-Shot & Sensitivity Experiments
+Description: Automated Publication-Grade Visualizations for AL Few-Shot & Sensitivity Experiments
 Generates (pure Matplotlib, zero seaborn dependency):
-  1. curve_fewshot_il_decay.png: Few-shot performance degradation curve (10% to 50%)
-  2. heatmap_depth_gpt_vs_mlp.png: 4x4 Architectural Depth Heatmap (gpt_layers x mlp_layers)
-  3. heatmap_capacity_lora_vs_dff.png: 4x4 Model Capacity Heatmap (LoRA Rank r x FFN Dim d_ff)
-  4. heatmap_distillation_simplex.png: Multi-task distillation loss balance comparison
+  1. curve_fewshot_al_decay.png: Few-shot performance degradation curve (10% to 50%)
+  2. heatmap_depth_gpt_vs_mlp_al.png: 4x4 Architectural Depth Heatmap (gpt_layers x mlp_layers)
+  3. heatmap_capacity_lora_vs_dff_al.png: 4x4 Model Capacity Heatmap (LoRA Rank r x FFN Dim d_ff)
+  4. heatmap_distillation_simplex_al.png: Multi-task distillation loss balance comparison
 """
 
 import os
@@ -105,9 +105,9 @@ def plot_fewshot_curve(fewshot_csv, output_dir):
     for x, y in zip(percents, mse_m):
         ax1.annotate(f"{y:.4f}", xy=(x, y), xytext=(0, 6), textcoords="offset points", ha='center', fontsize=9.5, fontweight='bold', color=color_mse)
 
-    plt.title('Solar-IL Few-Shot Generalization & Degradation Curve (10% to 50%)', fontsize=13, fontweight='bold', pad=14)
+    plt.title('Solar-AL Few-Shot Generalization & Degradation Curve (10% to 50%)', fontsize=13, fontweight='bold', pad=14)
     fig.tight_layout()
-    safe_savefig(fig, os.path.join(output_dir, "curve_fewshot_il_decay.png"))
+    safe_savefig(fig, os.path.join(output_dir, "curve_fewshot_al_decay.png"))
     plt.close(fig)
 
 
@@ -137,7 +137,7 @@ def plot_depth_heatmap(sensitivity_csv, output_dir):
     ax.set_ylabel("Pruned GPT-2 Backbone Layers (gpt_layers)", fontsize=11.5, fontweight='bold')
 
     fig.tight_layout()
-    safe_savefig(fig, os.path.join(output_dir, "heatmap_depth_gpt_vs_mlp.png"))
+    safe_savefig(fig, os.path.join(output_dir, "heatmap_depth_gpt_vs_mlp_al.png"))
     plt.close(fig)
 
 
@@ -166,7 +166,7 @@ def plot_capacity_heatmap(sensitivity_csv, output_dir):
     ax.set_ylabel("LoRA Adaptation Rank (r)", fontsize=11.5, fontweight='bold')
 
     fig.tight_layout()
-    safe_savefig(fig, os.path.join(output_dir, "heatmap_capacity_lora_vs_dff.png"))
+    safe_savefig(fig, os.path.join(output_dir, "heatmap_capacity_lora_vs_dff_al.png"))
     plt.close(fig)
 
 
@@ -211,14 +211,14 @@ def plot_distillation_simplex(sensitivity_csv, output_dir):
                     xytext=(0, 4), textcoords="offset points", ha='center', fontsize=8.5, fontweight='bold')
 
     fig.tight_layout()
-    safe_savefig(fig, os.path.join(output_dir, "heatmap_distillation_simplex.png"))
+    safe_savefig(fig, os.path.join(output_dir, "heatmap_distillation_simplex_al.png"))
     plt.close(fig)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Visualizations for 4-Day Sensitivity & Few-Shot Suites")
-    parser.add_argument("--fewshot_csv", type=str, default="./results/results_fewshot_il.csv")
-    parser.add_argument("--sensitivity_csv", type=str, default="./results/results_hyper_sensitivity.csv")
+    parser.add_argument("--fewshot_csv", type=str, default="./results/results_fewshot_al.csv")
+    parser.add_argument("--sensitivity_csv", type=str, default="./results/results_hyper_sensitivity_al.csv")
     parser.add_argument("--output_dir", type=str, default="./figures/sensitivity")
     args = parser.parse_args()
 

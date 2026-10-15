@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # Script: scripts/run_hyper_sensitivity.sh
-# Description: Comprehensive Hyperparameter Sensitivity Suite (Solar-IL Full Model)
+# Description: Comprehensive Hyperparameter Sensitivity Suite (Solar-AL Full Model)
 # Modules:
 #   1. depth:        gpt_layers (1..4) x out_mlp_layers (1..4) [4x4 Heatmap A]
 #   2. capacity:     r (2,4,8,16) x d_ff (768,1536,3072,4096) [4x4 Heatmap B]
@@ -22,10 +22,10 @@ export CUDA_VISIBLE_DEVICES=$GPU
 
 MODEL="CALF"
 DATA="Solar"
-DATA_PATH="solar_IL.csv"
+DATA_PATH="solar_AL.txt"
 DATA_SPLIT="6:2:2"
-ENC_IN=106
-C_OUT=106
+ENC_IN=137
+C_OUT=137
 SEQ_LEN=96
 PRED_LEN=96
 BATCH_SIZE=16
@@ -45,8 +45,8 @@ BASE_OUT_W=0.25
 SEEDS=(2025 2026 2027)
 
 RESULTS_DIR="./results"
-RESULTS_CSV="${RESULTS_DIR}/results_hyper_sensitivity.csv"
-LOG_DIR="./logs/${MODEL}/Solar_IL_Sensitivity"
+RESULTS_CSV="${RESULTS_DIR}/results_hyper_sensitivity_al.csv"
+LOG_DIR="./logs/${MODEL}/Solar_AL_Sensitivity"
 
 mkdir -p "$RESULTS_DIR"
 mkdir -p "$LOG_DIR"
@@ -119,7 +119,7 @@ except Exception:
         --data_path "$DATA_PATH" \
         --is_training 1 \
         --task_name long_term_forecast \
-        --model_id "${MODEL}_IL_sens_${mod}" \
+        --model_id "${MODEL}_AL_sens_${mod}" \
         --data "$DATA" \
         --data_split "$DATA_SPLIT" \
         --percent 100 \
@@ -158,7 +158,7 @@ except Exception:
         --out_mlp_layers "$mlp_l" \
         --mlp_res_w 0 \
         --use_norm 1 \
-        --use_direct_trend 1 \
+        --use_direct_trend 0 \
         --bestmodel \
         --random_seed "$seed" \
         2>&1 | tee "$log_file"

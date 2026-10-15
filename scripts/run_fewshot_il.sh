@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # Script: scripts/run_fewshot_il.sh
-# Description: IL Dataset Few-Shot Training Suite (10% to 50%, step 10%, 3 seeds)
+# Description: AL Dataset Few-Shot Training Suite (10% to 50%, step 10%, 3 seeds)
 # Features:
 #   1. Zero-Disk Footprint: Weights are evaluated in-memory (--bestmodel) and 
 #      checkpoints are immediately deleted after evaluation (rm -rf checkpoints/...)
@@ -17,10 +17,10 @@ export CUDA_VISIBLE_DEVICES=$GPU
 
 MODEL="CALF"
 DATA="Solar"
-DATA_PATH="solar_IL.csv"
+DATA_PATH="solar_AL.txt"
 DATA_SPLIT="6:2:2"
-ENC_IN=106
-C_OUT=106
+ENC_IN=137
+C_OUT=137
 SEQ_LEN=96
 PRED_LEN=96
 BATCH_SIZE=16
@@ -31,8 +31,8 @@ CYCLE=144
 LR=$(python -c "print('{:.8f}'.format(0.00000625 * $BATCH_SIZE * $ACCUM_STEPS))")
 
 RESULTS_DIR="./results"
-RESULTS_CSV="${RESULTS_DIR}/results_fewshot_il.csv"
-LOG_DIR="./logs/${MODEL}/Solar_IL_Fewshot"
+RESULTS_CSV="${RESULTS_DIR}/results_fewshot_al.csv"
+LOG_DIR="./logs/${MODEL}/Solar_AL_Fewshot"
 
 mkdir -p "$RESULTS_DIR"
 mkdir -p "$LOG_DIR"
@@ -43,7 +43,7 @@ if [ ! -f "$RESULTS_CSV" ]; then
 fi
 
 echo "=============================================================================="
-echo ">>> [CALF] Starting IL Dataset Few-Shot Training Suite (Zero-Disk Footprint)"
+echo ">>> [CALF] Starting AL Dataset Few-Shot Training Suite (Zero-Disk Footprint)"
 echo ">>> GPU Device: $GPU | Data: $DATA_PATH (EncIn=$ENC_IN, Split=$DATA_SPLIT)"
 echo ">>> Horizon: $SEQ_LEN -> $PRED_LEN | Batch Size: $BATCH_SIZE | Base LR: $LR"
 echo ">>> Results CSV: $RESULTS_CSV"
@@ -70,7 +70,7 @@ for percent in "${PERCENTS[@]}"; do
         echo "[${CURR_EXP}/${TOTAL_EXPS}] Starting Percent: ${percent}% | Random Seed: ${seed}"
         echo "------------------------------------------------------------------------------"
 
-        LOG_FILE="${LOG_DIR}/il_fewshot_p${percent}_seed${seed}.log"
+        LOG_FILE="${LOG_DIR}/al_fewshot_p${percent}_seed${seed}.log"
         START_TIME=$(date +%s)
 
         # Run scratch few-shot training (no pre-trained checkpoint passed)
@@ -80,7 +80,7 @@ for percent in "${PERCENTS[@]}"; do
             --data_path "$DATA_PATH" \
             --is_training 1 \
             --task_name long_term_forecast \
-            --model_id "${MODEL}_IL_${SEQ_LEN}_${PRED_LEN}_p${percent}" \
+            --model_id "${MODEL}_AL_${SEQ_LEN}_${PRED_LEN}_p${percent}" \
             --data "$DATA" \
             --data_split "$DATA_SPLIT" \
             --percent "$percent" \
@@ -119,7 +119,7 @@ for percent in "${PERCENTS[@]}"; do
             --out_mlp_layers 3 \
             --mlp_res_w 0 \
             --use_norm 1 \
-            --use_direct_trend 1 \
+            --use_direct_trend 0 \
             --bestmodel \
             --random_seed "$seed" \
             2>&1 | tee "$LOG_FILE"
@@ -169,6 +169,6 @@ done
 
 echo ""
 echo "=============================================================================="
-echo ">>> [ALL COMPLETED] IL Few-Shot Suite Finished!"
+echo ">>> [ALL COMPLETED] AL Few-Shot Suite Finished!"
 echo ">>> Results saved in: $RESULTS_CSV"
 echo "=============================================================================="

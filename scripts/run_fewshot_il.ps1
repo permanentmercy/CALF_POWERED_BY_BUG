@@ -1,6 +1,6 @@
 # ==============================================================================
 # Script: scripts/run_fewshot_il.ps1
-# Description: Windows PowerShell Native Few-Shot Suite for Solar-IL
+# Description: Windows PowerShell Native Few-Shot Suite for Solar-AL
 # ==============================================================================
 
 param(
@@ -13,10 +13,10 @@ $env:PYTHONWARNINGS = "ignore"
 
 $MODEL = "CALF"
 $DATA = "Solar"
-$DATA_PATH = "solar_IL.csv"
+$DATA_PATH = "solar_AL.txt"
 $DATA_SPLIT = "6:2:2"
-$ENC_IN = 106
-$C_OUT = 106
+$ENC_IN = 137
+$C_OUT = 137
 $SEQ_LEN = 96
 $PRED_LEN = 96
 $BATCH_SIZE = 16
@@ -28,8 +28,8 @@ $GPT2_PATH = "./models/gpt2"
 $LR = python -c "print('{:.8f}'.format(0.00000625 * $BATCH_SIZE * $ACCUM_STEPS))"
 
 $RESULTS_DIR = "./results"
-$RESULTS_CSV = "${RESULTS_DIR}/results_fewshot_il.csv"
-$LOG_DIR = "./logs/${MODEL}/Solar_IL_Fewshot"
+$RESULTS_CSV = "${RESULTS_DIR}/results_fewshot_al.csv"
+$LOG_DIR = "./logs/${MODEL}/Solar_AL_Fewshot"
 
 if (-not (Test-Path $RESULTS_DIR)) { New-Item -ItemType Directory -Path $RESULTS_DIR -Force | Out-Null }
 if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
@@ -39,7 +39,7 @@ if (-not (Test-Path $RESULTS_CSV)) {
 }
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host ">>> [CALF] Starting Windows PowerShell IL Few-Shot Suite (Zero-Disk Footprint)" -ForegroundColor Cyan
+Write-Host ">>> [CALF] Starting Windows PowerShell AL Few-Shot Suite (Zero-Disk Footprint)" -ForegroundColor Cyan
 Write-Host ">>> GPU: $GPU | Data: $DATA_PATH | EncIn: $ENC_IN | Split: $DATA_SPLIT" -ForegroundColor Cyan
 Write-Host ">>> Results CSV: $RESULTS_CSV" -ForegroundColor Cyan
 Write-Host "==============================================================================" -ForegroundColor Cyan
@@ -71,7 +71,7 @@ foreach ($percent in $PERCENTS) {
         Write-Host "[$CURR_EXP/$TOTAL_EXPS] Starting Percent: ${percent}% | Random Seed: ${seed}" -ForegroundColor Green
         Write-Host "------------------------------------------------------------------------------" -ForegroundColor Green
 
-        $LOG_FILE = "${LOG_DIR}/il_fewshot_p${percent}_seed${seed}.log"
+        $LOG_FILE = "${LOG_DIR}/al_fewshot_p${percent}_seed${seed}.log"
         $START_TIME = Get-Date
 
         # Run scratch few-shot training
@@ -80,7 +80,7 @@ foreach ($percent in $PERCENTS) {
             --data_path $DATA_PATH `
             --is_training 1 `
             --task_name long_term_forecast `
-            --model_id "${MODEL}_IL_${SEQ_LEN}_${PRED_LEN}_p${percent}" `
+            --model_id "${MODEL}_AL_${SEQ_LEN}_${PRED_LEN}_p${percent}" `
             --data $DATA `
             --data_split $DATA_SPLIT `
             --percent $percent `
@@ -119,7 +119,7 @@ foreach ($percent in $PERCENTS) {
             --out_mlp_layers 3 `
             --mlp_res_w 0 `
             --use_norm 1 `
-            --use_direct_trend 1 `
+            --use_direct_trend 0 `
             --bestmodel `
             --gpt2_path $GPT2_PATH `
             --random_seed $seed | Tee-Object -FilePath $LOG_FILE
@@ -163,6 +163,6 @@ else:
 
 Write-Host ""
 Write-Host "==============================================================================" -ForegroundColor Green
-Write-Host ">>> [ALL COMPLETED] Windows IL Few-Shot Suite Finished!" -ForegroundColor Green
+Write-Host ">>> [ALL COMPLETED] Windows AL Few-Shot Suite Finished!" -ForegroundColor Green
 Write-Host ">>> Results: $RESULTS_CSV" -ForegroundColor Green
 Write-Host "==============================================================================" -ForegroundColor Green

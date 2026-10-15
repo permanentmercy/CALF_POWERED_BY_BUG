@@ -1,6 +1,6 @@
 # ==============================================================================
 # Script: scripts/run_4days_suite.ps1
-# Description: Windows Native Master 4-Day Benchmark Pipeline on Solar-IL
+# Description: Windows Native Master 4-Day Benchmark Pipeline on Solar-AL
 # ==============================================================================
 
 param(
@@ -28,8 +28,8 @@ Write-Host ">>> [PHASE 2/3] Running Hyperparameter Sensitivity Suite..." -Foregr
 Write-Host ""
 Write-Host ">>> [PHASE 3/3] Generating Publication Figures..." -ForegroundColor Yellow
 python plot_sensitivity_results.py `
-    --fewshot_csv ./results/results_fewshot_il.csv `
-    --sensitivity_csv ./results/results_hyper_sensitivity.csv `
+    --fewshot_csv ./results/results_fewshot_al.csv `
+    --sensitivity_csv ./results/results_hyper_sensitivity_al.csv `
     --output_dir ./figures/sensitivity
 
 $TOTAL_END = Get-Date

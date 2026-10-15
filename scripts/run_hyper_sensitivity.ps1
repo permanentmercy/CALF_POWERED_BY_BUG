@@ -18,10 +18,10 @@ $env:PYTHONWARNINGS = "ignore"
 
 $MODEL = "CALF"
 $DATA = "Solar"
-$DATA_PATH = "solar_IL.csv"
+$DATA_PATH = "solar_AL.txt"
 $DATA_SPLIT = "6:2:2"
-$ENC_IN = 106
-$C_OUT = 106
+$ENC_IN = 137
+$C_OUT = 137
 $SEQ_LEN = 96
 $PRED_LEN = 96
 $BATCH_SIZE = 16
@@ -41,8 +41,8 @@ $BASE_OUT_W = 0.25
 $SEEDS = @(2025, 2026, 2027)
 
 $RESULTS_DIR = "./results"
-$RESULTS_CSV = "${RESULTS_DIR}/results_hyper_sensitivity.csv"
-$LOG_DIR = "./logs/${MODEL}/Solar_IL_Sensitivity"
+$RESULTS_CSV = "${RESULTS_DIR}/results_hyper_sensitivity_al.csv"
+$LOG_DIR = "./logs/${MODEL}/Solar_AL_Sensitivity"
 
 if (-not (Test-Path $RESULTS_DIR)) { New-Item -ItemType Directory -Path $RESULTS_DIR -Force | Out-Null }
 if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
@@ -117,7 +117,7 @@ except:
         --data_path $DATA_PATH `
         --is_training 1 `
         --task_name long_term_forecast `
-        --model_id "${MODEL}_IL_sens_${Module}" `
+        --model_id "${MODEL}_AL_sens_${Module}" `
         --data $DATA `
         --data_split $DATA_SPLIT `
         --percent 100 `
@@ -156,7 +156,7 @@ except:
         --out_mlp_layers $MlpLayers `
         --mlp_res_w 0 `
         --use_norm 1 `
-        --use_direct_trend 1 `
+        --use_direct_trend 0 `
         --bestmodel `
         --gpt2_path $GPT2_PATH `
         --random_seed $Seed | Tee-Object -FilePath $log_file

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # Script: scripts/run_4days_suite.sh
-# Description: Master 4-Day Non-Stop Benchmark Pipeline on Solar-IL
+# Description: Master 4-Day Non-Stop Benchmark Pipeline on Solar-AL
 # Pipeline:
 #   Phase 1: Few-Shot Generalization (10% to 50%, step 10%, 3 seeds) (~3.5 hrs)
 #   Phase 2: Hyperparameter Sensitivity Suite (Depth, Capacity, Distillation) (~84 hrs)
@@ -18,7 +18,7 @@ GPU=${1:-0}
 START_TIME_TOTAL=$(date +%s)
 
 echo "=============================================================================="
-echo ">>> [MASTER RUNNER] Launching 4-Day Benchmark & Sensitivity Suite on Solar-IL"
+echo ">>> [MASTER RUNNER] Launching 4-Day Benchmark & Sensitivity Suite on Solar-AL"
 echo ">>> Start Time: $(date '+%Y-%m-%d %H:%M:%S') | Designated GPU: $GPU"
 echo "=============================================================================="
 
@@ -40,8 +40,8 @@ bash scripts/run_hyper_sensitivity.sh "$GPU" all
 echo ""
 echo ">>> [PHASE 3/3] Generating Publication Figures..."
 python plot_sensitivity_results.py \
-    --fewshot_csv ./results/results_fewshot_il.csv \
-    --sensitivity_csv ./results/results_hyper_sensitivity.csv \
+    --fewshot_csv ./results/results_fewshot_al.csv \
+    --sensitivity_csv ./results/results_hyper_sensitivity_al.csv \
     --output_dir ./figures/sensitivity
 
 END_TIME_TOTAL=$(date +%s)
