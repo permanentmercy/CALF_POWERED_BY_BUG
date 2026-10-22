@@ -68,7 +68,13 @@ def plot_fewshot_curve(fewshot_csv, output_dir):
         return
 
     df['test_mse'] = pd.to_numeric(df['test_mse'], errors='coerce')
+    df = df.dropna(subset=['test_mse'])
+    if len(df) == 0:
+        return
     df['test_mae'] = pd.to_numeric(df['test_mae'], errors='coerce')
+    df = df.dropna(subset=['test_mse', 'test_mae'])
+    if len(df) == 0:
+        return
     grouped = df.groupby('percent').agg(
         mse_mean=('test_mse', 'mean'),
         mse_std=('test_mse', 'std'),
@@ -121,6 +127,9 @@ def plot_depth_heatmap(sensitivity_csv, output_dir):
         return
 
     df['test_mse'] = pd.to_numeric(df['test_mse'], errors='coerce')
+    df = df.dropna(subset=['test_mse'])
+    if len(df) == 0:
+        return
     pivot = df.groupby(['gpt_layers', 'out_mlp_layers'])['test_mse'].mean().unstack()
 
     # Reindex to ensure strict 1..4 order
@@ -151,6 +160,9 @@ def plot_capacity_heatmap(sensitivity_csv, output_dir):
         return
 
     df['test_mse'] = pd.to_numeric(df['test_mse'], errors='coerce')
+    df = df.dropna(subset=['test_mse'])
+    if len(df) == 0:
+        return
     pivot = df.groupby(['lora_r', 'd_ff'])['test_mse'].mean().unstack()
 
     rows = [2, 4, 8, 16]
@@ -180,6 +192,9 @@ def plot_distillation_simplex(sensitivity_csv, output_dir):
         return
 
     df['test_mse'] = pd.to_numeric(df['test_mse'], errors='coerce')
+    df = df.dropna(subset=['test_mse'])
+    if len(df) == 0:
+        return
     grouped = df.groupby(['task_w', 'feature_w', 'output_w']).agg(
         mse_mean=('test_mse', 'mean'),
         mse_std=('test_mse', 'std')
@@ -203,8 +218,10 @@ def plot_distillation_simplex(sensitivity_csv, output_dir):
     ax.set_title("Multi-Task Distillation Loss Balance on Ternary Simplex", fontsize=13, fontweight='bold', pad=14)
     ax.grid(axis='y', linestyle=':', alpha=0.6)
 
-    min_val = grouped['mse_mean'].min()
-    ax.set_ylim(min_val * 0.95, grouped['mse_mean'].max() * 1.05)
+    min_val = grouped['mse_mean'].dropna().min()
+    max_val = grouped['mse_mean'].dropna().max()
+    if pd.notna(min_val) and pd.notna(max_val) and min_val > 0:
+        ax.set_ylim(min_val * 0.95, max_val * 1.05)
 
     for bar, val in zip(bars, grouped['mse_mean']):
         ax.annotate(f"{val:.4f}", xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),

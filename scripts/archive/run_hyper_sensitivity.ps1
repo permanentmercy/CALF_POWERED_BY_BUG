@@ -9,7 +9,8 @@
 
 param(
     [int]$GPU = 0,
-    [string]$TargetModule = "all"
+    [string]$TargetModule = "all",
+    [switch]$Force = $false
 )
 
 $env:CUDA_VISIBLE_DEVICES = $GPU
@@ -19,24 +20,24 @@ $env:PYTHONWARNINGS = "ignore"
 $MODEL = "CALF"
 $DATA = "Solar"
 $DATA_PATH = "solar_AL.txt"
-$DATA_SPLIT = "6:2:2"
+$DATA_SPLIT = "7:1:2"
 $ENC_IN = 137
 $C_OUT = 137
 $SEQ_LEN = 96
 $PRED_LEN = 96
 $BATCH_SIZE = 16
-$ACCUM_STEPS = 1
+$ACCUM_STEPS = 4
 $CYCLE = 144
 $GPT2_PATH = "./models/gpt2"
 
-# Baseline defaults
+# Baseline defaults aligned with Solar_test.sh
 $BASE_GPT_LAYERS = 1
 $BASE_MLP_LAYERS = 3
 $BASE_LORA_R = 8
 $BASE_D_FF = 3072
-$BASE_TASK_W = 0.70
+$BASE_TASK_W = 0.736
 $BASE_FEAT_W = 0.05
-$BASE_OUT_W = 0.25
+$BASE_OUT_W = 0.214
 
 $SEEDS = @(2025, 2026, 2027)
 
@@ -72,7 +73,7 @@ function Run-SingleExperiment {
 
     # Check if already completed (Idempotent Resume)
     $already_done = $false
-    if (Test-Path $RESULTS_CSV) {
+    if (-not $Force -and (Test-Path $RESULTS_CSV)) {
         $check_res = python -c @"
 import pandas as pd, sys
 try:
@@ -130,6 +131,8 @@ except:
         --patience 5 `
         --d_model 768 `
         --n_heads 4 `
+        --e_layers 1 `
+        --d_layers 1 `
         --d_ff $DFf `
         --dropout 0.1 `
         --enc_in $ENC_IN `
@@ -147,16 +150,25 @@ except:
         --task_w $TaskW `
         --feature_w $FeatW `
         --output_w $OutW `
+        --task_loss smooth_l1 `
+        --feature_loss smooth_l1 `
+        --output_loss smooth_l1 `
+        --accumulation_steps $ACCUM_STEPS `
         --use_swa 0 `
         --tq_mode add `
         --tq_inject_target q `
         --use_tq 1 `
+        --use_tq_gate 0 `
+        --cycle_prior_before_denorm 0 `
+        --tq_dropout 0.1 `
+        --tq_lr_factor 5 `
         --cycle $CYCLE `
         --test_branch time `
         --out_mlp_layers $MlpLayers `
         --mlp_res_w 0 `
         --use_norm 1 `
-        --use_direct_trend 0 `
+        --use_direct_trend 1 `
+        --eval_test_every_epoch `
         --bestmodel `
         --gpt2_path $GPT2_PATH `
         --random_seed $Seed | Tee-Object -FilePath $log_file
@@ -174,8 +186,18 @@ except:
     # Parse metrics
     $metrics = python -c @"
 import re
-with open(r'${log_file}', 'r', encoding='utf-8', errors='ignore') as f:
-    text = f.read()
+raw = open(r'${log_file}', 'rb').read()
+text = ''
+for enc in ['utf-16', 'utf-8', 'gbk', 'latin1']:
+    try:
+        c = raw.decode(enc)
+        if 'mse:' in c:
+            text = c
+            break
+    except:
+        pass
+if not text:
+    text = raw.decode('latin1', errors='ignore')
 matches = re.findall(r'mse:([0-9\.]+),\s*mae:([0-9\.]+)', text)
 if matches:
     print(f'{matches[-1][0]},{matches[-1][1]}')
@@ -241,17 +263,18 @@ if ($TargetModule -eq "all" -or $TargetModule -eq "distillation") {
     Write-Host "##############################################################################" -ForegroundColor Magenta
 
     $SIMPLEX_CONFIGS = @(
-        @(1.00, 0.00, 0.00),
-        @(0.70, 0.00, 0.30),
-        @(0.70, 0.30, 0.00),
-        @(0.80, 0.05, 0.15),
-        @(0.80, 0.10, 0.10),
-        @(0.70, 0.05, 0.25),
-        @(0.70, 0.15, 0.15),
-        @(0.70, 0.25, 0.05),
-        @(0.60, 0.10, 0.30),
-        @(0.60, 0.20, 0.20),
-        @(0.50, 0.25, 0.25)
+        @(1.000, 0.000, 0.000),
+        @(0.736, 0.050, 0.214),
+        @(0.700, 0.000, 0.300),
+        @(0.700, 0.300, 0.000),
+        @(0.800, 0.050, 0.150),
+        @(0.800, 0.100, 0.100),
+        @(0.700, 0.050, 0.250),
+        @(0.700, 0.150, 0.150),
+        @(0.700, 0.250, 0.050),
+        @(0.600, 0.100, 0.300),
+        @(0.600, 0.200, 0.200),
+        @(0.500, 0.250, 0.250)
     )
 
     foreach ($cfg in $SIMPLEX_CONFIGS) {

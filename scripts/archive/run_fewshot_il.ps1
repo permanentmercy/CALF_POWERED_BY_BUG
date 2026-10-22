@@ -4,7 +4,8 @@
 # ==============================================================================
 
 param(
-    [int]$GPU = 0
+    [int]$GPU = 0,
+    [switch]$Force = $false
 )
 
 $env:CUDA_VISIBLE_DEVICES = $GPU
@@ -14,13 +15,13 @@ $env:PYTHONWARNINGS = "ignore"
 $MODEL = "CALF"
 $DATA = "Solar"
 $DATA_PATH = "solar_AL.txt"
-$DATA_SPLIT = "6:2:2"
+$DATA_SPLIT = "7:1:2"
 $ENC_IN = 137
 $C_OUT = 137
 $SEQ_LEN = 96
 $PRED_LEN = 96
 $BATCH_SIZE = 16
-$ACCUM_STEPS = 1
+$ACCUM_STEPS = 4
 $CYCLE = 144
 $GPT2_PATH = "./models/gpt2"
 
@@ -56,7 +57,7 @@ foreach ($percent in $PERCENTS) {
         
         # Idempotent resume check
         $already_done = $false
-        if (Test-Path $RESULTS_CSV) {
+        if (-not $Force -and (Test-Path $RESULTS_CSV)) {
             $match = Select-String -Path $RESULTS_CSV -Pattern "^${percent},${seed}," -Quiet
             if ($match) { $already_done = $true }
         }
@@ -107,13 +108,22 @@ foreach ($percent in $PERCENTS) {
             --lora_alpha 32 `
             --lora_dropout 0.1 `
             --num_workers 0 `
-            --task_w 0.70 `
+            --e_layers 1 `
+            --task_w 0.736 `
             --feature_w 0.05 `
-            --output_w 0.25 `
+            --output_w 0.214 `
+            --task_loss smooth_l1 `
+            --feature_loss smooth_l1 `
+            --output_loss smooth_l1 `
+            --accumulation_steps $ACCUM_STEPS `
             --use_swa 0 `
             --tq_mode add `
             --tq_inject_target q `
             --use_tq 1 `
+            --use_tq_gate 0 `
+            --cycle_prior_before_denorm 0 `
+            --tq_dropout 0.1 `
+            --tq_lr_factor 5 `
             --cycle $CYCLE `
             --test_branch time `
             --out_mlp_layers 3 `
@@ -137,8 +147,18 @@ foreach ($percent in $PERCENTS) {
         # Parse MSE and MAE
         $METRICS = python -c @"
 import re
-with open(r'${LOG_FILE}', 'r', encoding='utf-8', errors='ignore') as f:
-    text = f.read()
+raw = open(r'${LOG_FILE}', 'rb').read()
+text = ''
+for enc in ['utf-16', 'utf-8', 'gbk', 'latin1']:
+    try:
+        c = raw.decode(enc)
+        if 'mse:' in c:
+            text = c
+            break
+    except:
+        pass
+if not text:
+    text = raw.decode('latin1', errors='ignore')
 matches = re.findall(r'mse:([0-9\.]+),\s*mae:([0-9\.]+)', text)
 if matches:
     print(f'{matches[-1][0]},{matches[-1][1]}')
