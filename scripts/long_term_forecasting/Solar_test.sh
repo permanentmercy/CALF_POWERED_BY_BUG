@@ -63,7 +63,7 @@ for n_heads in 4
 do
 for percent in 100
 do
-for random_seed in 2025
+for random_seed in 2025 2026 2027
 do
 for pred_len in 96
 do
@@ -120,8 +120,8 @@ else:
   CUDA_VISIBLE_DEVICES=$GPU \
   python -u run.py \
     --root_path ./datasets/Solar/ \
-    --checkpoint_path ./checkpoints/long_term_forecast_CALF_96_96_p100_CALF_Solar_ftM_sl96_ll0_pl96_dm768_nh4_el1_dl1_df3072_fc1_ebtimeF_dtTrue_test_gpt1_rl0.0004_2026_0_feature0.05_output0.214_train_epochs100_bs16_dr0.1_ld0.1_r8/checkpoint.pth \
     --data_path solar_AL.txt \
+    --data_split 7:1:2 \
     --is_training $is_training \
     --task_name long_term_forecast \
     --model_id $model'_'$seq_len'_'$pred_len'_p'$percent \
@@ -165,6 +165,7 @@ else:
     --tq_lr_factor $tq_lr_factor \
     --eval_test_every_epoch \
     --use_norm 1 \
+    --use_direct_trend 0 \
     --tq_inject_target q \
     --gpt2_path ./models/gpt2 \
     --task_loss smooth_l1 \

@@ -404,6 +404,11 @@ class Dataset_Solar(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
+        # Keep split boundaries for reproducible per-window diagnostic records.
+        self.raw_data_rows = len(df_raw)
+        self.split_start = int(border1)
+        self.split_end = int(border2)
+
         if self.set_type == 0 and float(self.percent) < 100.0:
             total_samples = border2 - border1 - self.seq_len - self.pred_len + 1
             target_samples = max(int(round(total_samples * float(self.percent) / 100.0)), 1)
@@ -452,8 +457,10 @@ class Dataset_Solar(Dataset):
         else:
             data = df_data
 
-        self.data_x = data[border1:border2]
-        self.data_y = data[border1:border2]
+        self.data_x = data[border1:border2].astype(np.float32)
+        self.data_y = data[border1:border2].astype(np.float32)
+        self._dummy_x_mark = np.zeros((self.seq_len, 1), dtype=np.float32)
+        self._dummy_y_mark = np.zeros((self.seq_len, 1), dtype=np.float32)
         
         # add cycle
         self.cycle_index = np.arange(len(data)) % self.cycle
@@ -474,8 +481,8 @@ class Dataset_Solar(Dataset):
         
         # seq_x_mark = self.data_stamp[s_begin:s_end]
         # seq_y_mark = self.data_stamp[r_begin:r_end]
-        seq_x_mark = torch.zeros((seq_x.shape[0], 1))
-        seq_y_mark = torch.zeros((seq_x.shape[0], 1))
+        seq_x_mark = self._dummy_x_mark
+        seq_y_mark = self._dummy_y_mark
 
         # use the cycle index at the end of the input sequence
         cycle_index = self.cycle_index[s_end - 1]

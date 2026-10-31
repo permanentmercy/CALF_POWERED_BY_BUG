@@ -241,6 +241,8 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             if vali_loss < best_val:
                 best_val = vali_loss
                 self.best_model_epoch = epoch + 1
+                if hasattr(self, 'best_model_state') and self.best_model_state is not None:
+                    del self.best_model_state
                 self.best_model_state = deepcopy(self.model.state_dict())
                 if early_stopping.verbose:
                     print(f"Best model stored in memory (Vali Loss: {best_val:.6f})")
@@ -270,7 +272,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 print(f">>> [Analysis] TQ Gate Weight: {tq_weight:.4f} (1.0 = Max Reliance on TQ)")
 
             if hasattr(self.model, 'trend_gate') and getattr(self.args, 'use_direct_trend', 1) == 1:
-                print(f">>> [Analysis] Trend Gate α: {self.model.trend_gate.item():.6f}")
+                print(f">>> [Analysis] Trend Gate alpha: {self.model.trend_gate.item():.6f}")
 
             early_stopping(vali_loss, self.model, path)
 
@@ -298,6 +300,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     print(f">>> [SWA] Skipped: Vali Loss ({vali_loss:.6f}) exceeds 4% threshold (>{best_val*1.04:.6f})")
                 
                 self.swa_n = swa_model.n_averaged.item()
+
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
 
             if early_stopping.early_stop:
                 print("Early stopping")
@@ -523,6 +529,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         # Incremental metrics to avoid ArrayMemoryError on large datasets
         sum_mae, sum_mse, sum_mape, sum_mspe = 0, 0, 0, 0
         total_elements = 0
+        sum_mae_time, sum_mse_time = 0.0, 0.0
+        sum_mae_text, sum_mse_text = 0.0, 0.0
+        sum_mse_day, sum_mae_day, day_elements = 0.0, 0.0, 0
+        sum_mse_night, sum_mae_night, night_elements = 0.0, 0.0, 0
         
         # Sampling for CSV (only store 10 windows)
         sampled_preds, sampled_trues = [], []
@@ -563,6 +573,25 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 sum_mspe += np.sum(np.square((pred - true) / (true + 1e-8)))
                 total_elements += pred.size
 
+                if isinstance(outputs, dict) and 'outputs_text' in outputs and 'outputs_time' in outputs:
+                    p_time = outputs['outputs_time'][:, -self.args.pred_len:, :batch_y.shape[-1]].detach().cpu().numpy()
+                    p_text = outputs['outputs_text'][:, -self.args.pred_len:, :batch_y.shape[-1]].detach().cpu().numpy()
+                    sum_mse_time += float(np.sum((p_time - true) ** 2))
+                    sum_mae_time += float(np.sum(np.abs(p_time - true)))
+                    sum_mse_text += float(np.sum((p_text - true) ** 2))
+                    sum_mae_text += float(np.sum(np.abs(p_text - true)))
+                    if future_cycle_index is not None:
+                        f_slots = future_cycle_index.detach().cpu().numpy()
+                        day_mask = (f_slots >= 33) & (f_slots <= 108)
+                        day_mask_exp = np.repeat(day_mask[:, :, np.newaxis], true.shape[-1], axis=2)
+                        night_mask_exp = ~day_mask_exp
+                        day_elements += int(np.sum(day_mask_exp))
+                        night_elements += int(np.sum(night_mask_exp))
+                        sum_mse_day += float(np.sum(((p_time - true) ** 2)[day_mask_exp]))
+                        sum_mae_day += float(np.sum((np.abs(p_time - true))[day_mask_exp]))
+                        sum_mse_night += float(np.sum(((p_time - true) ** 2)[night_mask_exp]))
+                        sum_mae_night += float(np.sum((np.abs(p_time - true))[night_mask_exp]))
+
                 # Collect samples for CSV (store only needed indices)
                 batch_size = pred.shape[0]
                 for j in range(batch_size):
@@ -586,6 +615,18 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         preds = np.concatenate(sampled_preds, axis=0) if sampled_preds else np.array([])
         trues = np.concatenate(sampled_trues, axis=0) if sampled_trues else np.array([])
         print('mse:{}, mae:{}'.format(mse, mae))
+        if sum_mse_text > 0:
+            time_mse = sum_mse_time / total_elements
+            time_mae = sum_mae_time / total_elements
+            text_mse = sum_mse_text / total_elements
+            text_mae = sum_mae_text / total_elements
+            print(f">>> [Dual Branch Metrics] Time MSE: {time_mse:.6f}, Time MAE: {time_mae:.6f} | Text MSE: {text_mse:.6f}, Text MAE: {text_mae:.6f}")
+        if day_elements > 0 and night_elements > 0:
+            day_mse = sum_mse_day / day_elements
+            day_mae = sum_mae_day / day_elements
+            night_mse = sum_mse_night / night_elements
+            night_mae = sum_mae_night / night_elements
+            print(f">>> [Diurnal Breakdown (Time)] Day MSE: {day_mse:.6f}, Day MAE: {day_mae:.6f} | Night MSE: {night_mse:.6f}, Night MAE: {night_mae:.6f}")
 
         # result save
         folder_path = './results/' + setting + '/'

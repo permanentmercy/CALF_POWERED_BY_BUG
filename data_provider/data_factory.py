@@ -26,18 +26,16 @@ def data_provider(args, flag, vali=False):
 
     if flag == 'test':
         shuffle_flag = False
-        # drop_last = True
         drop_last = False
         if args.task_name == 'anomaly_detection' or args.task_name == 'classification':
             batch_size = args.batch_size
         else:
-            # batch_size = 1
             batch_size = 32
         freq = args.freq
     else:
         shuffle_flag = True
         drop_last = True
-        batch_size = args.batch_size  # bsz for train and valid
+        batch_size = args.batch_size
         freq = args.freq
 
     if args.task_name == 'anomaly_detection':

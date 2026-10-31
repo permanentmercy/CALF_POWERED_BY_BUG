@@ -264,17 +264,17 @@ class Model(nn.Module):
         self.use_norm = getattr(configs, 'use_norm', 1)
 
         # Direct autoregressive linear transition skip connection (ReZero)
-        self.direct_trend = nn.Linear(configs.seq_len, configs.pred_len, bias=False)
-        nn.init.orthogonal_(self.direct_trend.weight)
-        self.trend_gate = nn.Parameter(torch.zeros(1))
-        self.use_direct_trend = getattr(configs, 'use_direct_trend', 1)
+        self.use_direct_trend = getattr(configs, 'use_direct_trend', 0)
+        if self.use_direct_trend:
+            self.direct_trend = nn.Linear(configs.seq_len, configs.pred_len, bias=False)
+            nn.init.orthogonal_(self.direct_trend.weight)
+            self.trend_gate = nn.Parameter(torch.zeros(1))
+            self.direct_trend.to(device=device)
+            self.direct_trend.train()
 
         for layer in (self.gpt2_text, self.gpt2, self.in_layer, self.out_layer, self.time_proj, self.text_proj):
             layer.to(device=device)
             layer.train()
-        if hasattr(self, 'direct_trend'):
-            self.direct_trend.to(device=device)
-            self.direct_trend.train()
         
         self.cnt = 0
         
@@ -330,7 +330,7 @@ class Model(nn.Module):
         outputs_text = rearrange(outputs_text, 'b m l -> b l m')
 
         # Direct autoregressive linear trend skip in normalized space (ReZero)
-        if getattr(self, 'use_direct_trend', 1) and hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
+        if getattr(self, 'use_direct_trend', 0) and hasattr(self, 'direct_trend') and hasattr(self, 'trend_gate'):
             trend = self.direct_trend(x_norm.transpose(1, 2)).transpose(1, 2)
             outputs_time = outputs_time + self.trend_gate * trend
             outputs_text = outputs_text + self.trend_gate * trend

@@ -57,8 +57,9 @@ if ([string]::IsNullOrWhiteSpace($Task)) {
     Write-Host "      - 数据集: solar_IL.csv (7:1:2 划分, 关闭 Trend Gate, 权重不落盘)"
     Write-Host "  [2] Solar-AL 超参敏感性实验 (对齐 Solar_test.sh, 4x4深度/4x4容量/11元蒸馏)" -ForegroundColor Yellow
     Write-Host "      - 数据集: solar_AL.txt (7:1:2 划分, lr=0.0004, accum=4, smooth_l1)"
-    Write-Host "  [3] Solar-AL 最优基线复现 (Horizon 96, Seed 2025, 目标 MSE ~ 0.165)" -ForegroundColor Cyan
+    Write-Host "  [3] Solar-AL 原始基准复现 (Horizon 96, Seeds 2025/2026/2027, 目标 MSE ~ 0.1645)" -ForegroundColor Cyan
     Write-Host "  [4] 仅运行学术可视化绘图 (生成 300 DPI 曲线图与热力图)" -ForegroundColor Magenta
+    Write-Host "  [5] 旧 P1 开关对照已停用（保持 use_tq 不变）" -ForegroundColor Gray
     Write-Host "  [0] 退出控制台" -ForegroundColor Gray
     Write-Host ""
     Write-Host "------------------------------------------------------------------------------" -ForegroundColor Cyan
@@ -391,78 +392,113 @@ elseif ($Task -in @("2", "sensitivity", "sens", "hyper")) {
 }
 
 # ------------------------------------------------------------------------------
-# 5. 任务 3: Solar-AL 最优基线复现实验 (Horizon 96, Seed 2025)
+# 5. 任务 3: Solar-AL 原始基准复现实验 (Horizon 96, Seeds 2025/2026/2027)
 # ------------------------------------------------------------------------------
 elseif ($Task -in @("3", "baseline", "reproduce")) {
-    $LOG_FILE = "./logs/CALF/Solar/reproduce_baseline_96_seed2025.log"
+    $SEEDS = @(2025, 2026, 2027)
+    $RESULTS_CSV = "./results/baseline_reproduction_results.csv"
+    if (-not (Test-Path "./results")) { New-Item -ItemType Directory -Path "./results" -Force | Out-Null }
+    if (-not (Test-Path $RESULTS_CSV)) {
+        "seed,pred_len,mse,mae,timestamp" | Out-File -FilePath $RESULTS_CSV -Encoding utf8
+    }
+
     Write-Host "`n==============================================================================" -ForegroundColor Green
-    Write-Host ">>> [TASK 3] 启动 Solar-AL 最优基线复现 (Horizon 96, Seed 2025, MSE ~ 0.165)" -ForegroundColor Green
-    Write-Host ">>> 日志流输出至: $LOG_FILE" -ForegroundColor Cyan
+    Write-Host ">>> [TASK 3] 启动 Solar-AL 原始基准复现 (Horizon 96, Seeds 2025/2026/2027)" -ForegroundColor Green
+    Write-Host ">>> 目标指标: 2025(0.164986/0.219895), 2026(0.164929/0.219133), 2027(0.164136/0.218951)" -ForegroundColor Cyan
+    Write-Host ">>> 严格对齐 scripts/long_term_forecasting/Solar_test.sh" -ForegroundColor Cyan
     Write-Host "==============================================================================" -ForegroundColor Green
 
-    $base_args = @(
-        "-u", "run.py",
-        "--root_path", "./datasets/Solar/",
-        "--data_path", "solar_AL.txt",
-        "--is_training", "1",
-        "--task_name", "long_term_forecast",
-        "--model_id", "CALF_96_96_p100",
-        "--data", "Solar",
-        "--data_split", "7:1:2",
-        "--seq_len", "96",
-        "--label_len", "0",
-        "--pred_len", "96",
-        "--percent", "100",
-        "--batch_size", "16",
-        "--learning_rate", "0.0004",
-        "--accumulation_steps", "4",
-        "--train_epochs", "100",
-        "--patience", "5",
-        "--d_model", "768",
-        "--n_heads", "4",
-        "--e_layers", "1",
-        "--d_layers", "1",
-        "--d_ff", "3072",
-        "--dropout", "0.1",
-        "--enc_in", "137",
-        "--c_out", "137",
-        "--dec_in", "137",
-        "--gpt_layers", "1",
-        "--itr", "1",
-        "--model", "CALF",
-        "--cos", "1",
-        "--tmax", "10",
-        "--r", "8",
-        "--lora_alpha", "32",
-        "--lora_dropout", "0.1",
-        "--num_workers", "0",
-        "--feature_w", "0.05",
-        "--output_w", "0.214",
-        "--task_w", "0.736",
-        "--task_loss", "smooth_l1",
-        "--feature_loss", "smooth_l1",
-        "--output_loss", "smooth_l1",
-        "--use_swa", "0",
-        "--tq_mode", "add",
-        "--use_tq_gate", "0",
-        "--cycle_prior_before_denorm", "0",
-        "--tq_dropout", "0.1",
-        "--tq_lr_factor", "5",
-        "--cycle", "144",
-        "--test_branch", "time",
-        "--out_mlp_layers", "3",
-        "--mlp_res_w", "0",
-        "--eval_test_every_epoch",
-        "--use_norm", "1",
-        "--use_direct_trend", "1",
-        "--tq_inject_target", "q",
-        "--gpt2_path", "./models/gpt2",
-        "--random_seed", "2025"
-    )
+    foreach ($s in $SEEDS) {
+        $LOG_FILE = "./logs/CALF/Solar/reproduce_baseline_96_seed${s}.log"
+        if (-not $Force -and (Test-Path $RESULTS_CSV)) {
+            $existing = Import-Csv $RESULTS_CSV -ErrorAction SilentlyContinue | Where-Object { $_.seed -eq "$s" -and $_.mse -ne "NaN" -and $_.mse -match "^[0-9\.]+$" }
+            if ($existing) {
+                Write-Host ">>> [SKIP Seed $s] 已完成，历史复现指标: MSE = $($existing.mse), MAE = $($existing.mae)" -ForegroundColor Gray
+                continue
+            }
+        }
+        Write-Host "`n>>> [RUN SEED $s] 开始训练与测试... 日志流: $LOG_FILE" -ForegroundColor Green
 
-    & $PYTHON_CMD $base_args 2>&1 | Tee-Object -FilePath $LOG_FILE
-    $metrics = (& $PYTHON_CMD scripts/runner_helper.py parse_log $LOG_FILE).Trim()
-    Write-Host "`n>>> [COMPLETE] 基准复现测试结果: $metrics" -ForegroundColor Yellow
+        $base_args = @(
+            "-u", "run.py",
+            "--root_path", "./datasets/Solar/",
+            "--data_path", "solar_AL.txt",
+            "--data_split", "7:1:2",
+            "--is_training", "1",
+            "--task_name", "long_term_forecast",
+            "--model_id", "CALF_96_96_p100",
+            "--data", "Solar",
+            "--seq_len", "96",
+            "--label_len", "0",
+            "--pred_len", "96",
+            "--percent", "100",
+            "--batch_size", "16",
+            "--learning_rate", "0.0004",
+            "--accumulation_steps", "4",
+            "--train_epochs", "100",
+            "--patience", "5",
+            "--d_model", "768",
+            "--n_heads", "4",
+            "--e_layers", "1",
+            "--d_layers", "1",
+            "--d_ff", "3072",
+            "--dropout", "0.1",
+            "--enc_in", "137",
+            "--c_out", "137",
+            "--dec_in", "137",
+            "--gpt_layers", "1",
+            "--itr", "1",
+            "--model", "CALF",
+            "--cos", "1",
+            "--tmax", "10",
+            "--r", "8",
+            "--lora_alpha", "32",
+            "--lora_dropout", "0.1",
+            "--num_workers", "0",
+            "--bestmodel",
+            "--feature_w", "0.05",
+            "--output_w", "0.214",
+            "--task_w", "0.736",
+            "--task_loss", "smooth_l1",
+            "--feature_loss", "smooth_l1",
+            "--output_loss", "smooth_l1",
+            "--use_swa", "0",
+            "--tq_mode", "add",
+            "--use_tq_gate", "0",
+            "--cycle_prior_before_denorm", "0",
+            "--tq_dropout", "0.1",
+            "--tq_lr_factor", "5",
+            "--cycle", "144",
+            "--test_branch", "time",
+            "--out_mlp_layers", "3",
+            "--mlp_res_w", "0",
+            "--eval_test_every_epoch",
+            "--use_norm", "1",
+            "--use_direct_trend", "0",
+            "--tq_inject_target", "q",
+            "--gpt2_path", "./models/gpt2",
+            "--random_seed", "$s"
+        )
+
+        try {
+            & $PYTHON_CMD @base_args *>&1 | Tee-Object -FilePath $LOG_FILE
+        } catch {
+            Write-Host ">>> [EXCEPTION Seed $s] $_" -ForegroundColor Red
+        }
+        $metrics = (& $PYTHON_CMD scripts/runner_helper.py parse_log $LOG_FILE).Trim()
+        $mse = ($metrics -split ",")[0]
+        $mae = ($metrics -split ",")[1]
+        Write-Host ">>> [COMPLETE Seed $s] 测试结果: MSE = $mse, MAE = $mae" -ForegroundColor Yellow
+        if ($mse -ne "NaN" -and $mse -match "^[0-9\.]+$") {
+            "${s},96,${mse},${mae},$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $RESULTS_CSV -Append -Encoding utf8
+        } else {
+            Write-Host ">>> [WARN Seed $s] 未能获得有效指标，请查看日志 $LOG_FILE" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n==============================================================================" -ForegroundColor Green
+    Write-Host ">>> [TASK 3 FINISH] 全部 3 种子复现完成！汇总表保存在: $RESULTS_CSV" -ForegroundColor Green
+    Write-Host "==============================================================================" -ForegroundColor Green
 }
 
 # ------------------------------------------------------------------------------
@@ -485,10 +521,16 @@ elseif ($Task -in @("4", "plot", "figure", "figures")) {
 
     Write-Host "`n>>> [ALL DONE] 全部图表已更新至 ./figures/ !" -ForegroundColor Green
 }
+# ------------------------------------------------------------------------------
+# 7. 旧 P1 开关对照已撤下，不再启动训练
+# ------------------------------------------------------------------------------
+elseif ($Task -in @("5", "tq", "cycle", "p1")) {
+    throw "旧 P1 开关对照已停用：按用户要求保持 use_tq 不变，请查看 public/cycle_mechanism/v1.0/completion_plan.md。"
+}
 elseif ($Task -in @("0", "exit", "quit")) {
     Write-Host ">>> 已退出。" -ForegroundColor Gray
 }
 else {
     Write-Host ">>> [ERROR] 未知任务编号或指令: $Task" -ForegroundColor Red
-    Write-Host ">>> 可用参数: 1 (fewshot_il), 2 (sensitivity), 3 (baseline), 4 (plot)" -ForegroundColor Yellow
+    Write-Host ">>> 可用参数: 1 (fewshot_il), 2 (sensitivity), 3 (baseline), 4 (plot), 5 (tq/p1)" -ForegroundColor Yellow
 }

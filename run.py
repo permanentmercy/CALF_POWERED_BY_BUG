@@ -164,7 +164,7 @@ if __name__ == '__main__':
     parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
-    parser.add_argument('--use_direct_trend', type=int, default=1, help='enable or disable direct autoregressive linear trend skip (ReZero)')
+    parser.add_argument('--use_direct_trend', type=int, default=0, help='enable or disable direct autoregressive linear trend skip (ReZero)')
     parser.add_argument('--checkpoint_path', type=str, default="0",
                         help='权重文件路径（.pth 文件或含 checkpoint.pth 的目录）。'
                              '生效场景：'
