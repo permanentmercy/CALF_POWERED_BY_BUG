@@ -13,7 +13,8 @@
 | **M2: Solar-IL 极低样本微调** | 跨域迁移至 Solar-IL，完成 0.5% ~ 10% 微调 | v1.0 | 进行中 | `results/fewshot_il_micro_summary.csv`, `figures/fewshot/` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M4: 全项目唯一一键启动控制脚本整合** | 消除多版本启动碎片，统合参数、断点续跑与出图 | v1.0 | **已完成** | [run_one_click.ps1](file:///run_one_click.ps1), `public/unified_runner/v1.0/` |
-| **M5: 论文终稿整合与发表产物归档** | 整合图表、统计表与 LaTeX 论文 | v1.0 | 待启动 | `latex/` |
+| **M5: 批量实验面板与权重统一管理** | 断点续跑、全超参循环扫描、防签名冲突与大文件夹权重收敛 | v1.0 | **已完成** | [batch_panel.py](file:///batch_panel.py), `scripts/batch_runner/`, `public/batch_panel/v1.0/` |
+| **M6: 论文终稿整合与发表产物归档** | 整合图表、统计表与 LaTeX 论文 | v1.0 | 待启动 | `latex/` |
 
 ---
 
@@ -51,3 +52,15 @@
   2. 覆盖 Solar-AL 4x4 深度/容量/蒸馏敏感性分析与最优基线复现（全参数 100% 对齐 `Solar_test.sh`）；
   3. 解耦日志解析与状态检查至 `scripts/runner_helper.py`，已通过实测验证（Exit Code 0）。
 - **子计划与产物**：详见 [unified_runner/v1.0/subplan.md](unified_runner/v1.0/subplan.md) 与 [unified_runner/v1.0/execution_results.md](unified_runner/v1.0/execution_results.md)。
+
+---
+
+## 五、模块进展明细：M5 批量实验控制面板与权重统一管理
+- **背景与目标**：
+  响应用户指令，开发支持全超参调整、循环网格搜索、断点续跑、实验大文件夹统一管理及日志防冲突隔离的批量运行控制面板。
+- **核心功能**：
+  1. **签名防冲突**：`run.py` 补充 `--exp_tag`，并在 `task_w`、`cycle`、`use_direct_trend`、`out_mlp_layers`、`tq_mode`、`data_split` 发生变化时自动注入区分标签，杜绝日志与检查点覆盖。
+  2. **统一大文件夹收敛**：解决 `exp` 脚本中 `'./checkpoints/'` 硬编码，用户指定大文件夹后，该批次所有模型的权重自动收敛至指定目录。
+  3. **持久化断点续跑**：维护 `batch_state.json`，中断后自动识别并跳过已完成项，继续执行未完成实验。
+  4. **全超参循环支持**：支持以 JSON 模板或交互方式定义参数列表，自动生成笛卡尔积网格扫描。
+- **子计划与产物**：详见 [batch_panel/v1.0/subplan.md](batch_panel/v1.0/subplan.md) 与 [batch_panel/v1.0/execution_results.md](batch_panel/v1.0/execution_results.md)。

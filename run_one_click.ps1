@@ -60,6 +60,7 @@ if ([string]::IsNullOrWhiteSpace($Task)) {
     Write-Host "  [3] Solar-AL 原始基准复现 (Horizon 96, Seeds 2025/2026/2027, 目标 MSE ~ 0.1645)" -ForegroundColor Cyan
     Write-Host "  [4] 仅运行学术可视化绘图 (生成 300 DPI 曲线图与热力图)" -ForegroundColor Magenta
     Write-Host "  [5] 旧 P1 开关对照已停用（保持 use_tq 不变）" -ForegroundColor Gray
+    Write-Host "  [6] 批量实验控制面板 (Batch Panel: 全超参循环、断点续跑、指定大文件夹统一管理)" -ForegroundColor Cyan
     Write-Host "  [0] 退出控制台" -ForegroundColor Gray
     Write-Host ""
     Write-Host "------------------------------------------------------------------------------" -ForegroundColor Cyan
@@ -526,6 +527,10 @@ elseif ($Task -in @("4", "plot", "figure", "figures")) {
 # ------------------------------------------------------------------------------
 elseif ($Task -in @("5", "tq", "cycle", "p1")) {
     throw "旧 P1 开关对照已停用：按用户要求保持 use_tq 不变，请查看 public/cycle_mechanism/v1.0/completion_plan.md。"
+}
+elseif ($Task -in @("6", "batch", "panel", "batch_panel")) {
+    Write-Host "`n>>> [TASK 6] 启动 CALF 批量实验控制面板 (Batch Panel)..." -ForegroundColor Cyan
+    & $PYTHON_CMD batch_panel.py
 }
 elseif ($Task -in @("0", "exit", "quit")) {
     Write-Host ">>> 已退出。" -ForegroundColor Gray

@@ -106,6 +106,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         path = os.path.join(self.args.checkpoints, setting)
         if not os.path.exists(path):
             os.makedirs(path)
+        try:
+            import json
+            with open(os.path.join(path, 'args.json'), 'w', encoding='utf-8') as f_args:
+                json.dump(vars(self.args), f_args, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f'[Warning] Failed to write args.json to checkpoint dir: {e}')
 
         time_now = time.time()
 
@@ -421,10 +427,10 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     # Non-existent path, let self.test raise FileNotFoundError
                     has_best_checkpoint = True
             elif not is_training_mode:
-                best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
+                best_model_path = os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')
                 has_best_checkpoint = os.path.exists(best_model_path)
                 
-                swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
+                swa_path = os.path.join(self.args.checkpoints, setting, 'checkpoint_swa.pth')
                 has_swa_checkpoint = os.path.exists(swa_path)
             
             # 1. Test Best Single Model
@@ -499,7 +505,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     print('Loading SWA model from memory...')
                     self.model.load_state_dict(self.swa_model_state)
                 else:
-                    swa_path = os.path.join('./checkpoints/' + setting, 'checkpoint_swa.pth')
+                    swa_path = os.path.join(self.args.checkpoints, setting, 'checkpoint_swa.pth')
                     if os.path.exists(swa_path):
                         print(f'Loading SWA model from {swa_path}...')
                         self.model.load_state_dict(torch.load(swa_path, map_location=self.device))
@@ -511,7 +517,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     print('Loading best model from memory...')
                     self.model.load_state_dict(self.best_model_state)
                 else:
-                    best_model_path = os.path.join('./checkpoints/' + setting, 'checkpoint.pth')
+                    best_model_path = os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')
                     if os.path.exists(best_model_path):
                         print(f'Loading best model from disk: {best_model_path}...')
                         self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
@@ -633,9 +639,29 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         
+        try:
+            import json
+            metrics_summary = {
+                'setting': setting,
+                'mse': float(mse),
+                'mae': float(mae),
+                'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'args': {k: v for k, v in vars(self.args).items() if not k.startswith('_')}
+            }
+            with open(os.path.join(folder_path, 'metrics.json'), 'w', encoding='utf-8') as f_met:
+                json.dump(metrics_summary, f_met, indent=2, ensure_ascii=False)
+            with open(os.path.join(folder_path, 'args.json'), 'w', encoding='utf-8') as f_args:
+                json.dump(vars(self.args), f_args, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f'[Warning] Failed to write json metrics: {e}')
+
         f = open("result_long_term_forecast.txt", 'a')
         f.write('time:{}\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         f.write(setting + swa_tag + "  \n")
+        f.write('seed:{}, pl:{}, pct:{}, tw:{}, cyc:{}, trend:{}\n'.format(
+            self.args.random_seed, self.args.pred_len, self.args.percent,
+            getattr(self.args, 'task_w', 1.0), getattr(self.args, 'cycle', 24),
+            getattr(self.args, 'use_direct_trend', 0)))
         f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
         f.write('\n')
@@ -646,9 +672,9 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        # Custom filename format: featurew_outputw_mse_mae
-        result_name = 'fw{}_ow{}_mse{:.4f}_mae{:.4f}{}'.format(
-            self.args.feature_w, self.args.output_w, mse, mae, swa_tag
+        # Custom filename format: seed_predlen_featurew_outputw_mse_mae (avoids collisions)
+        result_name = 'seed{}_pl{}_fw{}_ow{}_mse{:.4f}_mae{:.4f}{}'.format(
+            self.args.random_seed, self.args.pred_len, self.args.feature_w, self.args.output_w, mse, mae, swa_tag
         )
 
         # Skip saving large npy files to save disk space

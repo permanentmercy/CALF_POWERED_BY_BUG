@@ -51,7 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
 
     # anomaly detection task
-    parser.add_argument('--anomaly_ratio', type=float, default=0.25, help='prior anomaly ratio (%)')
+    parser.add_argument('--anomaly_ratio', type=float, default=0.25, help='prior anomaly ratio (%%)')
 
     # model define
     parser.add_argument('--top_k', type=int, default=5, help='for TimesBlock')
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     parser.add_argument('--percent', type=float, default=100.0,
                         help='使用的训练数据百分比（支持 100, 10, 5, 1, 0.5 等）。默认100（全量从头训练）。'
                              '仅在 is_training=1 时控制训练集大小。'
-                             '当 percent<100 时截取训练集前 percent% 的数据；'
+                             '当 percent<100 时截取训练集前 percent%% 的数据；'
                              '若同时通过 --checkpoint_path 指定有效预训练权重，则执行少样本微调（Few-Shot Fine-Tuning）；'
                              '若未指定预训练权重，则从头训练全新模型（Few-Shot Training from Scratch）。')
     
@@ -165,6 +165,7 @@ if __name__ == '__main__':
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
     parser.add_argument('--use_direct_trend', type=int, default=0, help='enable or disable direct autoregressive linear trend skip (ReZero)')
+    parser.add_argument('--exp_tag', type=str, default='', help='optional custom experiment tag to distinguish settings/logs')
     parser.add_argument('--checkpoint_path', type=str, default="0",
                         help='权重文件路径（.pth 文件或含 checkpoint.pth 的目录）。'
                              '生效场景：'
@@ -232,57 +233,7 @@ if __name__ == '__main__':
     else:
         Exp = Exp_Long_Term_Forecast
 
-    if args.is_training:
-        for ii in range(args.itr):
-            # setting record of experiments
-            exp = Exp(args)  # set experiments
-            setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_gpt{}_rl{}_{}_{}_feature{}_output{}_train_epochs{}_bs{}_dr{}_ld{}_r{}'.format(
-                args.task_name,
-                args.model_id,
-                args.model,
-                args.data,
-                args.features,
-                args.seq_len,
-                args.label_len,
-                args.pred_len,
-                args.d_model,
-                args.n_heads,
-                args.e_layers,
-                args.d_layers,
-                args.d_ff,
-                args.factor,
-                args.embed,
-                args.distil,
-                args.des, 
-                args.gpt_layers,
-                args.learning_rate,
-                args.random_seed,
-                ii,
-                args.feature_w,
-                args.output_w,
-                args.train_epochs,
-                args.batch_size,
-                args.dropout,
-                args.lora_dropout,
-                args.r)
-
-            # 少样本/部分数据训练模式：在 setting 末尾追加标识，
-            # 确保微调或从头训练的 checkpoint 保存到独立目录，不会覆盖全量训练的权重。
-            if args.percent < 100:
-                p_tag = f"{args.percent:g}"
-                if _ckpt_valid:
-                    setting += f'_fewshot{p_tag}pct'
-                else:
-                    setting += f'_scratch{p_tag}pct'
-
-            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-            exp.train(setting)
-
-            print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-            exp.test(setting)
-            torch.cuda.empty_cache()
-    else:
-        ii = 0
+    def build_setting_string(args, ii=0):
         setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_fc{}_eb{}_dt{}_{}_gpt{}_rl{}_{}_{}_feature{}_output{}_train_epochs{}_bs{}_dr{}_ld{}_r{}'.format(
             args.task_name,
             args.model_id,
@@ -313,6 +264,9 @@ if __name__ == '__main__':
             args.lora_dropout,
             args.r)
 
+        # 少样本/部分数据训练模式追加标识
+        _ckpt = str(getattr(args, 'checkpoint_path', '0')).strip()
+        _ckpt_valid = _ckpt not in ['0', 'None', '']
         if args.percent < 100:
             p_tag = f"{args.percent:g}"
             if _ckpt_valid:
@@ -320,6 +274,47 @@ if __name__ == '__main__':
             else:
                 setting += f'_scratch{p_tag}pct'
 
+        # 扩展超参差异检测与防冲突追加
+        extra_tags = []
+        if getattr(args, 'exp_tag', ''):
+            extra_tags.append(str(args.exp_tag).strip())
+        if getattr(args, 'task_w', 1.0) != 1.0:
+            extra_tags.append(f'tw{args.task_w:g}')
+        if getattr(args, 'cycle', 24) != 24:
+            extra_tags.append(f'cyc{args.cycle}')
+        if getattr(args, 'use_direct_trend', 0) != 0:
+            extra_tags.append(f'trend{args.use_direct_trend}')
+        if getattr(args, 'out_mlp_layers', 2) != 2:
+            extra_tags.append(f'omlp{args.out_mlp_layers}')
+        if getattr(args, 'tq_mode', 'mul') != 'mul':
+            extra_tags.append(f'tqm_{args.tq_mode}')
+        if getattr(args, 'data_split', '7:1:2') != '7:1:2':
+            extra_tags.append(f'split{args.data_split.replace(":", "_")}')
+        if getattr(args, 'lradj', 'type1') != 'type1':
+            extra_tags.append(f'lradj_{args.lradj}')
+        if getattr(args, 'use_tq', 1) != 1:
+            extra_tags.append('notq')
+
+        if extra_tags:
+            setting += '_' + '_'.join(extra_tags)
+
+        return setting
+
+    if args.is_training:
+        for ii in range(args.itr):
+            # setting record of experiments
+            exp = Exp(args)  # set experiments
+            setting = build_setting_string(args, ii)
+
+            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+            exp.train(setting)
+
+            print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+            exp.test(setting)
+            torch.cuda.empty_cache()
+    else:
+        ii = 0
+        setting = build_setting_string(args, ii)
         exp = Exp(args)  # set experiments
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
         exp.test(setting)
