@@ -71,6 +71,8 @@ class StateManager:
                     if not has_metrics and ckpt_dir and not os.path.exists(os.path.join(ckpt_dir, "checkpoint.pth")):
                         status = "PENDING"
 
+                matched_rec["task_id"] = tid
+                matched_rec["task_idx"] = t["task_idx"]
                 matched_rec["status"] = status
                 matched_rec["params"] = t["params"]
                 matched_rec["loop_signature"] = t["loop_signature"]

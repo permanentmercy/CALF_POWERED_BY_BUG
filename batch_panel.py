@@ -29,6 +29,7 @@ from scripts.batch_runner.panel_ui import BatchPanelUI
 from scripts.batch_runner.config_manager import ConfigManager
 from scripts.batch_runner.state_manager import StateManager
 from scripts.batch_runner.runner_engine import RunnerEngine
+from scripts.batch_runner.gui_panel import launch_gui
 
 
 def main():
@@ -46,8 +47,10 @@ def main():
                         help="Reset failed or interrupted tasks before running")
     parser.add_argument("--export", type=str, default=None,
                         help="Export current batch results to specified CSV path and exit")
-    parser.add_argument("--interactive", "-i", action="store_true", default=False,
-                        help="Force interactive TUI panel mode (default when no --run or --export flag is passed)")
+    parser.add_argument("--cli", "--tui", action="store_true", default=False,
+                        help="Launch terminal CLI/TUI menu instead of graphical desktop GUI")
+    parser.add_argument("--gui", action="store_true", default=False,
+                        help="Force launch graphical desktop GUI (default mode)")
 
     args = parser.parse_args()
 
@@ -83,9 +86,19 @@ def main():
             print("[OK] Export completed.")
         return
 
-    # Interactive TUI mode (default)
-    panel = BatchPanelUI(config_path=args.config, checkpoints_root=args.checkpoints)
-    panel.menu_main()
+    # Terminal CLI/TUI mode if explicitly requested
+    if args.cli:
+        panel = BatchPanelUI(config_path=args.config, checkpoints_root=args.checkpoints)
+        panel.menu_main()
+        return
+
+    # Graphical Desktop GUI mode (Default)
+    try:
+        launch_gui(initial_config=args.config, initial_checkpoints=args.checkpoints)
+    except Exception as e:
+        print(f"[Warning] Failed to launch GUI ({e}). Falling back to terminal TUI menu.")
+        panel = BatchPanelUI(config_path=args.config, checkpoints_root=args.checkpoints)
+        panel.menu_main()
 
 
 if __name__ == "__main__":
