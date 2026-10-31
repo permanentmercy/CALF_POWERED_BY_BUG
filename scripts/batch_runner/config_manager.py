@@ -10,6 +10,117 @@ import hashlib
 from typing import Dict, Any, List, Tuple
 
 
+def parse_range_spec(spec: str) -> List[Any]:
+    """
+    解析 '起点:步长:终点' 或 '起点:终点' 循环语法。
+    示例:
+      '0.1:0.1:0.5' -> [0.1, 0.2, 0.3, 0.4, 0.5]
+      '2025:1:2027' -> [2025, 2026, 2027]
+      '2025:2027'   -> [2025, 2026, 2027]
+      '24:24:144'   -> [24, 48, 72, 96, 120, 144]
+      '0.0001:0.0001:0.0004' -> [0.0001, 0.0002, 0.0003, 0.0004]
+    """
+    spec = spec.replace("：", ":").strip()
+    parts = [p.strip() for p in spec.split(":") if p.strip()]
+    if len(parts) == 2:
+        start_s, stop_s = parts[0], parts[1]
+        step_s = "1"
+    elif len(parts) == 3:
+        start_s, step_s, stop_s = parts[0], parts[1], parts[2]
+    else:
+        raise ValueError(f"无效的范围格式: '{spec}', 请使用 '起点:步长:终点' (例如 0.1:0.1:0.5 或 2025:1:2027)")
+
+    is_int = ('.' not in start_s and '.' not in step_s and '.' not in stop_s)
+    if is_int:
+        start = int(start_s)
+        step = int(step_s)
+        stop = int(stop_s)
+        if step == 0:
+            raise ValueError("步长不能为0")
+        vals = []
+        cur = start
+        if step > 0:
+            while cur <= stop:
+                vals.append(cur)
+                cur += step
+        else:
+            while cur >= stop:
+                vals.append(cur)
+                cur += step
+        return vals
+    else:
+        start = float(start_s)
+        step = float(step_s)
+        stop = float(stop_s)
+        if step == 0:
+            raise ValueError("步长不能为0")
+        dec = max(
+            len(start_s.split('.')[1]) if '.' in start_s else 0,
+            len(step_s.split('.')[1]) if '.' in step_s else 0,
+            len(stop_s.split('.')[1]) if '.' in stop_s else 0
+        )
+        dec = max(dec, 4)
+        vals = []
+        cur = start
+        eps = abs(step) * 1e-6
+        if step > 0:
+            while cur <= stop + eps:
+                vals.append(round(cur, dec))
+                cur += step
+        else:
+            while cur >= stop - eps:
+                vals.append(round(cur, dec))
+                cur += step
+        return vals
+
+
+def parse_loop_values(raw: Any) -> List[Any]:
+    """
+    将用户输入解析为循环取值列表。
+    支持逗号分隔枚举与 '起点:步长:终点' 范围写法。
+    示例:
+      '0.1:0.1:0.5' -> [0.1, 0.2, 0.3, 0.4, 0.5]
+      '2025, 2026, 2027' -> [2025, 2026, 2027]
+      '96, 192:96:384' -> [96, 192, 288, 384]
+    """
+    if isinstance(raw, list):
+        res = []
+        for item in raw:
+            if isinstance(item, str) and (":" in item or "：" in item):
+                res.extend(parse_range_spec(item))
+            else:
+                res.append(item)
+        return res
+
+    if not isinstance(raw, str):
+        return [raw]
+
+    raw_str = raw.strip()
+    if not raw_str:
+        return []
+
+    tokens = [t.strip() for t in raw_str.split(",") if t.strip()]
+    results = []
+    for token in tokens:
+        clean_tok = token.replace("：", ":")
+        if ":" in clean_tok:
+            results.extend(parse_range_spec(clean_tok))
+        else:
+            if clean_tok.isdigit():
+                results.append(int(clean_tok))
+            else:
+                try:
+                    results.append(float(clean_tok))
+                except ValueError:
+                    if clean_tok.lower() == "true":
+                        results.append(True)
+                    elif clean_tok.lower() == "false":
+                        results.append(False)
+                    else:
+                        results.append(clean_tok)
+    return results
+
+
 class ConfigManager:
     def __init__(self, config_dict: Dict[str, Any] = None):
         if config_dict is None:
@@ -96,7 +207,7 @@ class ConfigManager:
         self.batch_name = data.get("batch_name", self.batch_name)
         self.checkpoints_root = data.get("checkpoints_root", self.checkpoints_root)
         self.fixed_params = data.get("fixed_params", self.fixed_params)
-        self.loop_params = data.get("loop_params", self.loop_params)
+        self.loop_params = {k: parse_loop_values(v) for k, v in data.get("loop_params", {}).items()}
         self.mode = data.get("mode", "grid")
 
     def save_to_file(self, file_path: str):
@@ -124,11 +235,9 @@ class ConfigManager:
         """Set a single fixed parameter value."""
         self.fixed_params[key] = value
 
-    def set_loop_param(self, key: str, values: List[Any]):
-        """Set a parameter loop sweep."""
-        if not isinstance(values, list):
-            values = [values]
-        self.loop_params[key] = values
+    def set_loop_param(self, key: str, values: Any):
+        """Set a parameter loop sweep, supporting range syntax (start:step:stop)."""
+        self.loop_params[key] = parse_loop_values(values)
 
     def remove_param(self, key: str):
         """Remove a parameter from fixed or loop params."""
@@ -180,13 +289,7 @@ class ConfigManager:
             if float(merged_params.get("output_w", 0)) <= 0:
                 continue
 
-            # 2. 动态学习率计算 (若 batch_size 或 accumulation_steps 存在循环且未显式指定 lr)
-            if "learning_rate" not in loop_dict and ("batch_size" in loop_dict or "accumulation_steps" in loop_dict):
-                bs = float(merged_params.get("batch_size", 16))
-                acc = float(merged_params.get("accumulation_steps", 4))
-                merged_params["learning_rate"] = round(0.00000625 * bs * acc, 8)
-
-            # 3. 动态 model_id 联动: {model}_{seq_len}_{pred_len}_p{percent}
+            # 2. 动态 model_id 联动: {model}_{seq_len}_{pred_len}_p{percent}
             model = merged_params.get("model", "CALF")
             seq_len = merged_params.get("seq_len", 96)
             pred_len = merged_params.get("pred_len", 96)

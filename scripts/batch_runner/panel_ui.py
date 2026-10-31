@@ -208,26 +208,14 @@ class BatchPanelUI:
             if c == "1":
                 key = input("请输入要循环的超参名称 (如 random_seed / pred_len / task_w / cycle): ").strip()
                 if key:
-                    raw_vals = input(f"请输入 {key} 的取值列表 (逗号分隔，如 2025,2026,2027 或 96,192): ").strip()
-                    val_list = []
-                    for item in raw_vals.split(","):
-                        item = item.strip()
-                        # Auto parse int, float, bool
-                        if item.isdigit():
-                            val_list.append(int(item))
-                        else:
-                            try:
-                                val_list.append(float(item))
-                            except ValueError:
-                                if item.lower() == "true":
-                                    val_list.append(True)
-                                elif item.lower() == "false":
-                                    val_list.append(False)
-                                else:
-                                    val_list.append(item)
-                    if val_list:
-                        self.config_mgr.set_loop_param(key, val_list)
-                        self._refresh_tasks_and_state()
+                    raw_vals = input(f"请输入 {key} 的取值 (支持 '起点:步长:终点' 如 0.1:0.1:0.5 或逗号分隔 如 2025,2026,2027): ").strip()
+                    if raw_vals:
+                        try:
+                            self.config_mgr.set_loop_param(key, raw_vals)
+                            self._refresh_tasks_and_state()
+                            print(f"{self.C_GREEN}[OK] 已设置循环参数: {key} = {self.config_mgr.loop_params[key]}{self.C_RESET}")
+                        except Exception as e:
+                            print(f"{self.C_RED}[!] 解析循环参数失败: {e}{self.C_RESET}")
                         print(f"{self.C_GREEN}[OK] 已设置循环参数: {key} = {val_list}{self.C_RESET}")
             elif c == "2":
                 key = input("请输入要删除的循环参数名称: ").strip()

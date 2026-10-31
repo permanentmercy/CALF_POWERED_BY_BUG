@@ -18,7 +18,7 @@ from typing import Dict, Any, List, Optional
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-from .config_manager import ConfigManager
+from .config_manager import ConfigManager, parse_loop_values
 from .state_manager import StateManager
 from .runner_engine import RunnerEngine
 
@@ -296,12 +296,6 @@ class BatchPanelGUI:
             command=self._on_auto_calc_output_w
         ).pack(side=tk.LEFT, padx=(0, 8))
 
-        ttk.Button(
-            helper_frame,
-            text="⚡ 根据 batch_size 和 accum 联动 lr",
-            command=self._on_auto_calc_lr
-        ).pack(side=tk.LEFT)
-
         self.lbl_loss_sum_info = ttk.Label(
             helper_frame,
             text="[三损失和: 0.736 + 0.05 + 0.214 = 1.000]",
@@ -339,17 +333,6 @@ class BatchPanelGUI:
                 )
         except Exception as e:
             messagebox.showerror("计算错误", f"无法计算 output_w: {e}")
-
-    def _on_auto_calc_lr(self):
-        """Auto calculate lr = 0.00000625 * batch_size * accumulation_steps."""
-        try:
-            bs = float(self.fixed_vars.get("batch_size", tk.StringVar(value="16")).get())
-            acc = float(self.fixed_vars.get("accumulation_steps", tk.StringVar(value="4")).get())
-            lr = round(0.00000625 * bs * acc, 8)
-            if "learning_rate" in self.fixed_vars:
-                self.fixed_vars["learning_rate"].set(f"{lr:.8f}".rstrip("0").rstrip("."))
-        except Exception as e:
-            messagebox.showerror("计算错误", f"无法计算 learning_rate: {e}")
 
     def _build_tasks_table(self, parent):
         """Build the task execution list and progress indicator."""
@@ -547,23 +530,43 @@ class BatchPanelGUI:
         self._refresh_all_views()
 
     def _on_add_or_edit_loop(self):
-        """Dialog to add or edit a loop parameter."""
+        """Dialog to add or edit a loop parameter with 'start:step:stop' and comma syntax."""
         dlg = tk.Toplevel(self.root)
         dlg.title("配置循环超参 (Add / Edit Loop Parameter)")
-        dlg.geometry("450x220")
+        dlg.geometry("540x330")
         dlg.transient(self.root)
         dlg.grab_set()
 
-        ttk.Label(dlg, text="超参名称 (Parameter Name):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=15, pady=(12, 2))
-        ttk.Label(dlg, text="常用: random_seed, pred_len, cycle, task_w, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=15)
+        ttk.Label(dlg, text="超参名称 (Parameter Name):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=16, pady=(12, 2))
+        ttk.Label(dlg, text="常用: random_seed, pred_len, cycle, task_w, feature_w, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=16)
         param_var = tk.StringVar(value="random_seed")
-        e_param = ttk.Entry(dlg, textvariable=param_var, width=35)
-        e_param.pack(anchor="w", padx=15, pady=4)
+        e_param = ttk.Entry(dlg, textvariable=param_var, width=38)
+        e_param.pack(anchor="w", padx=16, pady=4)
 
-        ttk.Label(dlg, text="循环取值 (逗号分隔，如 2025, 2026, 2027 或 96, 192):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=15, pady=(8, 2))
-        vals_var = tk.StringVar(value="2025, 2026, 2027")
-        e_vals = ttk.Entry(dlg, textvariable=vals_var, width=45)
-        e_vals.pack(anchor="w", padx=15, pady=4)
+        ttk.Label(dlg, text="循环取值写法 (支持两种语法):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=16, pady=(10, 2))
+        ttk.Label(dlg, text="1. 起点:步长:终点 (例如 0.1:0.1:0.5 或 24:24:144 或 2025:1:2027)\n2. 逗号分隔枚举 (例如 2025, 2026, 2027 或 96, 192)", foreground="#0055aa").pack(anchor="w", padx=16)
+        vals_var = tk.StringVar(value="2025:1:2027")
+        e_vals = ttk.Entry(dlg, textvariable=vals_var, width=52)
+        e_vals.pack(anchor="w", padx=16, pady=6)
+
+        # 实时解析预览标签
+        lbl_preview = ttk.Label(dlg, text="解析预览: [2025, 2026, 2027] (共 3 项)", font=("Segoe UI", 9, "italic"), foreground="#008800")
+        lbl_preview.pack(anchor="w", padx=16, pady=(2, 6))
+
+        def update_preview(*args):
+            raw_v = vals_var.get().strip()
+            if not raw_v:
+                lbl_preview.config(text="解析预览: (空)", foreground="#888888")
+                return
+            try:
+                parsed = parse_loop_values(raw_v)
+                preview_str = str(parsed[:8]) + ("..." if len(parsed) > 8 else "")
+                lbl_preview.config(text=f"解析预览: {preview_str} (共 {len(parsed)} 项)", foreground="#008800")
+            except Exception as e:
+                lbl_preview.config(text=f"语法提示: {e}", foreground="#cc0000")
+
+        vals_var.trace_add("write", update_preview)
+        update_preview()
 
         def save():
             k = param_var.get().strip()
@@ -571,28 +574,20 @@ class BatchPanelGUI:
             if not k or not raw_v:
                 messagebox.showwarning("提示", "参数名称和取值不能为空！", parent=dlg)
                 return
-            parsed = []
-            for item in raw_v.split(","):
-                item = item.strip()
-                if item.isdigit():
-                    parsed.append(int(item))
-                else:
-                    try:
-                        parsed.append(float(item))
-                    except ValueError:
-                        if item.lower() == "true":
-                            parsed.append(True)
-                        elif item.lower() == "false":
-                            parsed.append(False)
-                        else:
-                            parsed.append(item)
-            self.config_mgr.set_loop_param(k, parsed)
-            dlg.destroy()
-            self._refresh_all_views()
+            try:
+                parsed = parse_loop_values(raw_v)
+                if not parsed:
+                    messagebox.showwarning("提示", "未解析出任何有效数值！", parent=dlg)
+                    return
+                self.config_mgr.set_loop_param(k, parsed)
+                dlg.destroy()
+                self._refresh_all_views()
+            except Exception as e:
+                messagebox.showerror("语法错误", f"无法解析循环表达式: {e}", parent=dlg)
 
         btn_row = ttk.Frame(dlg)
-        btn_row.pack(fill=tk.X, padx=15, pady=16)
-        ttk.Button(btn_row, text="确定保存", command=save).pack(side=tk.RIGHT, padx=4)
+        btn_row.pack(fill=tk.X, padx=16, pady=16)
+        ttk.Button(btn_row, text="✔ 确定保存", command=save).pack(side=tk.RIGHT, padx=4)
         ttk.Button(btn_row, text="取消", command=dlg.destroy).pack(side=tk.RIGHT)
 
     def _on_delete_loop(self):
