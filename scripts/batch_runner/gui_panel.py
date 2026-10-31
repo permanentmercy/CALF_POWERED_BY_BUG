@@ -230,11 +230,13 @@ class BatchPanelGUI:
         self._add_param_field(g1, 0, 0, "task_name", "任务类型", "long_term_forecast")
         self._add_param_field(g1, 0, 1, "data", "数据集名称", "Solar")
         self._add_param_field(g1, 1, 0, "data_path", "数据文件名", "solar_AL.txt")
-        self._add_param_field(g1, 1, 1, "root_path", "数据根路径", "./dataset/Solar/")
+        self._add_param_field(g1, 1, 1, "root_path", "数据根路径", "./datasets/Solar/")
         self._add_param_field(g1, 2, 0, "seq_len", "输入序列长", "96")
-        self._add_param_field(g1, 2, 1, "pred_len", "预测长度", "96")
-        self._add_param_field(g1, 3, 0, "data_split", "数据划分", "7:1:2")
-        self._add_param_field(g1, 3, 1, "percent", "数据使用比例(%)", "100")
+        self._add_param_field(g1, 2, 1, "label_len", "前置标签长", "0")
+        self._add_param_field(g1, 3, 0, "pred_len", "预测长度", "96")
+        self._add_param_field(g1, 3, 1, "percent", "数据比例(%)", "100")
+        self._add_param_field(g1, 4, 0, "data_split", "数据划分", "7:1:2")
+        self._add_param_field(g1, 4, 1, "gpt2_path", "GPT2底座路径", "./models/gpt2")
 
         # Group 2: Model Architecture
         g2 = ttk.LabelFrame(scroll_content, text=" 模型网络架构 (Architecture) ", padding=6)
@@ -244,29 +246,69 @@ class BatchPanelGUI:
         self._add_param_field(g2, 1, 0, "n_heads", "注意力头数", "4")
         self._add_param_field(g2, 1, 1, "d_ff", "前馈维度(d_ff)", "3072")
         self._add_param_field(g2, 2, 0, "gpt_layers", "GPT层数", "1")
-        self._add_param_field(g2, 2, 1, "out_mlp_layers", "输出头MLP层数", "2")
-        self._add_param_field(g2, 3, 0, "r", "LoRA秩(r)", "8")
-        self._add_param_field(g2, 3, 1, "dropout", "Dropout比例", "0.1")
+        self._add_param_field(g2, 2, 1, "out_mlp_layers", "输出头MLP层数", "3")
+        self._add_param_field(g2, 3, 0, "enc_in", "输入特征维度", "137")
+        self._add_param_field(g2, 3, 1, "c_out", "输出特征维度", "137")
+        self._add_param_field(g2, 4, 0, "r", "LoRA秩(r)", "8")
+        self._add_param_field(g2, 4, 1, "lora_alpha", "LoRA缩放alpha", "32")
+        self._add_param_field(g2, 5, 0, "dropout", "Dropout比例", "0.1")
+        self._add_param_field(g2, 5, 1, "lora_dropout", "LoRA Dropout", "0.1")
 
         # Group 3: TQ Mechanism & Physical Priors
-        g3 = ttk.LabelFrame(scroll_content, text=" TQ周期机制与门控 (TQ Mechanism) ", padding=6)
+        g3 = ttk.LabelFrame(scroll_content, text=" TQ周期机制与门控 (TQ Mechanism & Physical Priors) ", padding=6)
         g3.pack(fill=tk.X, expand=True, padx=4, pady=4)
-        self._add_param_field(g3, 0, 0, "cycle", "周期长度(cycle)", "24")
+        self._add_param_field(g3, 0, 0, "cycle", "周期长度(cycle)", "144")
         self._add_param_field(g3, 0, 1, "use_tq", "启用TQ机制(0/1)", "1")
-        self._add_param_field(g3, 1, 0, "use_direct_trend", "直连趋势门控(0/1)", "0")
-        self._add_param_field(g3, 1, 1, "tq_mode", "注入方式(mul/add)", "mul")
+        self._add_param_field(g3, 1, 0, "tq_mode", "注入方式(add/mul)", "add")
+        self._add_param_field(g3, 1, 1, "tq_inject_target", "注入目标(q/pca)", "q")
+        self._add_param_field(g3, 2, 0, "tq_lr_factor", "TQ学习率因子", "5.0")
+        self._add_param_field(g3, 2, 1, "tq_dropout", "TQ Dropout", "0.1")
+        self._add_param_field(g3, 3, 0, "use_direct_trend", "直连趋势门控(0/1)", "0")
+        self._add_param_field(g3, 3, 1, "cycle_prior_before_denorm", "反归一化前加先验(0/1)", "0")
+        self._add_param_field(g3, 4, 0, "use_norm", "内部RevIN归一化(0/1)", "1")
+        self._add_param_field(g3, 4, 1, "use_tq_gate", "可学习TQ门控(0/1)", "0")
 
-        # Group 4: Training & Loss Weights
-        g4 = ttk.LabelFrame(scroll_content, text=" 训练与多任务损失 (Optimization & Loss Weights) ", padding=6)
+        # Group 4: Training & Three Loss Weights
+        g4 = ttk.LabelFrame(scroll_content, text=" 训练、学习率与三损失权重 (Optimization & Loss Weights) ", padding=6)
         g4.pack(fill=tk.X, expand=True, padx=4, pady=4)
-        self._add_param_field(g4, 0, 0, "train_epochs", "最大训练轮数", "100")
-        self._add_param_field(g4, 0, 1, "batch_size", "批次大小(Batch)", "16")
+        self._add_param_field(g4, 0, 0, "batch_size", "批次大小(Batch)", "16")
+        self._add_param_field(g4, 0, 1, "accumulation_steps", "梯度累加步数", "4")
         self._add_param_field(g4, 1, 0, "learning_rate", "学习率(lr)", "0.0004")
-        self._add_param_field(g4, 1, 1, "patience", "早停容忍度", "3")
-        self._add_param_field(g4, 2, 0, "task_w", "时序任务权重", "1.0")
-        self._add_param_field(g4, 2, 1, "feature_w", "特征对齐权重", "0.05")
-        self._add_param_field(g4, 3, 0, "output_w", "输出对齐权重", "0.214")
-        self._add_param_field(g4, 3, 1, "bestmodel", "测试直接内存读取", "True")
+        self._add_param_field(g4, 1, 1, "train_epochs", "最大训练轮数", "100")
+        self._add_param_field(g4, 2, 0, "patience", "早停容忍度", "5")
+        self._add_param_field(g4, 2, 1, "tmax", "余弦退火周期(tmax)", "10")
+        self._add_param_field(g4, 3, 0, "task_w", "时序主任务权重(task_w)", "0.736")
+        self._add_param_field(g4, 3, 1, "feature_w", "特征对齐权重(feature_w)", "0.05")
+        self._add_param_field(g4, 4, 0, "output_w", "输出对齐权重(output_w)", "0.214")
+        self._add_param_field(g4, 4, 1, "bestmodel", "测试从内存加载最优模型", "True")
+        self._add_param_field(g4, 5, 0, "task_loss", "时序损失函数", "smooth_l1")
+        self._add_param_field(g4, 5, 1, "feature_loss", "特征损失函数", "smooth_l1")
+        self._add_param_field(g4, 6, 0, "output_loss", "输出损失函数", "smooth_l1")
+        self._add_param_field(g4, 6, 1, "eval_test_every_epoch", "每轮评估测试集", "True")
+
+        # Helper buttons for Loss weights and LR auto-calculation
+        helper_frame = ttk.Frame(g4)
+        helper_frame.grid(row=7, column=0, columnspan=2, sticky="ew", padx=6, pady=6)
+
+        ttk.Button(
+            helper_frame,
+            text="⚡ 根据 task_w 和 feature_w 自动联动 output_w (1 - tw - fw)",
+            command=self._on_auto_calc_output_w
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            helper_frame,
+            text="⚡ 根据 batch_size 和 accum 联动 lr",
+            command=self._on_auto_calc_lr
+        ).pack(side=tk.LEFT)
+
+        self.lbl_loss_sum_info = ttk.Label(
+            helper_frame,
+            text="[三损失和: 0.736 + 0.05 + 0.214 = 1.000]",
+            font=("Segoe UI", 9, "bold"),
+            foreground="#008800"
+        )
+        self.lbl_loss_sum_info.pack(side=tk.LEFT, padx=10)
 
     def _add_param_field(self, parent, row, col, key, label_text, default_val):
         """Helper to create labeled entry for fixed parameters."""
@@ -278,6 +320,36 @@ class BatchPanelGUI:
         self.fixed_vars[key] = var
         entry = ttk.Entry(frame, textvariable=var, width=14)
         entry.pack(side=tk.LEFT)
+
+    def _on_auto_calc_output_w(self):
+        """Auto calculate output_w = 1.0 - task_w - feature_w."""
+        try:
+            tw = float(self.fixed_vars.get("task_w", tk.StringVar(value="0.736")).get())
+            fw = float(self.fixed_vars.get("feature_w", tk.StringVar(value="0.05")).get())
+            ow = round(1.0 - tw - fw, 6)
+            if ow < 0:
+                messagebox.showerror("无效权重", f"task_w({tw}) + feature_w({fw}) = {tw+fw} > 1.0！\n导致 output_w ({ow}) 小于 0！")
+                return
+            if "output_w" in self.fixed_vars:
+                self.fixed_vars["output_w"].set(f"{ow:.6f}".rstrip("0").rstrip("."))
+            if hasattr(self, "lbl_loss_sum_info"):
+                self.lbl_loss_sum_info.config(
+                    text=f"[三损失和: {tw:g} + {fw:g} + {ow:g} = {tw+fw+ow:.3f}]",
+                    foreground="#008800"
+                )
+        except Exception as e:
+            messagebox.showerror("计算错误", f"无法计算 output_w: {e}")
+
+    def _on_auto_calc_lr(self):
+        """Auto calculate lr = 0.00000625 * batch_size * accumulation_steps."""
+        try:
+            bs = float(self.fixed_vars.get("batch_size", tk.StringVar(value="16")).get())
+            acc = float(self.fixed_vars.get("accumulation_steps", tk.StringVar(value="4")).get())
+            lr = round(0.00000625 * bs * acc, 8)
+            if "learning_rate" in self.fixed_vars:
+                self.fixed_vars["learning_rate"].set(f"{lr:.8f}".rstrip("0").rstrip("."))
+        except Exception as e:
+            messagebox.showerror("计算错误", f"无法计算 learning_rate: {e}")
 
     def _build_tasks_table(self, parent):
         """Build the task execution list and progress indicator."""

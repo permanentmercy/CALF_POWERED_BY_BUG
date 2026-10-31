@@ -27,11 +27,11 @@ class ConfigManager:
 
     @staticmethod
     def _get_default_fixed_params() -> Dict[str, Any]:
-        """Default baseline parameters for CALF Solar forecasting."""
+        """Default baseline parameters for CALF Solar forecasting aligned with Solar_test.sh."""
         return {
             "task_name": "long_term_forecast",
             "is_training": 1,
-            "root_path": "./dataset/Solar/",
+            "root_path": "./datasets/Solar/",
             "data_path": "solar_AL.txt",
             "model_id": "CALF_96_96_p100",
             "model": "CALF",
@@ -39,27 +39,51 @@ class ConfigManager:
             "seq_len": 96,
             "label_len": 0,
             "pred_len": 96,
+            "percent": 100,
+            "batch_size": 16,
+            "accumulation_steps": 4,
+            "learning_rate": 0.0004,
+            "train_epochs": 100,
+            "patience": 5,
             "d_model": 768,
             "n_heads": 4,
             "e_layers": 1,
             "d_layers": 1,
             "d_ff": 3072,
             "dropout": 0.1,
-            "lora_dropout": 0.1,
-            "r": 8,
-            "train_epochs": 100,
-            "batch_size": 16,
-            "patience": 3,
-            "learning_rate": 0.0004,
+            "enc_in": 137,
+            "c_out": 137,
             "gpt_layers": 1,
+            "itr": 1,
+            "cos": 1,
+            "tmax": 10,
+            "r": 8,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+            "num_workers": 0,
+            "task_w": 0.736,
             "feature_w": 0.05,
             "output_w": 0.214,
-            "task_w": 1.0,
-            "cycle": 24,
+            "use_swa": 0,
+            "tq_mode": "add",
+            "use_tq_gate": 0,
+            "layer_offset": 0,
+            "test_branch": "time",
+            "mlp_res_w": 0.0,
+            "out_mlp_layers": 3,
+            "cycle_prior_before_denorm": 0,
+            "tq_dropout": 0.1,
+            "tq_lr_factor": 5.0,
+            "eval_test_every_epoch": True,
+            "use_norm": 1,
             "use_direct_trend": 0,
-            "out_mlp_layers": 2,
+            "tq_inject_target": "q",
+            "gpt2_path": "./models/gpt2",
+            "task_loss": "smooth_l1",
+            "feature_loss": "smooth_l1",
+            "output_loss": "smooth_l1",
+            "cycle": 144,
             "data_split": "7:1:2",
-            "percent": 100,
             "bestmodel": True
         }
 
@@ -137,9 +161,42 @@ class ConfigManager:
                 combos.append(combo)
 
         tasks = []
-        for idx, loop_dict in enumerate(combos, 1):
+        task_counter = 1
+        for loop_dict in combos:
             merged_params = dict(self.fixed_params)
             merged_params.update(loop_dict)
+
+            # 1. 动态 output_w 计算与跳过约束: output_w = 1.0 - task_w - feature_w
+            task_w = float(merged_params.get("task_w", 0.736))
+            feature_w = float(merged_params.get("feature_w", 0.05))
+            if "output_w" not in loop_dict or str(merged_params.get("output_w", "")).lower() in ["auto", "-1"]:
+                calc_ow = round(1.0 - task_w - feature_w, 6)
+                if calc_ow < 0:
+                    # 跳过无效组合 (output_w < 0)
+                    continue
+                merged_params["output_w"] = calc_ow
+
+            # 显式 output_w <= 0 同样视为无效并跳过
+            if float(merged_params.get("output_w", 0)) <= 0:
+                continue
+
+            # 2. 动态学习率计算 (若 batch_size 或 accumulation_steps 存在循环且未显式指定 lr)
+            if "learning_rate" not in loop_dict and ("batch_size" in loop_dict or "accumulation_steps" in loop_dict):
+                bs = float(merged_params.get("batch_size", 16))
+                acc = float(merged_params.get("accumulation_steps", 4))
+                merged_params["learning_rate"] = round(0.00000625 * bs * acc, 8)
+
+            # 3. 动态 model_id 联动: {model}_{seq_len}_{pred_len}_p{percent}
+            model = merged_params.get("model", "CALF")
+            seq_len = merged_params.get("seq_len", 96)
+            pred_len = merged_params.get("pred_len", 96)
+            percent = merged_params.get("percent", 100)
+            merged_params["model_id"] = f"{model}_{seq_len}_{pred_len}_p{percent:g}"
+
+            # 4. 动态 d_ff 联动: d_ff = d_model * 4 (若 d_ff 未显式指定循环)
+            if "d_ff" not in loop_dict:
+                d_m = int(merged_params.get("d_model", 768))
+                merged_params["d_ff"] = d_m * 4
 
             # Ensure master checkpoints root is strictly routed
             merged_params["checkpoints"] = self.checkpoints_root
@@ -148,14 +205,15 @@ class ConfigManager:
             canonical_repr = json.dumps(merged_params, sort_keys=True)
             task_hash = hashlib.md5(canonical_repr.encode("utf-8")).hexdigest()[:8]
 
-            task_id = f"task_{idx:03d}"
+            task_id = f"task_{task_counter:03d}"
             tasks.append({
-                "task_idx": idx,
+                "task_idx": task_counter,
                 "task_id": task_id,
                 "task_hash": task_hash,
                 "loop_signature": loop_dict,
                 "params": merged_params
             })
+            task_counter += 1
 
         return tasks
 

@@ -13,7 +13,7 @@
 | **M2: Solar-IL 极低样本微调** | 跨域迁移至 Solar-IL，完成 0.5% ~ 10% 微调 | v1.0 | 进行中 | `results/fewshot_il_micro_summary.csv`, `figures/fewshot/` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M4: 全项目唯一一键启动控制脚本整合** | 消除多版本启动碎片，统合参数、断点续跑与出图 | v1.0 | **已完成** | [run_one_click.ps1](file:///run_one_click.ps1), `public/unified_runner/v1.0/` |
-| **M5: 批量实验面板与权重统一管理** | 断点续跑、全超参循环扫描、防签名冲突、大文件夹统一管理及桌面 GUI | v2.0 | **已完成 (v1.0 CLI 与 v2.0 实时输出桌面 GUI 均已交付)** | [batch_panel.py](file:///batch_panel.py), `scripts/batch_runner/`, `public/batch_panel/v2.0/` |
+| **M5: 批量实验面板与权重统一管理** | 断点续跑、全超参循环扫描、对齐 Solar_test 全参数、动态三损失权重与桌面 GUI | v2.1 | **已完成 (v2.1 全参数对齐与动态损失权重联动交付)** | [batch_panel.py](file:///batch_panel.py), `scripts/batch_runner/`, `public/batch_panel/v2.1/` |
 | **M6: 论文终稿整合与发表产物归档** | 整合图表、统计表与 LaTeX 论文 | v1.0 | 待启动 | `latex/` |
 
 ---
