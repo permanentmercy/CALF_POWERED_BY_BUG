@@ -35,8 +35,29 @@ class BatchPanelGUI:
 
         # Core state
         self.config_mgr = ConfigManager()
+        self.current_config_path: Optional[str] = initial_config
+
+        # Automatic session persistence recovery
+        session_file = "configs/.last_session.json"
+        if not initial_config and os.path.exists(session_file):
+            try:
+                with open(session_file, "r", encoding="utf-8") as sf:
+                    sdata = json.load(sf)
+                    last_cfg = sdata.get("last_config_path")
+                    last_ckpt = sdata.get("last_checkpoints_root")
+                    if last_cfg and os.path.exists(last_cfg):
+                        self.config_mgr.load_from_file(last_cfg)
+                        self.current_config_path = last_cfg
+                    if last_ckpt:
+                        self.config_mgr.set_checkpoints_root(last_ckpt)
+                    if sdata.get("last_batch_name"):
+                        self.config_mgr.batch_name = sdata["last_batch_name"]
+            except Exception:
+                pass
+
         if initial_config and os.path.exists(initial_config):
             self.config_mgr.load_from_file(initial_config)
+            self.current_config_path = initial_config
         if initial_checkpoints:
             self.config_mgr.set_checkpoints_root(initial_checkpoints)
 
@@ -446,11 +467,28 @@ class BatchPanelGUI:
     # Event Handlers & Business Logic
     # =========================================================================
 
+    def _save_session_cache(self):
+        """Persist last active session parameters to configs/.last_session.json."""
+        cache_file = "configs/.last_session.json"
+        try:
+            os.makedirs("configs", exist_ok=True)
+            data = {
+                "last_config_path": getattr(self, "current_config_path", None),
+                "last_checkpoints_root": self.config_mgr.checkpoints_root,
+                "last_batch_name": self.config_mgr.batch_name,
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
     def _refresh_all_views(self, reset_interrupted: bool = True):
         """Regenerate tasks, update state, and refresh treeviews and progress."""
         # 1. Sync checkpoints root and batch name
         self.config_mgr.set_checkpoints_root(self.ckpt_root_var.get().strip())
         self.config_mgr.batch_name = self.batch_name_var.get().strip()
+        self._save_session_cache()
 
         # 2. Refresh Loop treeview
         for item in self.loop_tree.get_children():
@@ -463,8 +501,7 @@ class BatchPanelGUI:
         self.lbl_task_count.config(text=f"总任务数: {len(tasks)} 组组合 ({self.config_mgr.mode} 模式)")
 
         # 4. Sync StateManager
-        self.state_mgr.checkpoints_root = self.config_mgr.checkpoints_root
-        self.state_mgr.batch_name = self.config_mgr.batch_name
+        self.state_mgr.set_checkpoints_root(self.config_mgr.checkpoints_root, self.config_mgr.batch_name)
         self.state_mgr.init_or_resume(tasks, reset_interrupted=reset_interrupted)
 
         # 5. Refresh Tasks Table
@@ -509,6 +546,7 @@ class BatchPanelGUI:
         chosen = filedialog.askdirectory(title="选择权重统一保存大文件夹", initialdir=self.config_mgr.checkpoints_root)
         if chosen:
             self.ckpt_root_var.set(chosen.replace("\\", "/"))
+            self._save_session_cache()
             self._refresh_all_views()
             self._log_console(f"[GUI] 已切换权重保存大文件夹为: {chosen}\n", "task_banner")
 
@@ -522,6 +560,7 @@ class BatchPanelGUI:
             self.ckpt_root_var.set("./checkpoints/solar_al_baseline")
         elif sel == "少样本微调扫描目录":
             self.ckpt_root_var.set("./checkpoints/solar_fewshot_sweep")
+        self._save_session_cache()
         self._refresh_all_views()
 
     def _on_mode_change(self):
@@ -638,6 +677,7 @@ class BatchPanelGUI:
         if chosen:
             try:
                 self.config_mgr.load_from_file(chosen)
+                self.current_config_path = chosen
                 self.ckpt_root_var.set(self.config_mgr.checkpoints_root)
                 self.batch_name_var.set(self.config_mgr.batch_name)
                 self.mode_var.set(self.config_mgr.mode)
@@ -645,6 +685,7 @@ class BatchPanelGUI:
                 for k, v in self.config_mgr.fixed_params.items():
                     if k in self.fixed_vars:
                         self.fixed_vars[k].set(str(v))
+                self._save_session_cache()
                 self._refresh_all_views()
                 self._log_console(f"[GUI] 成功载入模板: {chosen}\n", "task_banner")
             except Exception as e:
@@ -664,6 +705,8 @@ class BatchPanelGUI:
                 self.config_mgr.batch_name = self.batch_name_var.get().strip()
                 self.config_mgr.set_checkpoints_root(self.ckpt_root_var.get().strip())
                 self.config_mgr.save_to_file(chosen)
+                self.current_config_path = chosen
+                self._save_session_cache()
                 messagebox.showinfo("成功", f"配置已保存至:\n{chosen}")
             except Exception as e:
                 messagebox.showerror("保存失败", f"无法保存文件: {e}")
@@ -851,6 +894,7 @@ class BatchPanelGUI:
 
     def _on_close(self):
         """Handle window close event."""
+        self._save_session_cache()
         if self.is_running:
             if messagebox.askyesno("退出提示", "后台正在运行实验任务，确定要中止并退出吗？\n当前断点状态将安全保存。"):
                 self.is_running = False
