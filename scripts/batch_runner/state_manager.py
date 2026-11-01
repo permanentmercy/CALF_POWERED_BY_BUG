@@ -417,8 +417,8 @@ class StateManager:
             task["error"] = str(error_msg)
             self.save_state()
 
-    def reset_task(self, task_id: str):
-        """Reset a single task back to PENDING."""
+    def reset_task(self, task_id: str, clear_epoch_checkpoint: bool = False):
+        """Reset a single task back to PENDING. Optionally removes intermediate epoch checkpoint."""
         if task_id in self.state.get("tasks", {}):
             task = self.state["tasks"][task_id]
             task["status"] = "PENDING"
@@ -427,6 +427,15 @@ class StateManager:
             task["start_time"] = None
             task["end_time"] = None
             task["duration_sec"] = None
+
+            if clear_epoch_checkpoint:
+                ckpt_dir = task.get("checkpoint_dir") or os.path.join(self.checkpoints_root, task.get("setting", "")).replace("\\", "/")
+                latest_p = os.path.join(ckpt_dir, "checkpoint_latest.pth")
+                if os.path.exists(latest_p):
+                    try:
+                        os.remove(latest_p)
+                    except OSError:
+                        pass
             self.save_state()
 
     def reset_all_failed_or_interrupted(self):

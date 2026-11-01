@@ -195,7 +195,8 @@ class ConfigManager:
             "output_loss": "smooth_l1",
             "cycle": 144,
             "data_split": "7:1:2",
-            "bestmodel": True
+            "bestmodel": True,
+            "auto_resume": 1
         }
 
     def load_from_file(self, file_path: str):

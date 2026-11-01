@@ -166,6 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
     parser.add_argument('--use_direct_trend', type=int, default=0, help='enable or disable direct autoregressive linear trend skip (ReZero)')
     parser.add_argument('--exp_tag', type=str, default='', help='optional custom experiment tag to distinguish settings/logs')
+    parser.add_argument('--auto_resume', type=int, default=1, help='whether to auto resume from latest epoch checkpoint if interrupted (default: 1)')
     parser.add_argument('--checkpoint_path', type=str, default="0",
                         help='权重文件路径（.pth 文件或含 checkpoint.pth 的目录）。'
                              '生效场景：'

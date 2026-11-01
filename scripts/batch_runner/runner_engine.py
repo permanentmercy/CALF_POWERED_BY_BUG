@@ -65,12 +65,23 @@ class RunnerEngine:
         mae_captured = None
 
         log_file_path = os.path.join(logs_dir, f"{task_id}.log").replace("\\", "/")
-        log_f = open(log_file_path, "w", encoding="utf-8")
+
+        # Check if an intermediate epoch checkpoint exists to preserve previous logs
+        from .state_manager import compute_setting_string
+        expected_setting = compute_setting_string(params)
+        latest_ckpt = os.path.join(checkpoints_root, expected_setting, "checkpoint_latest.pth").replace("\\", "/")
+        is_resuming = os.path.exists(latest_ckpt) and os.path.exists(log_file_path)
+
+        log_mode = "a" if is_resuming else "w"
+        log_f = open(log_file_path, log_mode, encoding="utf-8")
+        if is_resuming:
+            log_f.write(f"\n{'='*70}\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] === RESUMING {task_id} FROM LAST COMPLETED EPOCH ===\n{'='*70}\n")
+            log_f.flush()
 
         print(f"\n{'='*70}")
-        print(f"[*] Starting {task_id} | Loop: {task.get('loop_signature', {})} | Hash: {task.get('task_hash')}")
+        print(f"[*] Starting {task_id} | Loop: {task.get('loop_signature', {})} | Hash: {task.get('task_hash')} | Resuming: {is_resuming}")
         print(f"[*] Command: {' '.join(full_cmd[:8])} ... [total {len(full_cmd)} args]")
-        print(f"[*] Log file: {log_file_path}")
+        print(f"[*] Log file: {log_file_path} (mode={log_mode})")
         print(f"{'='*70}")
 
         env = os.environ.copy()
@@ -101,7 +112,8 @@ class RunnerEngine:
                     # Echo key progress lines to console
                     if any(kw in line_str for kw in [
                         "start training :", "testing :", "Epoch: ", "Best model stored",
-                        "Validation loss decreased", "mse:", "mae:", "cost time:"
+                        "Validation loss decreased", "mse:", "mae:", "cost time:",
+                        "[Epoch-Resume]", "[Resume Detection]", "[Resume Success]"
                     ]):
                         print(f"[{task_id}] {line_str}")
 

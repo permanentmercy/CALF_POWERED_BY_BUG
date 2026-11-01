@@ -732,14 +732,26 @@ class BatchPanelGUI:
         self._refresh_all_views(reset_interrupted=False)
 
     def _on_reset_selected_task(self):
-        """Reset selected task to PENDING."""
+        """Reset selected task to PENDING with option to clear intermediate epoch checkpoints."""
         selected = self.task_tree.selection()
         if not selected:
             messagebox.showinfo("提示", "请先在任务清单中选中要重置的任务。")
             return
         tid = selected[0]
-        self.state_mgr.reset_task(tid)
+        ans = messagebox.askyesnocancel(
+            "重置确认",
+            f"确定要重置任务 {tid} 的状态吗？\n\n"
+            f"- 点【是(Yes)】：从第 1 轮彻底重跑（清除已保存的中间 Epoch 检查点）\n"
+            f"- 点【否(No)】：仅重置状态为 PENDING，保留已完成 Epoch 进度供断点续训\n"
+            f"- 点【取消】：放弃重置操作"
+        )
+        if ans is None:
+            return
+        clear_ckpt = bool(ans)
+        self.state_mgr.reset_task(tid, clear_epoch_checkpoint=clear_ckpt)
         self._refresh_all_views(reset_interrupted=False)
+        msg_extra = "（已清除中间进度，将从头开始）" if clear_ckpt else "（保留已训练的 Epoch 进度，可继续续训）"
+        self._log_console(f"[GUI] 任务 {tid} 已重置为 PENDING {msg_extra}\n", "task_banner")
 
     def _on_reset_failed_tasks(self):
         """Reset all failed or running tasks to PENDING."""
@@ -867,7 +879,7 @@ class BatchPanelGUI:
                 tag = "metric"
             elif "Error" in text or "FAILED" in text or "Exception" in text:
                 tag = "error"
-            elif "start training :" in text or "testing :" in text:
+            elif "start training :" in text or "testing :" in text or "[Epoch-Resume]" in text or "[Resume Detection]" in text:
                 tag = "task_banner"
 
         if tag:

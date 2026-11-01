@@ -132,7 +132,50 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         epoch_times = []
         best_val = np.Inf
         swa_model = None
-        for epoch in range(self.args.train_epochs):
+        max_memory = 0
+        start_epoch = 0
+
+        latest_ckpt_path = os.path.join(path, "checkpoint_latest.pth")
+        if getattr(self.args, "auto_resume", 1) and os.path.exists(latest_ckpt_path):
+            try:
+                print(f">>> [Resume Detection] Found intermediate epoch checkpoint: {latest_ckpt_path}")
+                ckpt_data = torch.load(latest_ckpt_path, map_location=self.device)
+                saved_epoch = ckpt_data.get("epoch", 0)
+                if 0 < saved_epoch < self.args.train_epochs:
+                    start_epoch = saved_epoch
+                    self.model.load_state_dict(ckpt_data["model_state"])
+                    model_optim.load_state_dict(ckpt_data["model_optim_state"])
+                    loss_optim.load_state_dict(ckpt_data["loss_optim_state"])
+                    if self.args.cos and ckpt_data.get("scheduler_state"):
+                        scheduler.load_state_dict(ckpt_data["scheduler_state"])
+                    if self.args.cos and ckpt_data.get("loss_scheduler_state"):
+                        loss_scheduler.load_state_dict(ckpt_data["loss_scheduler_state"])
+                    if scaler and ckpt_data.get("scaler_state"):
+                        scaler.load_state_dict(ckpt_data["scaler_state"])
+
+                    es_dict = ckpt_data.get("early_stopping", {})
+                    early_stopping.counter = es_dict.get("counter", 0)
+                    early_stopping.best_score = es_dict.get("best_score", None)
+                    early_stopping.val_loss_min = es_dict.get("val_loss_min", np.Inf)
+                    early_stopping.early_stop = es_dict.get("early_stop", False)
+
+                    best_val = ckpt_data.get("best_val", np.Inf)
+                    self.best_model_epoch = ckpt_data.get("best_model_epoch", None)
+                    self.best_model_state = ckpt_data.get("best_model_state", None)
+
+                    self.swa_enabled = ckpt_data.get("swa_enabled", False)
+                    self.swa_n = ckpt_data.get("swa_n", 0)
+                    self.swa_model_state = ckpt_data.get("swa_model_state", None)
+
+                    print(f">>> [Epoch-Resume] Detected checkpoint from completed Epoch {start_epoch}! Next Epoch to train: {start_epoch + 1}/{self.args.train_epochs} (Best Vali: {best_val:.6f}, EarlyStopping: {early_stopping.counter}/{early_stopping.patience})")
+                elif saved_epoch >= self.args.train_epochs:
+                    print(f">>> [Resume] Checkpoint shows all {saved_epoch} epochs already completed.")
+                    start_epoch = self.args.train_epochs
+            except Exception as e:
+                print(f"[Warning] Failed to restore from latest checkpoint ({e}), starting from Epoch 1.")
+                start_epoch = 0
+
+        for epoch in range(start_epoch, self.args.train_epochs):
             iter_count = 0
             train_loss = []
             train_task_loss = []
@@ -311,6 +354,37 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             gc.collect()
             torch.cuda.empty_cache()
 
+            # Save latest training state atomically for epoch-level breakpoint resumption
+            latest_ckpt_data = {
+                "epoch": epoch + 1,  # Number of completed epochs (1-based)
+                "model_state": self.model.state_dict(),
+                "model_optim_state": model_optim.state_dict(),
+                "loss_optim_state": loss_optim.state_dict(),
+                "scheduler_state": scheduler.state_dict() if self.args.cos else None,
+                "loss_scheduler_state": loss_scheduler.state_dict() if self.args.cos else None,
+                "scaler_state": scaler.state_dict() if scaler else None,
+                "early_stopping": {
+                    "counter": early_stopping.counter,
+                    "best_score": early_stopping.best_score,
+                    "val_loss_min": early_stopping.val_loss_min,
+                    "early_stop": early_stopping.early_stop
+                },
+                "best_val": best_val,
+                "best_model_epoch": self.best_model_epoch,
+                "best_model_state": self.best_model_state,
+                "swa_enabled": getattr(self, "swa_enabled", False),
+                "swa_n": getattr(self, "swa_n", 0),
+                "swa_model_state": getattr(self, "swa_model_state", None)
+            }
+            latest_tmp = f"{latest_ckpt_path}.tmp"
+            try:
+                torch.save(latest_ckpt_data, latest_tmp)
+                if os.path.exists(latest_ckpt_path):
+                    os.remove(latest_ckpt_path)
+                os.rename(latest_tmp, latest_ckpt_path)
+            except Exception as e:
+                print(f"[Warning] Failed to save latest epoch checkpoint: {e}")
+
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -339,6 +413,13 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 print("No checkpoint found in memory; using current model state.")
         
         print(f"Max Memory (MB): {max_memory}")
+
+        # Clean up intermediate checkpoint upon successful training completion
+        if os.path.exists(latest_ckpt_path):
+            try:
+                os.remove(latest_ckpt_path)
+            except OSError:
+                pass
         
         return self.model
 
