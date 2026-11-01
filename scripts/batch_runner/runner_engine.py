@@ -171,9 +171,9 @@ class RunnerEngine:
                 print(f"[+] Task {task_id} COMPLETED in {duration:.1f}s | MSE: {mse_captured} | MAE: {mae_captured}")
                 return True
             else:
-                err_msg = f"Process exited with non-zero code: {return_code}"
-                state_mgr.mark_failed(task_id, err_msg, duration_sec=duration)
-                print(f"[-] Task {task_id} FAILED ({err_msg}) in {duration:.1f}s")
+                err_msg = f"Process stopped or exited with code: {return_code}"
+                state_mgr.mark_pending(task_id, error_msg=err_msg)
+                print(f"[*] Task {task_id} 中断/未完成 ({err_msg})，已标为未完成，就绪等待续跑。")
                 return False
 
         except KeyboardInterrupt:
@@ -185,13 +185,11 @@ class RunnerEngine:
                     self.current_process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     self.current_process.kill()
-            duration = time.time() - start_time
-            state_mgr.mark_failed(task_id, "Interrupted by user (Ctrl+C)", duration_sec=duration)
+            state_mgr.mark_pending(task_id, error_msg="Interrupted by user (Ctrl+C)")
             raise
 
         except Exception as e:
-            duration = time.time() - start_time
-            state_mgr.mark_failed(task_id, str(e), duration_sec=duration)
+            state_mgr.mark_pending(task_id, error_msg=str(e))
             print(f"[-] Task {task_id} encountered exception: {e}")
             return False
 

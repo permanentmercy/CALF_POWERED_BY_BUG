@@ -407,8 +407,8 @@ class BatchPanelGUI:
         act_frame = ttk.Frame(parent)
         act_frame.pack(fill=tk.X, pady=(4, 0))
 
-        ttk.Button(act_frame, text="重置选中任务为待跑 (PENDING)", command=self._on_reset_selected_task).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Button(act_frame, text="重置所有失败/中断任务", command=self._on_reset_failed_tasks).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(act_frame, text="重置选中任务为未完成", command=self._on_reset_selected_task).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(act_frame, text="重置所有任务为未完成", command=self._on_reset_failed_tasks).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(act_frame, text="定位当前检查点目录", command=self._on_open_task_folder).pack(side=tk.LEFT, padx=(0, 6))
 
     def _build_log_console(self):
@@ -525,10 +525,11 @@ class BatchPanelGUI:
             if self.task_tree.exists(tid):
                 self.task_tree.delete(tid)
 
+            status_display = "已完成" if status == "COMPLETED" else ("运行中" if status == "RUNNING" else "未完成")
             self.task_tree.insert(
                 "", tk.END,
                 iid=tid,
-                values=(tid, status, str(t.get("loop_signature", {})), mse_s, mae_s, dur_s, setting_s),
+                values=(tid, status_display, str(t.get("loop_signature", {})), mse_s, mae_s, dur_s, setting_s),
                 tags=(status,)
             )
 
@@ -537,7 +538,7 @@ class BatchPanelGUI:
         pct = summary["progress_pct"]
         tot = summary["total"]
         comp = summary["completed"]
-        self.lbl_progress.config(text=f"进度: {comp} / {tot} ({pct:.1f}%) | 待跑: {summary['pending']} | 失败: {summary['failed']}")
+        self.lbl_progress.config(text=f"进度: {comp} / {tot} ({pct:.1f}%) | 未完成: {summary['pending']}")
         self.progress_bar["maximum"] = tot if tot > 0 else 1
         self.progress_bar["value"] = comp
 
@@ -732,32 +733,21 @@ class BatchPanelGUI:
         self._refresh_all_views(reset_interrupted=False)
 
     def _on_reset_selected_task(self):
-        """Reset selected task to PENDING with option to clear intermediate epoch checkpoints."""
+        """Reset selected task directly to PENDING (未完成)."""
         selected = self.task_tree.selection()
         if not selected:
             messagebox.showinfo("提示", "请先在任务清单中选中要重置的任务。")
             return
         tid = selected[0]
-        ans = messagebox.askyesnocancel(
-            "重置确认",
-            f"确定要重置任务 {tid} 的状态吗？\n\n"
-            f"- 点【是(Yes)】：从第 1 轮彻底重跑（清除已保存的中间 Epoch 检查点）\n"
-            f"- 点【否(No)】：仅重置状态为 PENDING，保留已完成 Epoch 进度供断点续训\n"
-            f"- 点【取消】：放弃重置操作"
-        )
-        if ans is None:
-            return
-        clear_ckpt = bool(ans)
-        self.state_mgr.reset_task(tid, clear_epoch_checkpoint=clear_ckpt)
+        self.state_mgr.reset_task(tid)
         self._refresh_all_views(reset_interrupted=False)
-        msg_extra = "（已清除中间进度，将从头开始）" if clear_ckpt else "（保留已训练的 Epoch 进度，可继续续训）"
-        self._log_console(f"[GUI] 任务 {tid} 已重置为 PENDING {msg_extra}\n", "task_banner")
+        self._log_console(f"[GUI] 任务 {tid} 已标记为【未完成】，点击启动将直接运行该任务。\n", "task_banner")
 
     def _on_reset_failed_tasks(self):
-        """Reset all failed or running tasks to PENDING."""
+        """Reset all unfinished tasks to PENDING (未完成)."""
         self.state_mgr.reset_all_failed_or_interrupted()
         self._refresh_all_views(reset_interrupted=False)
-        messagebox.showinfo("提示", "已将所有失败和中断的任务重置为 PENDING。")
+        self._log_console("[GUI] 已将所有未完成任务重置就绪，点击启动将直接继续。\n", "task_banner")
 
     def _on_open_task_folder(self):
         """Open Windows Explorer at checkpoint root."""
@@ -826,8 +816,8 @@ class BatchPanelGUI:
         """Gracefully stop running execution."""
         if not self.is_running:
             return
-        if messagebox.askyesno("停止确认", "确定要中止当前的批量实验吗？\n当前正在跑的任务将被保存为中断状态，下次启动时可直接断点续跑。"):
-            self.lbl_status.config(text="正在停止当前任务并保存断点状态...")
+        if messagebox.askyesno("停止确认", "确定要暂停当前的批量实验吗？\n当前任务将被直接标为【未完成】，下次点击启动将直接从该任务继续运行。"):
+            self.lbl_status.config(text="正在停止当前任务并保存状态...")
             self.is_running = False
             self.engine.interrupted = True
             if self.engine.current_process:
@@ -849,7 +839,7 @@ class BatchPanelGUI:
                     tid = data["task_id"]
                     self.lbl_task_running_info.config(text=f"[正在运行: {tid} | {data.get('loop_signature')}]")
                     if self.task_tree.exists(tid):
-                        self.task_tree.set(tid, "status", "RUNNING")
+                        self.task_tree.set(tid, "status", "运行中")
                         self.task_tree.item(tid, tags=("RUNNING",))
                 elif msg_type == "task_end":
                     tid, success = data
@@ -860,8 +850,8 @@ class BatchPanelGUI:
                     self.btn_stop.config(state=tk.DISABLED)
                     self.lbl_task_running_info.config(text="[批次就绪/已暂停]")
                     self._refresh_all_views(reset_interrupted=False)
-                    self.lbl_status.config(text="批次执行结束或已暂停。状态已保存至 batch_state.json。")
-                    self._append_log_line("\n[OK] 批次执行全部结束或已被用户安全中止。\n", tag="task_banner")
+                    self.lbl_status.config(text="批次已暂停。未完成任务已就绪，再次点击【启动 / 断点续跑】将直接从该任务继续。")
+                    self._append_log_line("\n[OK] 批次执行已暂停。未完成任务已就绪，点击启动直接继续。\n", tag="task_banner")
         except queue.Empty:
             pass
 

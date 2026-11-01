@@ -283,10 +283,11 @@ class StateManager:
 
             if matched_rec:
                 status = matched_rec.get("status", "PENDING")
-                # If was interrupted in the middle of running, reset to PENDING so it resumes cleanly
-                if status == "RUNNING" and reset_interrupted:
+                # Any task that is not COMPLETED is always normalized to PENDING (未完成)
+                if status != "COMPLETED":
                     status = "PENDING"
-                    matched_rec["error"] = "Interrupted by user or shutdown; queued for resume"
+                    if reset_interrupted:
+                        matched_rec["error"] = None
 
                 # Verify completed status against physical disk
                 if status == "COMPLETED":
@@ -406,19 +407,25 @@ class StateManager:
                 task["checkpoint_dir"] = checkpoint_dir
             self.save_state()
 
-    def mark_failed(self, task_id: str, error_msg: str, duration_sec: Optional[float] = None):
-        """Mark task as failed."""
+    def mark_pending(self, task_id: str, error_msg: Optional[str] = None):
+        """Mark task as PENDING (未完成) for seamless direct resumption."""
         if task_id in self.state.get("tasks", {}):
             task = self.state["tasks"][task_id]
-            task["status"] = "FAILED"
+            task["status"] = "PENDING"
             task["end_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            if duration_sec:
-                task["duration_sec"] = round(duration_sec, 2)
-            task["error"] = str(error_msg)
+            if error_msg:
+                task["error"] = str(error_msg)
             self.save_state()
 
-    def reset_task(self, task_id: str, clear_epoch_checkpoint: bool = False):
-        """Reset a single task back to PENDING. Optionally removes intermediate epoch checkpoint."""
+    def mark_failed(self, task_id: str, error_msg: str, duration_sec: Optional[float] = None):
+        """
+        Unified handler: directly marks task as PENDING (未完成).
+        Ensures clicking Start/Resume directly picks up this unfinished task without barriers.
+        """
+        self.mark_pending(task_id, error_msg=error_msg)
+
+    def reset_task(self, task_id: str):
+        """Reset a single task back to PENDING (未完成)."""
         if task_id in self.state.get("tasks", {}):
             task = self.state["tasks"][task_id]
             task["status"] = "PENDING"
@@ -427,30 +434,21 @@ class StateManager:
             task["start_time"] = None
             task["end_time"] = None
             task["duration_sec"] = None
-
-            if clear_epoch_checkpoint:
-                ckpt_dir = task.get("checkpoint_dir") or os.path.join(self.checkpoints_root, task.get("setting", "")).replace("\\", "/")
-                latest_p = os.path.join(ckpt_dir, "checkpoint_latest.pth")
-                if os.path.exists(latest_p):
-                    try:
-                        os.remove(latest_p)
-                    except OSError:
-                        pass
             self.save_state()
 
     def reset_all_failed_or_interrupted(self):
-        """Reset all FAILED or RUNNING tasks back to PENDING."""
+        """Reset all non-completed tasks back to PENDING (未完成)."""
         for task in self.state.get("tasks", {}).values():
-            if task["status"] in ["FAILED", "RUNNING"]:
+            if task.get("status") != "COMPLETED":
                 task["status"] = "PENDING"
                 task["error"] = None
         self.save_state()
 
     def get_pending_tasks(self) -> List[Dict[str, Any]]:
-        """Return list of tasks that have status PENDING."""
+        """Return list of all tasks that are NOT completed (未完成), ordered by task_idx."""
         tasks = []
         for task in self.state.get("tasks", {}).values():
-            if task["status"] == "PENDING":
+            if task.get("status") != "COMPLETED":
                 tasks.append(task)
         # Sort by task_idx
         tasks.sort(key=lambda x: x.get("task_idx", 0))
@@ -460,15 +458,14 @@ class StateManager:
         """Compute progress statistics."""
         tasks = list(self.state.get("tasks", {}).values())
         total = len(tasks)
-        completed = sum(1 for t in tasks if t["status"] == "COMPLETED")
-        failed = sum(1 for t in tasks if t["status"] == "FAILED")
-        running = sum(1 for t in tasks if t["status"] == "RUNNING")
-        pending = sum(1 for t in tasks if t["status"] == "PENDING")
+        completed = sum(1 for t in tasks if t.get("status") == "COMPLETED")
+        running = sum(1 for t in tasks if t.get("status") == "RUNNING")
+        pending = total - completed - running
 
         return {
             "total": total,
             "completed": completed,
-            "failed": failed,
+            "failed": 0,
             "running": running,
             "pending": pending,
             "progress_pct": (completed / total * 100) if total > 0 else 0.0
