@@ -258,6 +258,7 @@ class BatchPanelGUI:
         self._add_param_field(g1, 3, 1, "percent", "数据比例(%)", "100")
         self._add_param_field(g1, 4, 0, "data_split", "数据划分", "7:1:2")
         self._add_param_field(g1, 4, 1, "gpt2_path", "GPT2底座路径", "./models/gpt2")
+        self._add_param_field(g1, 5, 0, "checkpoint_path", "预训练权重(0为从头)", "0")
 
         # Group 2: Model Architecture
         g2 = ttk.LabelFrame(scroll_content, text=" 模型网络架构 (Architecture) ", padding=6)
@@ -270,10 +271,11 @@ class BatchPanelGUI:
         self._add_param_field(g2, 2, 1, "out_mlp_layers", "输出头MLP层数", "3")
         self._add_param_field(g2, 3, 0, "enc_in", "输入特征维度", "137")
         self._add_param_field(g2, 3, 1, "c_out", "输出特征维度", "137")
-        self._add_param_field(g2, 4, 0, "r", "LoRA秩(r)", "8")
-        self._add_param_field(g2, 4, 1, "lora_alpha", "LoRA缩放alpha", "32")
-        self._add_param_field(g2, 5, 0, "dropout", "Dropout比例", "0.1")
-        self._add_param_field(g2, 5, 1, "lora_dropout", "LoRA Dropout", "0.1")
+        self._add_param_field(g2, 4, 0, "dec_in", "解码特征维度", "137")
+        self._add_param_field(g2, 4, 1, "r", "LoRA秩(r)", "8")
+        self._add_param_field(g2, 5, 0, "lora_alpha", "LoRA缩放alpha", "32")
+        self._add_param_field(g2, 5, 1, "dropout", "Dropout比例", "0.1")
+        self._add_param_field(g2, 6, 0, "lora_dropout", "LoRA Dropout", "0.1")
 
         # Group 3: TQ Mechanism & Physical Priors
         g3 = ttk.LabelFrame(scroll_content, text=" TQ周期机制与门控 (TQ Mechanism & Physical Priors) ", padding=6)

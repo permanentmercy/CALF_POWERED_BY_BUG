@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **M0: Solar-AL 原始基准复现** | 复现改动前 3 种子基线 (2025/2026/2027, MSE~0.1645) | v1.0 | **正在执行全量复现训练** | `public/baseline_reproduction/v1.0/`, `scripts/long_term_forecasting/Solar_test.sh` |
 | **M1: 周期机制验证与基准复现** | 验证 TQ 与时间周期机制 (7:1:2 划分) | v1.0 | **P0 推理验证已完成；按用户要求保持 use_tq 不变，P1 开关训练已撤下** | `public/cycle_mechanism/v1.0/`, `results/cycle_mechanism/` |
-| **M2: Solar-IL 极低样本微调** | 跨域迁移至 Solar-IL，完成 0.5% ~ 10% 微调 | v1.0 | 进行中 | `results/fewshot_il_micro_summary.csv`, `figures/fewshot/` |
+| **M2: Solar 少样本实验体系 (跨域微调与从头衰减)** | 跨域迁移至 Solar-IL (0.5%~10%) 与 Solar-AL 从头衰减 (10%~50%)，双模板与GUI/一键脚本集成 | v1.0 | **已完成规范与模板构建** | `public/fewshot/v1.0/`, `configs/batch_templates/solar_*fewshot.json`, `run_one_click.ps1` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M4: 全项目唯一一键启动控制脚本整合** | 消除多版本启动碎片，统合参数、断点续跑与出图 | v1.0 | **已完成** | [run_one_click.ps1](file:///run_one_click.ps1), `public/unified_runner/v1.0/` |
 | **M5: 批量实验面板与权重统一管理** | 断点续跑、全超参循环扫描、默认学习率0.0004独立锁定、会话记忆与无损磁盘状态找回GUI、未完成任务统一标定与直接续跑 | v2.5 | **已完成 (v2.5 未完成任务状态归一化，中断后直接无缝接着跑)** | [batch_panel.py](file:///batch_panel.py), `scripts/batch_runner/`, `public/batch_panel/v2.5/` |

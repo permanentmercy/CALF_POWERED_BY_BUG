@@ -1,15 +1,15 @@
 {
-  "batch_name": "solar_fewshot_fine_tuning",
+  "batch_name": "solar_al_fewshot_decay",
   "checkpoints_root": "./checkpoints/solar_fewshot_sweep",
   "mode": "grid",
   "loop_params": {
-    "percent": [0.5, 1, 5, 10],
+    "percent": [10, 20, 30, 40, 50],
     "random_seed": [2025, 2026, 2027]
   },
   "fixed_params": {
     "task_name": "long_term_forecast",
     "is_training": 1,
-    "root_path": "./dataset/Solar/",
+    "root_path": "./datasets/Solar/",
     "data_path": "solar_AL.txt",
     "model_id": "CALF_96_96",
     "model": "CALF",
@@ -17,6 +17,9 @@
     "seq_len": 96,
     "label_len": 0,
     "pred_len": 96,
+    "enc_in": 137,
+    "c_out": 137,
+    "dec_in": 137,
     "d_model": 768,
     "n_heads": 4,
     "e_layers": 1,
@@ -25,18 +28,20 @@
     "dropout": 0.1,
     "lora_dropout": 0.1,
     "r": 8,
-    "train_epochs": 20,
+    "train_epochs": 100,
     "batch_size": 16,
     "patience": 5,
-    "learning_rate": 0.0001,
+    "learning_rate": 0.0004,
     "gpt_layers": 1,
     "feature_w": 0.05,
     "output_w": 0.214,
-    "task_w": 1.0,
-    "cycle": 24,
+    "task_w": 0.736,
+    "cycle": 144,
+    "tq_mode": "add",
     "use_direct_trend": 0,
-    "out_mlp_layers": 2,
+    "out_mlp_layers": 3,
     "data_split": "7:1:2",
-    "bestmodel": true
+    "bestmodel": true,
+    "checkpoint_path": "0"
   }
 }

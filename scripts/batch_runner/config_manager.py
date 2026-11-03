@@ -196,7 +196,9 @@ class ConfigManager:
             "cycle": 144,
             "data_split": "7:1:2",
             "bestmodel": True,
-            "auto_resume": 1
+            "auto_resume": 1,
+            "dec_in": 137,
+            "checkpoint_path": "0"
         }
 
     def load_from_file(self, file_path: str):
