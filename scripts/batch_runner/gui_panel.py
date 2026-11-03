@@ -309,23 +309,16 @@ class BatchPanelGUI:
         self._add_param_field(g4, 6, 0, "output_loss", "输出损失函数", "smooth_l1")
         self._add_param_field(g4, 6, 1, "eval_test_every_epoch", "每轮评估测试集", "True")
 
-        # Helper buttons for Loss weights and LR auto-calculation
+        # Notice for independent loss weights
         helper_frame = ttk.Frame(g4)
         helper_frame.grid(row=7, column=0, columnspan=2, sticky="ew", padx=6, pady=6)
 
-        ttk.Button(
+        ttk.Label(
             helper_frame,
-            text="⚡ 根据 task_w 和 feature_w 自动联动 output_w (1 - tw - fw)",
-            command=self._on_auto_calc_output_w
-        ).pack(side=tk.LEFT, padx=(0, 8))
-
-        self.lbl_loss_sum_info = ttk.Label(
-            helper_frame,
-            text="[三损失和: 0.736 + 0.05 + 0.214 = 1.000]",
+            text="💡 [提示] task_w、feature_w、output_w 三个损失权重完全独立设置，不自动求和为1，支持各自独立设定与循环网格扫描。",
             font=("Segoe UI", 9, "bold"),
-            foreground="#008800"
-        )
-        self.lbl_loss_sum_info.pack(side=tk.LEFT, padx=10)
+            foreground="#0066aa"
+        ).pack(side=tk.LEFT, padx=4)
 
     def _add_param_field(self, parent, row, col, key, label_text, default_val):
         """Helper to create labeled entry for fixed parameters."""
@@ -337,25 +330,6 @@ class BatchPanelGUI:
         self.fixed_vars[key] = var
         entry = ttk.Entry(frame, textvariable=var, width=14)
         entry.pack(side=tk.LEFT)
-
-    def _on_auto_calc_output_w(self):
-        """Auto calculate output_w = 1.0 - task_w - feature_w."""
-        try:
-            tw = float(self.fixed_vars.get("task_w", tk.StringVar(value="0.736")).get())
-            fw = float(self.fixed_vars.get("feature_w", tk.StringVar(value="0.05")).get())
-            ow = round(1.0 - tw - fw, 6)
-            if ow < 0:
-                messagebox.showerror("无效权重", f"task_w({tw}) + feature_w({fw}) = {tw+fw} > 1.0！\n导致 output_w ({ow}) 小于 0！")
-                return
-            if "output_w" in self.fixed_vars:
-                self.fixed_vars["output_w"].set(f"{ow:.6f}".rstrip("0").rstrip("."))
-            if hasattr(self, "lbl_loss_sum_info"):
-                self.lbl_loss_sum_info.config(
-                    text=f"[三损失和: {tw:g} + {fw:g} + {ow:g} = {tw+fw+ow:.3f}]",
-                    foreground="#008800"
-                )
-        except Exception as e:
-            messagebox.showerror("计算错误", f"无法计算 output_w: {e}")
 
     def _build_tasks_table(self, parent):
         """Build the task execution list and progress indicator."""
@@ -580,7 +554,7 @@ class BatchPanelGUI:
         dlg.grab_set()
 
         ttk.Label(dlg, text="超参名称 (Parameter Name):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=16, pady=(12, 2))
-        ttk.Label(dlg, text="常用: random_seed, pred_len, cycle, task_w, feature_w, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=16)
+        ttk.Label(dlg, text="常用: random_seed, pred_len, task_w, feature_w, output_w, cycle, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=16)
         param_var = tk.StringVar(value="random_seed")
         e_param = ttk.Entry(dlg, textvariable=param_var, width=38)
         e_param.pack(anchor="w", padx=16, pady=4)

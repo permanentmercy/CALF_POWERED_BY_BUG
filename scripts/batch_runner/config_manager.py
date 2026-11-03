@@ -278,19 +278,22 @@ class ConfigManager:
             merged_params = dict(self.fixed_params)
             merged_params.update(loop_dict)
 
-            # 1. 动态 output_w 计算与跳过约束: output_w = 1.0 - task_w - feature_w
-            task_w = float(merged_params.get("task_w", 0.736))
-            feature_w = float(merged_params.get("feature_w", 0.05))
-            if "output_w" not in loop_dict or str(merged_params.get("output_w", "")).lower() in ["auto", "-1"]:
-                calc_ow = round(1.0 - task_w - feature_w, 6)
-                if calc_ow < 0:
-                    # 跳过无效组合 (output_w < 0)
-                    continue
-                merged_params["output_w"] = calc_ow
-
-            # 显式 output_w <= 0 同样视为无效并跳过
-            if float(merged_params.get("output_w", 0)) <= 0:
-                continue
+            # 1. 三损失权重独立：task_w, feature_w, output_w 彼此完全解耦，不自动求和成1
+            # 仅当显式指定 "auto" 时兼容动态计算 output_w = 1.0 - task_w - feature_w；其余情况完整保留各自独立设定
+            if str(merged_params.get("output_w", "")).lower() == "auto":
+                tw = float(merged_params.get("task_w", 0.736))
+                fw = float(merged_params.get("feature_w", 0.05))
+                merged_params["output_w"] = round(1.0 - tw - fw, 6)
+            else:
+                try:
+                    merged_params["output_w"] = float(merged_params.get("output_w", 0.214))
+                except (ValueError, TypeError):
+                    pass
+            try:
+                merged_params["task_w"] = float(merged_params.get("task_w", 0.736))
+                merged_params["feature_w"] = float(merged_params.get("feature_w", 0.05))
+            except (ValueError, TypeError):
+                pass
 
             # 2. 动态 model_id 联动: {model}_{seq_len}_{pred_len}_p{percent}
             model = merged_params.get("model", "CALF")
