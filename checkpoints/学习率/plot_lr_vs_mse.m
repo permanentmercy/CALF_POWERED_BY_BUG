@@ -204,30 +204,143 @@ function plot_lr_vs_mse()
 
     hold off;
 
-    % 5. 导出保存图片产物至当前目录 (checkpoints/学习率/)
+    % 5. 导出保存图 1 产物至当前目录 (checkpoints/学习率/)
     png_path = fullfile(script_dir, 'learning_rate_vs_mse.png');
     pdf_path = fullfile(script_dir, 'learning_rate_vs_mse.pdf');
     fig_path = fullfile(script_dir, 'learning_rate_vs_mse.fig');
 
-    % A. 保存为 300 DPI 高清学术图片 (PNG)
     try
         exportgraphics(fig, png_path, 'Resolution', 300);
-        fprintf('[OK] 高清图片已保存: %s (300 DPI)\n', png_path);
+        fprintf('[OK] 图1 高清图片已保存: %s (300 DPI)\n', png_path);
     catch
         print(fig, png_path, '-dpng', '-r300');
-        fprintf('[OK] 高清图片已保存 (print): %s\n', png_path);
+        fprintf('[OK] 图1 高清图片已保存 (print): %s\n', png_path);
     end
 
-    % B. 保存为矢量 PDF (供 LaTeX 论文排版)
     try
         exportgraphics(fig, pdf_path, 'ContentType', 'vector');
-        fprintf('[OK] 矢量 PDF 已保存: %s\n', pdf_path);
+        fprintf('[OK] 图1 矢量 PDF 已保存: %s\n', pdf_path);
     catch
     end
-
-    % C. 保存为 MATLAB FIG 交互式工程文件
     savefig(fig, fig_path);
-    fprintf('[OK] MATLAB 交互式工程已保存: %s\n', fig_path);
+    fprintf('[OK] 图1 MATLAB 工程已保存: %s\n', fig_path);
 
-    fprintf('\n=== 绘图全部顺利完成！===\n');
+    % =====================================================================
+    % 6. 图 2: 四个预测步长取平均的整体折线图 (Overall 4-Horizon Average)
+    % =====================================================================
+    fig2 = figure('Name', 'CALF 4-Horizon Average Learning Rate Sensitivity', ...
+                  'Color', 'w', ...
+                  'Units', 'pixels', ...
+                  'Position', [180, 180, 920, 600], ...
+                  'Visible', 'on');
+    hold on;
+
+    avg_mse = mean(mse_matrix, 1);    % 沿步长维度取平均 (1 x 7)
+    std_mse = std(mse_matrix, 0, 1);   % 4 个步长之间的离散标准差
+
+    % 打印 4 步长平均统计
+    fprintf('\n---------------- 4 步长综合平均 MSE ----------------\n');
+    for j = 1:n_lr
+        fprintf('  lr = %.5f: Mean = %.6f, Std = %.6f\n', lrs(j), avg_mse(j), std_mse(j));
+    end
+    [min_val, min_idx] = min(avg_mse);
+    min_lr = lrs(min_idx);
+    fprintf('  ==> 全局最优学习率: %.5f (4 步长综合 MSE = %.6f)\n', min_lr, min_val);
+    fprintf('-----------------------------------------------------\n\n');
+
+    % 绘制标准差轻量半透明阴影带 (展现各步长离散程度)
+    fill_x = [lrs, fliplr(lrs)];
+    fill_y = [avg_mse - std_mse, fliplr(avg_mse + std_mse)];
+    h_fill = fill(fill_x, fill_y, [0.15, 0.45, 0.80], ...
+                  'FaceAlpha', 0.12, 'EdgeColor', 'none', ...
+                  'DisplayName', '\pm1 Std Dev across Horizons');
+
+    % 绘制主折线 (藏青色 + 实心圆点)
+    main_color = [0.12, 0.38, 0.72];
+    h_line = plot(lrs, avg_mse, '-o', ...
+                  'Color', main_color, ...
+                  'LineWidth', 2.5, ...
+                  'MarkerSize', 8.5, ...
+                  'MarkerFaceColor', main_color, ...
+                  'MarkerEdgeColor', [0.08, 0.22, 0.45], ...
+                  'DisplayName', '4-Horizon Mean MSE');
+
+    % 突出标注最优最低点 (五角星标记)
+    h_min = plot(min_lr, min_val, 'p', ...
+                 'MarkerSize', 14, ...
+                 'MarkerFaceColor', [0.85, 0.15, 0.15], ...
+                 'MarkerEdgeColor', [0.55, 0.05, 0.05], ...
+                 'LineWidth', 1.5, ...
+                 'DisplayName', sprintf('Optimal \\eta = %.5f (MSE = %.4f)', min_lr, min_val));
+
+    % 辅助垂直虚线标出最优学习率位置
+    xline_h2 = xline(min_lr, '--', 'Color', [0.5, 0.5, 0.5], 'LineWidth', 1.2, ...
+                     'HandleVisibility', 'off');
+
+    % 在各数据点处添加精细数值标签
+    for j = 1:n_lr
+        if j == min_idx
+            text(lrs(j), avg_mse(j) - 0.0018, sprintf('Optimal: %.4f', avg_mse(j)), ...
+                 'FontSize', 10.5, 'FontWeight', 'bold', 'FontName', 'Times New Roman', ...
+                 'HorizontalAlignment', 'center', 'Color', [0.85, 0.15, 0.15]);
+        else
+            text(lrs(j), avg_mse(j) + 0.0012, sprintf('%.4f', avg_mse(j)), ...
+                 'FontSize', 10, 'FontName', 'Times New Roman', ...
+                 'HorizontalAlignment', 'center', 'Color', [0.25, 0.25, 0.25]);
+        end
+    end
+
+    xlim([0.00018, 0.00052]);
+    xticks(lrs);
+    xticklabels({'0.00020', '0.00025', '0.00030', '0.00035', '0.00040', '0.00045', '0.00050'});
+    ylim([0.170, 0.216]);
+    yticks(0.170:0.010:0.210);
+
+    xlabel('Learning Rate (\eta)', 'FontSize', 13, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
+    ylabel('Average Mean Squared Error (MSE)', 'FontSize', 13, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
+    title('CALF: Overall Average MSE across 4 Horizons (96, 192, 336, 720)', ...
+          'FontSize', 14, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
+
+    leg2 = legend([h_line, h_min, h_fill], ...
+                  'Location', 'northoutside', ...
+                  'Orientation', 'horizontal', ...
+                  'FontSize', 11, ...
+                  'FontName', 'Times New Roman', ...
+                  'Box', 'off');
+
+    grid on;
+    box on;
+    set(gca, 'FontSize', 12, ...
+             'FontName', 'Times New Roman', ...
+             'LineWidth', 1.2, ...
+             'GridLineStyle', ':', ...
+             'GridAlpha', 0.4, ...
+             'MinorGridAlpha', 0.2, ...
+             'TickDir', 'in', ...
+             'TickLength', [0.015, 0.015]);
+
+    hold off;
+
+    % 导出保存图 2 产物
+    png_path_avg = fullfile(script_dir, 'learning_rate_vs_mse_avg.png');
+    pdf_path_avg = fullfile(script_dir, 'learning_rate_vs_mse_avg.pdf');
+    fig_path_avg = fullfile(script_dir, 'learning_rate_vs_mse_avg.fig');
+
+    try
+        exportgraphics(fig2, png_path_avg, 'Resolution', 300);
+        fprintf('[OK] 图2 (4步长平均) 高清图片已保存: %s (300 DPI)\n', png_path_avg);
+    catch
+        print(fig2, png_path_avg, '-dpng', '-r300');
+        fprintf('[OK] 图2 高清图片已保存 (print): %s\n', png_path_avg);
+    end
+
+    try
+        exportgraphics(fig2, pdf_path_avg, 'ContentType', 'vector');
+        fprintf('[OK] 图2 矢量 PDF 已保存: %s\n', pdf_path_avg);
+    catch
+    end
+    savefig(fig2, fig_path_avg);
+    fprintf('[OK] 图2 MATLAB 工程已保存: %s\n', fig_path_avg);
+
+    fprintf('\n=== 绘图全部顺利完成！两张高清学术插图均已就绪。===\n');
 end

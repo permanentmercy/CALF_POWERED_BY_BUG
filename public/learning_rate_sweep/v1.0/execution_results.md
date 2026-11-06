@@ -9,9 +9,14 @@
 1. **MATLAB 绘图脚本**：
    - [plot_lr_vs_mse.m](file:///checkpoints/学习率/plot_lr_vs_mse.m)：全功能 MATLAB 绘图脚本，支持 CSV/JSON 动态解析与内置回退，导出高分辨率三态图片。
 2. **生成的高清图表**：
-   - [learning_rate_vs_mse.png](file:///checkpoints/学习率/learning_rate_vs_mse.png)：300 DPI 学术出版级高清图片。
-   - [learning_rate_vs_mse.pdf](file:///checkpoints/学习率/learning_rate_vs_mse.pdf)：矢量 PDF 文件，用于 LaTeX 论文无损缩放。
-   - [learning_rate_vs_mse.fig](file:///checkpoints/学习率/learning_rate_vs_mse.fig)：MATLAB 交互式工程文件。
+   - **图 1：四预测步长分别变化折线图**：
+     - [learning_rate_vs_mse.png](file:///checkpoints/学习率/learning_rate_vs_mse.png)：300 DPI 学术出版级高清图片（图例上移外置，零遮挡）。
+     - [learning_rate_vs_mse.pdf](file:///checkpoints/学习率/learning_rate_vs_mse.pdf)：矢量 PDF 文件，用于 LaTeX 论文无损缩放。
+     - [learning_rate_vs_mse.fig](file:///checkpoints/学习率/learning_rate_vs_mse.fig)：MATLAB 交互式工程文件。
+   - **图 2：四预测步长综合平均折线图**：
+     - [learning_rate_vs_mse_avg.png](file:///checkpoints/学习率/learning_rate_vs_mse_avg.png)：300 DPI 学术出版级整体平均折线图（含 $\pm 1$ 标准差阴影带与最优谷底标定）。
+     - [learning_rate_vs_mse_avg.pdf](file:///checkpoints/学习率/learning_rate_vs_mse_avg.pdf)：矢量 PDF 文件。
+     - [learning_rate_vs_mse_avg.fig](file:///checkpoints/学习率/learning_rate_vs_mse_avg.fig)：MATLAB 交互式工程文件。
 3. **数据明细与聚合表**：
    - [learning_rate_summary.csv](file:///checkpoints/学习率/learning_rate_summary.csv)：28 组 (PredLen, LR) 聚合统计表（含 3 种子均值与标准差）。
    - [learning_rate_raw_results.csv](file:///checkpoints/学习率/learning_rate_raw_results.csv)：84 组单次实验完整原始数据记录。
@@ -28,6 +33,7 @@
 | **Horizon 192** | 0.200705 | 0.197043 | 0.192129 | 0.190781 | 0.190280 | **0.190103** | 0.190562 | **0.00045** (MSE 0.19010) |
 | **Horizon 336** | 0.201237 | 0.208890 | 0.205849 | 0.201390 | **0.199336** | 0.199445 | 0.200798 | **0.00040** (MSE 0.19934) |
 | **Horizon 720** | 0.207627 | 0.208639 | 0.207640 | **0.205690** | 0.206460 | 0.206701 | 0.206205 | **0.00035** (MSE 0.20569) |
+| **4 步长综合平均 (Overall)** | 0.196104 | 0.196790 | 0.193722 | 0.191204 | **0.190190** | 0.191131 | 0.191568 | **0.00040** (MSE 0.19019) |
 
 ### 关键科学发现
 1. **凹型收敛谷底显著**：
