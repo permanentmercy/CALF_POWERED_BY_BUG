@@ -82,6 +82,8 @@ def compute_setting_string(p: Dict[str, Any], ii: int = 0) -> str:
         extra_tags.append(f"lradj_{p['lradj']}")
     if int(p.get("use_tq", 1)) != 1:
         extra_tags.append("notq")
+    if int(p.get("use_cycle_prior", 1)) != 1:
+        extra_tags.append("nocycq")
 
     if extra_tags:
         setting += "_" + "_".join(extra_tags)

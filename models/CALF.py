@@ -257,10 +257,14 @@ class Model(nn.Module):
         self.mlp_res_w = getattr(configs, 'mlp_res_w', 0.0)
 
         # Define physical cycle queue parameter if task is forecasting
+        self.use_cycle_prior = getattr(configs, 'use_cycle_prior', 1)
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in))
-            self.cycle_scale = nn.Parameter(torch.ones(1) * 0.1)
+            self.cycle_queue = nn.Parameter(torch.zeros(configs.cycle, configs.enc_in, device=device))
+            self.cycle_scale = nn.Parameter(torch.ones(1, device=device) * 0.1)
             self.cycle_prior_before_denorm = getattr(configs, 'cycle_prior_before_denorm', 1)
+            if not self.use_cycle_prior:
+                self.cycle_queue.requires_grad = False
+                self.cycle_scale.requires_grad = False
         self.use_norm = getattr(configs, 'use_norm', 1)
 
         # Direct autoregressive linear transition skip connection (ReZero)
@@ -335,9 +339,9 @@ class Model(nn.Module):
             outputs_time = outputs_time + self.trend_gate * trend
             outputs_text = outputs_text + self.trend_gate * trend
 
-        # Add physical cycle residual prior if available (before denormalization option)
-        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
-            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+        # Add physical cycle residual prior if available and enabled (before denormalization option)
+        if self.use_cycle_prior and future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 1:
+            future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 
@@ -345,9 +349,9 @@ class Model(nn.Module):
             outputs_text = outputs_text * stdev + means
             outputs_time = outputs_time * stdev + means
 
-        # Add physical cycle residual prior if available (after denormalization option)
-        if future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
-            future_cycle_val = self.cycle_queue[future_cycle_index] # (B, pred_len, M)
+        # Add physical cycle residual prior if available and enabled (after denormalization option)
+        if self.use_cycle_prior and future_cycle_index is not None and hasattr(self, 'cycle_queue') and getattr(self, 'cycle_prior_before_denorm', 1) == 0:
+            future_cycle_val = self.cycle_queue[future_cycle_index.to(self.cycle_queue.device)] # (B, pred_len, M)
             outputs_time = outputs_time + self.cycle_scale * future_cycle_val
             outputs_text = outputs_text + self.cycle_scale * future_cycle_val
 

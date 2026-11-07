@@ -10,6 +10,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **M0: Solar-AL 原始基准复现** | 复现改动前 3 种子基线 (2025/2026/2027, MSE~0.1645) | v1.0 | **正在执行全量复现训练** | `public/baseline_reproduction/v1.0/`, `scripts/long_term_forecasting/Solar_test.sh` |
 | **M1: 周期机制验证与基准复现** | 验证 TQ 与时间周期机制 (7:1:2 划分) | v1.0 | **P0 推理验证已完成；按用户要求保持 use_tq 不变，P1 开关训练已撤下** | `public/cycle_mechanism/v1.0/`, `results/cycle_mechanism/` |
+| **M1.1: 周期先验残差 (cycle_queue) 一键开关与消融** | 支持一键关闭 cycle_queue (--use_cycle_prior 0) 与网格消融实验 | v1.0 | **已完成 (代码实施、防冲突隔离、GUI与批处理模板适配完成，4项单元测试全通)** | `public/cycle_queue_ablation/v1.0/` |
 | **M2: Solar 少样本实验体系 (跨域微调与从头衰减)** | 跨域迁移至 Solar-IL (0.5%~10%) 与 Solar-AL 从头衰减 (10%~50%)，双模板与GUI/一键脚本集成 | v1.0 | **已完成规范与模板构建** | `public/fewshot/v1.0/`, `configs/batch_templates/solar_*fewshot.json`, `run_one_click.ps1` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M3.1: 学习率敏感性多步长分析** | 4 预测步长 x 7 学习率 x 3 种子 (84 组任务) 统计与 MATLAB 绘图 | v1.0 | **已完成** | `checkpoints/学习率/`, `public/learning_rate_sweep/v1.0/` |
@@ -42,6 +43,18 @@
 - **子计划与产物**：详见 [cycle_mechanism/v1.0/subplan.md](cycle_mechanism/v1.0/subplan.md) 与 [cycle_mechanism/v1.0/execution_results.md](cycle_mechanism/v1.0/execution_results.md)。
 - **阶段 1 完成状态 (P0)**：P0 验证集 5,161 窗口扫描、+2 槽单项测试确认及配对区间核对均已完成。逐值核查表明 Solar CSV 不能提供 TXT 行号的可信时间戳。执行详情见 [cycle_mechanism/v1.0/phase1/execution_results.md](cycle_mechanism/v1.0/phase1/execution_results.md)。
 - **阶段 2 范围修正 (P1)**：用户明确要求“不要改动 `use_tq`”，原开关配对训练方案已撤下。已完成的 seed2025 两组结果保留为历史记录，剩余种子不再安排；旧 P1 启动入口已停用。当前有效方案见 [TQ 验证方案](cycle_mechanism/v1.0/completion_plan.md)，不修改模型开关，也不开展 Queue/WTE 消融。
+
+---
+
+## 三点五、模块进展明细：M1.1 周期先验残差 (cycle_queue) 一键开关与消融
+- **背景与目标**：用户需要针对物理周期先验残差队列（`cycle_queue`）进行消融实验，需要一键开关参数与批处理适配。
+- **实施产物**：
+  1. `models/CALF.py`：新增 `--use_cycle_prior`（默认1，0为关闭），关闭时冻结参数梯度并完全旁路残差注入；
+  2. `run.py`：注册参数并自动在消融设置时追加 `_nocycq` 标签，实现检查点物理隔离；
+  3. `scripts/batch_runner/`：`config_manager`、`state_manager`、`gui_panel` 全面适配 `use_cycle_prior` 循环超参扫描与界面配置；
+  4. 批处理模板：提供开箱即用模板 [configs/batch_templates/cycle_queue_ablation.json](file:///configs/batch_templates/cycle_queue_ablation.json)；
+  5. 自动化测试套件：[tests/test_cycle_prior_ablation.py](file:///tests/test_cycle_prior_ablation.py) 4 项测试全部通过。
+- **子计划与产物**：详见 [cycle_queue_ablation/v1.0/subplan.md](cycle_queue_ablation/v1.0/subplan.md) 与 [cycle_queue_ablation/v1.0/execution_results.md](cycle_queue_ablation/v1.0/execution_results.md)。
 
 ---
 

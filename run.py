@@ -163,6 +163,8 @@ if __name__ == '__main__':
                         help='Enable Evolutionary Forecasting (EF) inference: autoregressive block extrapolation at test time for horizons 96/192/336/720')
     parser.add_argument('--cycle_prior_before_denorm', type=int, default=1,
                         help='whether to add physical cycle prior before denormalization (1: before, 0: after)')
+    parser.add_argument('--use_cycle_prior', type=int, default=1, choices=[0, 1],
+                        help='whether to use physical cycle queue prior (1: enable, 0: disable for ablation)')
     parser.add_argument('--use_norm', type=int, default=1, help='whether to use internal normalization (RevIN)')
     parser.add_argument('--use_direct_trend', type=int, default=0, help='enable or disable direct autoregressive linear trend skip (ReZero)')
     parser.add_argument('--exp_tag', type=str, default='', help='optional custom experiment tag to distinguish settings/logs')
@@ -295,6 +297,8 @@ if __name__ == '__main__':
             extra_tags.append(f'lradj_{args.lradj}')
         if getattr(args, 'use_tq', 1) != 1:
             extra_tags.append('notq')
+        if getattr(args, 'use_cycle_prior', 1) != 1:
+            extra_tags.append('nocycq')
 
         if extra_tags:
             setting += '_' + '_'.join(extra_tags)

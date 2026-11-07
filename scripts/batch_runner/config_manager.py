@@ -198,7 +198,8 @@ class ConfigManager:
             "bestmodel": True,
             "auto_resume": 1,
             "dec_in": 137,
-            "checkpoint_path": "0"
+            "checkpoint_path": "0",
+            "use_cycle_prior": 1
         }
 
     def load_from_file(self, file_path: str):

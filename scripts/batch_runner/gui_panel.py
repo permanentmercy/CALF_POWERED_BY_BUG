@@ -129,7 +129,8 @@ class BatchPanelGUI:
         self.preset_combo = ttk.Combobox(r1, state="readonly", width=22, values=[
             "新建时间戳隔离目录",
             "Solar-AL 基准复现目录",
-            "少样本微调扫描目录"
+            "少样本微调扫描目录",
+            "周期残差消融目录"
         ])
         self.preset_combo.pack(side=tk.LEFT, padx=(0, 4))
         self.preset_combo.bind("<<ComboboxSelected>>", self._on_preset_selected)
@@ -290,6 +291,7 @@ class BatchPanelGUI:
         self._add_param_field(g3, 3, 1, "cycle_prior_before_denorm", "反归一化前加先验(0/1)", "0")
         self._add_param_field(g3, 4, 0, "use_norm", "内部RevIN归一化(0/1)", "1")
         self._add_param_field(g3, 4, 1, "use_tq_gate", "可学习TQ门控(0/1)", "0")
+        self._add_param_field(g3, 5, 0, "use_cycle_prior", "启用周期残差(0/1)", "1")
 
         # Group 4: Training & Three Loss Weights
         g4 = ttk.LabelFrame(scroll_content, text=" 训练、学习率与三损失权重 (Optimization & Loss Weights) ", padding=6)
@@ -537,6 +539,8 @@ class BatchPanelGUI:
             self.ckpt_root_var.set("./checkpoints/solar_al_baseline")
         elif sel == "少样本微调扫描目录":
             self.ckpt_root_var.set("./checkpoints/solar_fewshot_sweep")
+        elif sel == "周期残差消融目录":
+            self.ckpt_root_var.set("./checkpoints/cycle_queue_ablation")
         self._save_session_cache()
         self._refresh_all_views()
 
@@ -554,7 +558,7 @@ class BatchPanelGUI:
         dlg.grab_set()
 
         ttk.Label(dlg, text="超参名称 (Parameter Name):", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=16, pady=(12, 2))
-        ttk.Label(dlg, text="常用: random_seed, pred_len, task_w, feature_w, output_w, cycle, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=16)
+        ttk.Label(dlg, text="常用: random_seed, use_cycle_prior, pred_len, task_w, feature_w, output_w, cycle, percent, learning_rate", foreground="#666666").pack(anchor="w", padx=16)
         param_var = tk.StringVar(value="random_seed")
         e_param = ttk.Entry(dlg, textvariable=param_var, width=38)
         e_param.pack(anchor="w", padx=16, pady=4)
