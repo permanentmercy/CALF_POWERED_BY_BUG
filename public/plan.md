@@ -11,6 +11,7 @@
 | **M0: Solar-AL 原始基准复现** | 复现改动前 3 种子基线 (2025/2026/2027, MSE~0.1645) | v1.0 | **正在执行全量复现训练** | `public/baseline_reproduction/v1.0/`, `scripts/long_term_forecasting/Solar_test.sh` |
 | **M1: 周期机制验证与基准复现** | 验证 TQ 与时间周期机制 (7:1:2 划分) | v1.0 | **P0 推理验证已完成；按用户要求保持 use_tq 不变，P1 开关训练已撤下** | `public/cycle_mechanism/v1.0/`, `results/cycle_mechanism/` |
 | **M1.1: 周期先验残差 (cycle_queue) 一键开关与消融** | 支持一键关闭 cycle_queue (--use_cycle_prior 0) 与网格消融实验 | v1.0 | **已完成 (代码实施、防冲突隔离、GUI与批处理模板适配完成，4项单元测试全通)** | `public/cycle_queue_ablation/v1.0/` |
+| **M1.2: TQ 机制消融实验多步长对比与分析绘图** | 4 预测步长 x 3 种子有无 TQ 对比分析、同比百分改变统计与 MATLAB 绘图 | v1.0 | **已完成 (4张图表已导出，MATLAB/Python脚本就绪)** | `public/tq_ablation/v1.0/`, `checkpoints/TQ消融/` |
 | **M2: Solar 少样本实验体系 (跨域微调与从头衰减)** | 跨域迁移至 Solar-IL (0.5%~10%) 与 Solar-AL 从头衰减 (10%~50%)，双模板与GUI/一键脚本集成 | v1.0 | **已完成规范与模板构建** | `public/fewshot/v1.0/`, `configs/batch_templates/solar_*fewshot.json`, `run_one_click.ps1` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M3.1: 学习率敏感性多步长分析** | 4 预测步长 x 7 学习率 x 3 种子 (84 组任务) 统计与 MATLAB 绘图 | v1.0 | **已完成** | `checkpoints/学习率/`, `public/learning_rate_sweep/v1.0/` |
@@ -55,6 +56,16 @@
   4. 批处理模板：提供开箱即用模板 [configs/batch_templates/cycle_queue_ablation.json](file:///configs/batch_templates/cycle_queue_ablation.json)；
   5. 自动化测试套件：[tests/test_cycle_prior_ablation.py](file:///tests/test_cycle_prior_ablation.py) 4 项测试全部通过。
 - **子计划与产物**：详见 [cycle_queue_ablation/v1.0/subplan.md](cycle_queue_ablation/v1.0/subplan.md) 与 [cycle_queue_ablation/v1.0/execution_results.md](cycle_queue_ablation/v1.0/execution_results.md)。
+
+---
+
+## 三点六、模块进展明细：M1.2 TQ 机制消融实验多步长对比与分析绘图
+- **背景与目标**：用户完成 TQ 消融实验（`use_tq=0`），需对 4 预测步长 (96, 192, 336, 720) 下的有无 TQ 进行均值折线图、同构图、直接对比图以及同比百分改变柱状图绘制。
+- **实施产物**：
+  1. 数据汇总与处理：输出明细表 `tq_ablation_raw_results.csv` 与汇总表 `tq_ablation_summary.csv`；
+  2. 绘图脚本：编写 MATLAB 主脚本 [plot_tq_ablation.m](file:///checkpoints/TQ消融/plot_tq_ablation.m) 与 Python [plot_tq_ablation.py](file:///checkpoints/TQ消融/plot_tq_ablation.py)；
+  3. 出版级图表：无 TQ 折线图、有 TQ 折线图、对比折线图及同比百分改变柱状图（导出 300 DPI PNG、矢量 PDF 及 FIG）。
+- **子计划与产物**：详见 [tq_ablation/v1.0/subplan.md](tq_ablation/v1.0/subplan.md) 与 [tq_ablation/v1.0/execution_results.md](tq_ablation/v1.0/execution_results.md)。
 
 ---
 
