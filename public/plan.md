@@ -12,6 +12,7 @@
 | **M1: 周期机制验证与基准复现** | 验证 TQ 与时间周期机制 (7:1:2 划分) | v1.0 | **P0 推理验证已完成；按用户要求保持 use_tq 不变，P1 开关训练已撤下** | `public/cycle_mechanism/v1.0/`, `results/cycle_mechanism/` |
 | **M1.1: 周期先验残差 (cycle_queue) 一键开关与消融绘图** | 支持一键关闭 cycle_queue (--use_cycle_prior 0)、12组消融实验完成、对比分析与4张学术图表生成 | v1.0 | **已完成 (12组实验跑通，导出4张学术图表与CSV数据表，MATLAB/Python脚本就绪)** | `public/cycle_queue_ablation/v1.0/`, `checkpoints/cycle消融/` |
 | **M1.2: TQ 机制消融实验多步长对比与分析绘图** | 4 预测步长 x 3 种子有无 TQ 对比分析、同比百分改变统计与 MATLAB 绘图 | v1.0 | **已完成 (4张图表已导出，MATLAB/Python脚本就绪)** | `public/tq_ablation/v1.0/`, `checkpoints/TQ消融/` |
+| **M1.3: 综合双消融实验 (TQ & Cycle Queue) 与基线统合分析** | 深度探究两项消融机制的互补规律与多尺度协同，将两项消融与基线统合总结至一张图（1x2综合双面板母图、3曲线对比图、分组柱状图） | v1.0 | **已完成 (全量指标矩阵统合，MATLAB/Python脚本与出版级图表全部就绪)** | `public/comprehensive_ablation/v1.0/`, `checkpoints/综合消融/` |
 | **M2: Solar 少样本实验体系 (跨域微调与从头衰减)** | 跨域迁移至 Solar-IL (0.5%~10%) 与 Solar-IL 从头衰减 (10%~50%) 60组全量实验、聚合分析与绘图 | v2.0 | **已完成 (60组实验跑通，导出4张学术图表与CSV数据表，MATLAB/Python脚本就绪)** | `public/fewshot/v2.0/`, `checkpoints/少样本/` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
 | **M3.1: 学习率敏感性多步长分析** | 4 预测步长 x 7 学习率 x 3 种子 (84 组任务) 统计与 MATLAB 绘图 | v1.0 | **已完成** | `checkpoints/学习率/`, `public/learning_rate_sweep/v1.0/` |
@@ -72,6 +73,23 @@
   2. 绘图脚本：编写 MATLAB 主脚本 [plot_tq_ablation.m](file:///checkpoints/TQ消融/plot_tq_ablation.m) 与 Python [plot_tq_ablation.py](file:///checkpoints/TQ消融/plot_tq_ablation.py)；
   3. 出版级图表：无 TQ 折线图、有 TQ 折线图、对比折线图及同比百分改变柱状图（导出 300 DPI PNG、矢量 PDF 及 FIG）。
 - **子计划与产物**：详见 [tq_ablation/v1.0/subplan.md](tq_ablation/v1.0/subplan.md) 与 [tq_ablation/v1.0/execution_results.md](tq_ablation/v1.0/execution_results.md)。
+
+---
+
+## 三点七、模块进展明细：M1.3 综合双消融实验 (TQ & Cycle Queue) 与基线统合分析
+- **背景与目标**：深入探究 TQ 机制（时间提示向量）与 Cycle Queue 机制（物理周期残差）在多步长预测中的物理互补机理，并将基线与两项消融统一总结至同一张出版级图表中。
+- **核心发现**：
+  1. **TQ 机制（局部高频时间提示）**：主要在短期 96 步（24小时）中发挥显著增益（移除后 MSE 恶化 +5.70%），长程逐渐退化至边际效应；
+  2. **Cycle Queue 机制（全局宏观物理锚点）**：随预测步长延伸其重要性单调剧增（+8.49% $\rightarrow$ +11.61% $\rightarrow$ +14.18% $\rightarrow$ +15.73%），充当长程自回归预测抗相位漂移的关键支柱；
+  3. **双尺度协同（Dual-Scale Synergy）**：完整 CALF 模型实现了微观提示与宏观物理骨架的完美结合。
+- **实施产物**：
+  1. 数据汇总表：[checkpoints/综合消融/comprehensive_ablation_summary.csv](file:///checkpoints/综合消融/comprehensive_ablation_summary.csv) 与原始记录 [comprehensive_ablation_raw_data.csv](file:///checkpoints/综合消融/comprehensive_ablation_raw_data.csv)；
+  2. 绘图脚本：MATLAB [plot_comprehensive_ablation.m](file:///checkpoints/综合消融/plot_comprehensive_ablation.m) 与 Python [plot_comprehensive_ablation.py](file:///checkpoints/综合消融/plot_comprehensive_ablation.py)；
+  3. 学术整合图表（300 DPI PNG、矢量 PDF 及 FIG）：
+     - 综合双面板学术母图 (`comprehensive_ablation_master`)：(a) 3 折线预测步长 vs MSE 对比，(b) 分组百分比退化柱状图；
+     - 单坐标轴 3 曲线对比图 (`comprehensive_ablation_3lines`)；
+     - 独立分组百分比柱状图 (`comprehensive_ablation_grouped_bar`)。
+- **子计划与产物**：详见 [comprehensive_ablation/v1.0/subplan.md](comprehensive_ablation/v1.0/subplan.md) 与 [comprehensive_ablation/v1.0/execution_results.md](comprehensive_ablation/v1.0/execution_results.md)。
 
 ---
 
