@@ -119,3 +119,75 @@ python run.py --task_name long_term_forecast --model CALF --data Solar --seq_len
 python batch_panel.py
 ```
 或直接加载模板执行无头批处理，一键全自动完成消融对比。
+
+---
+
+## 五、消融实验完整执行结果与数据明细
+
+用户在 `checkpoints/cycle消融/` 目录下完成了针对 4 个预测步长 (`96`, `192`, `336`, `720`) 与 3 个随机种子 (`2025`, `2026`, `2027`) 的无周期先验 (`--use_cycle_prior 0`) 完整消融训练（共 12 组实验）。
+
+### 1. 无周期先验消融实验明细数据表 (Without Cycle Prior, `use_cycle_prior=0`)
+
+| 预测步长 (Pred Len) | 种子 (Seed) | MSE | MAE | 检查点目录 |
+| :---: | :---: | :---: | :---: | :--- |
+| **96** | 2025 | 0.178523 | 0.215850 | `long_term_forecast_..._2025_..._nocycq` |
+| **96** | 2026 | 0.179269 | 0.215119 | `long_term_forecast_..._2026_..._nocycq` |
+| **96** | 2027 | 0.177735 | 0.214960 | `long_term_forecast_..._2027_..._nocycq` |
+| **96 (均值)** | **Average** | **0.178509** | **0.215310** | - |
+| **192** | 2025 | 0.213195 | 0.241435 | `long_term_forecast_..._2025_..._nocycq` |
+| **192** | 2026 | 0.212265 | 0.241539 | `long_term_forecast_..._2026_..._nocycq` |
+| **192** | 2027 | 0.211629 | 0.240477 | `long_term_forecast_..._2027_..._nocycq` |
+| **192 (均值)** | **Average** | **0.212363** | **0.241150** | - |
+| **336** | 2025 | 0.228715 | 0.254297 | `long_term_forecast_..._2025_..._nocycq` |
+| **336** | 2026 | 0.231215 | 0.256151 | `long_term_forecast_..._2026_..._nocycq` |
+| **336** | 2027 | 0.229792 | 0.254783 | `long_term_forecast_..._2027_..._nocycq` |
+| **336 (均值)** | **Average** | **0.229907** | **0.255077** | - |
+| **720** | 2025 | 0.237678 | 0.259843 | `long_term_forecast_..._2025_..._nocycq` |
+| **720** | 2026 | 0.238991 | 0.260686 | `long_term_forecast_..._2026_..._nocycq` |
+| **720** | 2027 | 0.240163 | 0.261115 | `long_term_forecast_..._2027_..._nocycq` |
+| **720 (均值)** | **Average** | **0.238944** | **0.260548** | - |
+
+---
+
+## 六、有周期先验基准对比与同比百分改变分析
+
+### 1. 成对对比与百分改变表
+
+$$\Delta \text{MSE} \% = \frac{\text{MSE}_{\text{Without Cycle}} - \text{MSE}_{\text{With Cycle}}}{\text{MSE}_{\text{With Cycle}}} \times 100\%$$
+
+| 预测步长 (Pred Len) | 有周期先验基线 MSE (With Cycle) | 无周期先验消融 MSE (Without Cycle) | 绝对误差差值 (\(\Delta\)) | 同比百分改变 (\(\Delta\%\)) | 影响结论 |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| **96** | 0.164532 | 0.178509 | +0.013977 | **+8.49%** | 显著劣化（去除周期队列误差上升 8.49%） |
+| **192** | 0.190280 | 0.212363 | +0.022083 | **+11.61%** | 极显著劣化（去除周期队列误差上升 11.61%） |
+| **336** | 0.201357 | 0.229907 | +0.028550 | **+14.18%** | 严重恶化（去除周期队列误差上升 14.18%） |
+| **720** | 0.206460 | 0.238944 | +0.032484 | **+15.73%** | 严重恶化（去除周期队列误差上升 15.73%） |
+
+### 2. 规律分析：物理周期先验队列的尺度递增增益规律
+
+与 TQ 机制（主要在短程 96 步起效 +5.70%，长程趋于平缓）不同，**`cycle_queue` 展现出随预测步长延长而单调递增的重要度增长特征**：
+- 在 Horizon 96 下，去除周期残差使 MSE 上升 **+8.49%**；
+- 在 Horizon 192 下，去除周期残差使 MSE 上升 **+11.61%**；
+- 在 Horizon 336 下，去除周期残差使 MSE 上升 **+14.18%**；
+- 在 Horizon 720 下，去除周期残差使 MSE 上升高达 **+15.73%**！
+
+**物理机理阐释**：
+在光伏太阳能辐射（Solar-AL）时序数据中，日周期具有极其强烈的物理确定性。在短期预测中，语言大模型的注意力机制尚能捕捉局部的趋势；然而随着预测步长不断延伸至 336 乃至 720 步（多日跨度），序列自回归生成与注意力权重的累积相位漂移（Phase Drift）迅速累加。`cycle_queue` 提供的显式物理日周期先验残差能够充当坚固的“物理锚点”，牢牢约束长程预测的波形中枢，因而**步长越长，物理周期先验越不可或缺**。
+
+---
+
+## 七、学术可视化产物与归档清单
+
+本次消融实验的可视化绘图与数据文件已完整归档在 `checkpoints/cycle消融/` 目录中：
+
+1. **图表文件** (300 DPI PNG、矢量 PDF、交互式 FIG)：
+   - `cycle_ablation_mse_without_cycle` (PNG / PDF / FIG)：无周期先验消融实验 3 种子与均值折线图；
+   - `cycle_ablation_mse_with_cycle` (PNG / PDF / FIG)：有周期先验基线 3 种子与均值折线图；
+   - `cycle_ablation_mse_comparison` (PNG / PDF / FIG)：基线 vs 消融对比折线图（横坐标严格对齐，纯圆点 `'o'`，无横杠）；
+   - `cycle_ablation_relative_change_bar` (PNG / PDF / FIG)：同比百分改变柱状图（+8.49% 至 +15.73% 标注）。
+2. **绘图脚本**：
+   - `checkpoints/cycle消融/plot_cycle_ablation.m`：MATLAB 专业学术绘图脚本；
+   - `checkpoints/cycle消融/plot_cycle_ablation.py`：Python / Matplotlib 独立跨平台绘图脚本。
+3. **数据文件**：
+   - `checkpoints/cycle消融/cycle_ablation_raw_results.csv`：12 组实验原始指标；
+   - `checkpoints/cycle消融/cycle_ablation_summary.csv`：多步长聚合统计表。
+

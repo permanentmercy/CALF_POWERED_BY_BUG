@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **M0: Solar-AL 原始基准复现** | 复现改动前 3 种子基线 (2025/2026/2027, MSE~0.1645) | v1.0 | **正在执行全量复现训练** | `public/baseline_reproduction/v1.0/`, `scripts/long_term_forecasting/Solar_test.sh` |
 | **M1: 周期机制验证与基准复现** | 验证 TQ 与时间周期机制 (7:1:2 划分) | v1.0 | **P0 推理验证已完成；按用户要求保持 use_tq 不变，P1 开关训练已撤下** | `public/cycle_mechanism/v1.0/`, `results/cycle_mechanism/` |
-| **M1.1: 周期先验残差 (cycle_queue) 一键开关与消融** | 支持一键关闭 cycle_queue (--use_cycle_prior 0) 与网格消融实验 | v1.0 | **已完成 (代码实施、防冲突隔离、GUI与批处理模板适配完成，4项单元测试全通)** | `public/cycle_queue_ablation/v1.0/` |
+| **M1.1: 周期先验残差 (cycle_queue) 一键开关与消融绘图** | 支持一键关闭 cycle_queue (--use_cycle_prior 0)、12组消融实验完成、对比分析与4张学术图表生成 | v1.0 | **已完成 (12组实验跑通，导出4张学术图表与CSV数据表，MATLAB/Python脚本就绪)** | `public/cycle_queue_ablation/v1.0/`, `checkpoints/cycle消融/` |
 | **M1.2: TQ 机制消融实验多步长对比与分析绘图** | 4 预测步长 x 3 种子有无 TQ 对比分析、同比百分改变统计与 MATLAB 绘图 | v1.0 | **已完成 (4张图表已导出，MATLAB/Python脚本就绪)** | `public/tq_ablation/v1.0/`, `checkpoints/TQ消融/` |
 | **M2: Solar 少样本实验体系 (跨域微调与从头衰减)** | 跨域迁移至 Solar-IL (0.5%~10%) 与 Solar-IL 从头衰减 (10%~50%) 60组全量实验、聚合分析与绘图 | v2.0 | **已完成 (60组实验跑通，导出4张学术图表与CSV数据表，MATLAB/Python脚本就绪)** | `public/fewshot/v2.0/`, `checkpoints/少样本/` |
 | **M3: Solar-AL 4天超参敏感性基准** | 深度网格、容量网格、多任务蒸馏平衡与少样本衰减 | v1.0 | **已完成 (数据已恢复绘图，参数差异已审计对齐)** | `public/sensitivity_benchmark/v1.0/`, `figures/sensitivity/` |
@@ -47,14 +47,20 @@
 
 ---
 
-## 三点五、模块进展明细：M1.1 周期先验残差 (cycle_queue) 一键开关与消融
-- **背景与目标**：用户需要针对物理周期先验残差队列（`cycle_queue`）进行消融实验，需要一键开关参数与批处理适配。
+## 三点五、模块进展明细：M1.1 周期先验残差 (cycle_queue) 一键开关、消融实验与分析绘图
+- **背景与目标**：用户完成针对物理周期先验残差队列（`cycle_queue`）的 12 组消融实验（4 预测步长 x 3 随机种子，`use_cycle_prior=0`），需对基线有周期先验与无周期先验进行成对指标对比、同比百分改变分析及高标准学术绘图。
 - **实施产物**：
-  1. `models/CALF.py`：新增 `--use_cycle_prior`（默认1，0为关闭），关闭时冻结参数梯度并完全旁路残差注入；
+  1. `models/CALF.py`：支持 `--use_cycle_prior`（默认1，0为关闭），关闭时冻结参数梯度并完全旁路残差注入；
   2. `run.py`：注册参数并自动在消融设置时追加 `_nocycq` 标签，实现检查点物理隔离；
-  3. `scripts/batch_runner/`：`config_manager`、`state_manager`、`gui_panel` 全面适配 `use_cycle_prior` 循环超参扫描与界面配置；
+  3. `scripts/batch_runner/`：`config_manager`、`state_manager`、`gui_panel` 全面适配 `use_cycle_prior`；
   4. 批处理模板：提供开箱即用模板 [configs/batch_templates/cycle_queue_ablation.json](file:///configs/batch_templates/cycle_queue_ablation.json)；
-  5. 自动化测试套件：[tests/test_cycle_prior_ablation.py](file:///tests/test_cycle_prior_ablation.py) 4 项测试全部通过。
+  5. 自动化测试套件：[tests/test_cycle_prior_ablation.py](file:///tests/test_cycle_prior_ablation.py) 4 项测试全部通过；
+  6. 数据处理与统计表：生成明细表 `cycle_ablation_raw_results.csv` 与聚合表 `cycle_ablation_summary.csv`；
+  7. 绘图脚本与高清图表：编写 MATLAB [plot_cycle_ablation.m](file:///checkpoints/cycle消融/plot_cycle_ablation.m) 与 Python [plot_cycle_ablation.py](file:///checkpoints/cycle消融/plot_cycle_ablation.py)，导出 4 张专业学术图表（300 DPI PNG、矢量 PDF 及 FIG）：
+     - 无周期先验消融折线图 (`cycle_ablation_mse_without_cycle`)；
+     - 有周期先验基线折线图 (`cycle_ablation_mse_with_cycle`)；
+     - 有无周期先验对比折线图 (`cycle_ablation_mse_comparison`，纯圆点 `'o'`，严格对齐步长刻度，无上下横杠）；
+     - 同比百分改变柱状图 (`cycle_ablation_relative_change_bar`，揭示 +8.49% $\rightarrow$ +15.73% 单调递增规律)。
 - **子计划与产物**：详见 [cycle_queue_ablation/v1.0/subplan.md](cycle_queue_ablation/v1.0/subplan.md) 与 [cycle_queue_ablation/v1.0/execution_results.md](cycle_queue_ablation/v1.0/execution_results.md)。
 
 ---
