@@ -19,6 +19,7 @@
 | **M4: 全项目唯一一键启动控制脚本整合** | 消除多版本启动碎片，统合参数、断点续跑与出图 | v1.0 | **已完成** | [run_one_click.ps1](file:///run_one_click.ps1), `public/unified_runner/v1.0/` |
 | **M5: 批量实验面板与权重统一管理** | 断点续跑、全超参循环扫描、默认学习率0.0004独立锁定、会话记忆与无损磁盘状态找回GUI、未完成任务统一标定直接续跑、三损失权重解耦与独立控制 | v2.6 | **已完成 (v2.6 三损失完全解耦，不自动求和为1，支持各自独立设定与网格扫描)** | [batch_panel.py](file:///batch_panel.py), `scripts/batch_runner/`, `public/batch_panel/v2.6/` |
 | **M6: 论文终稿整合与发表产物归档** | 整合图表、统计表与 LaTeX 论文 | v1.0 | 待启动 | `latex/` |
+| **M7: 外部基线跨模型评测与超参搜索全景** | CycleNet × TQNet 跨仓数据迁移、6阶段超参动力学解析、Solar-IL 极低样本（10%~100%）跨模型评测对比与出版级全景可视化 | v1.0 | **已完成 (数据迁移规整完成，4张单项+1张综合双栈图表已导出，MATLAB/Python脚本就绪)** | `public/external_benchmarks/v1.0/`, `checkpoints/外部基线/` |
 
 ---
 
@@ -114,3 +115,16 @@
   4. **全超参循环支持**：支持以 JSON 模板或交互方式定义参数列表，自动生成笛卡尔积网格扫描。
   5. **三损失完全解耦 (v2.6)**：解除 `output_w = 1.0 - task_w - feature_w` 与和为 1 的强制约束，`task_w`、`feature_w`、`output_w` 彻底作为独立超参数，支持各自在循环参数中独立扫描与配置。
 - **子计划与产物**：详见 [batch_panel/v2.6/subplan.md](batch_panel/v2.6/subplan.md) 与 [batch_panel/v2.6/execution_results.md](batch_panel/v2.6/execution_results.md)。
+
+---
+
+## 六、模块进展明细：M7 外部基线模型（CycleNet × TQNet）全量调参与少样本评测全景
+- **背景与目标**：
+  响应用户指令，从 `D:\github\CycleNet` 与 `D:\github\TQNet` 提取全量调参记录（6 个阶段、149 组、454 次实验）以及少样本对比数据（Solar-IL 10%~100%），迁移至本地项目并实现高标准学术出版级可视化。
+- **核心成果**：
+  1. **极端少样本大模型表征碾压优势**：在 10% 样本极限场景下，非大模型出现表征崩塌（TQNet MSE 0.3643，退化 +104.67%；CycleNet-mlp MSE 0.3569，退化 +84.46%），而 CALF 凭借预训练语言先验仅轻度退化 +17.77%（MSE 0.2047），取得高达 **+77.92%** 的压倒性性能优势；
+  2. **跨数据集超参分布漂移律**：Solar-AL 最优 lr 集中在 3e-3 ~ 5e-3，Solar-IL 最优 lr 陡降至 6e-4 ~ 1.4e-3；MLP 变体在 bs=256 下解锁第二优化通道；
+  3. **数据资产归档**：在 [checkpoints/外部基线/](file:///checkpoints/外部基线/) 建立完整的 `raw/`、`data/`、`figures/` 体系，生成 `fewshot_cross_model_summary.csv` 等规整表；
+  4. **双栈学术出版图表**：编写 Python [plot_external_benchmarks.py](file:///checkpoints/外部基线/plot_external_benchmarks.py) 与 MATLAB [plot_external_benchmarks.m](file:///checkpoints/外部基线/plot_external_benchmarks.m)，输出 300 DPI PNG、矢量 PDF 及原生交互式 `.fig`。
+- **子计划与产物**：详见 [external_benchmarks/v1.0/subplan.md](external_benchmarks/v1.0/subplan.md) 与 [external_benchmarks/v1.0/execution_results.md](external_benchmarks/v1.0/execution_results.md)。
+
