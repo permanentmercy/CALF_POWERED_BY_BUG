@@ -14,10 +14,10 @@
 | **Python 绘图脚本** | `.py` | [`checkpoints/少样本/plot_fewshot.py`](file:///checkpoints/少样本/plot_fewshot.py) | 基于 Matplotlib 的对齐脚本，支持全自动无依赖独立出图 |
 | **原始数据明细表** | `.csv` | [`checkpoints/少样本/fewshot_raw_results.csv`](file:///checkpoints/少样本/fewshot_raw_results.csv) | 包含 60 组任务的完整参数（percent, pred_len, seed）与 MSE/MAE 指标 |
 | **统计汇总表** | `.csv` | [`checkpoints/少样本/fewshot_summary.csv`](file:///checkpoints/少样本/fewshot_summary.csv) | 包含 20 组实验配置下的 3 种子均值、标准差及单独各随机种子表现 |
-| **图 1: 比例 vs MSE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mse.*` | 横坐标训练比例 (10%~50%)，纵坐标 MSE，4 条预测步长折线 |
-| **图 2: 4 步长综合平均衰减图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mse_avg.*` | 展示全步长平均误差随样本量增加的衰减趋势与最优收敛平台 |
-| **图 3: 步长 vs MSE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_pred_len_vs_mse.*` | 横坐标预测步长 (96~720)，纵坐标 MSE，5 条少样本比例折线 |
-| **图 4: 比例 vs MAE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mae.*` | 横坐标训练比例，纵坐标 MAE，4 条预测步长折线 |
+| **图 1: 比例 vs MSE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mse.*` | 横坐标训练比例 (10%~100%)，纵坐标 MSE，4 条预测步长折线 |
+| **图 2: 4 步长综合平均衰减图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mse_avg.*` | 展示全步长平均误差随样本量增加 (10%~100%) 的衰减趋势与最优收敛平台 |
+| **图 3: 步长 vs MSE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_pred_len_vs_mse.*` | 横坐标预测步长 (96~720)，纵坐标 MSE，6 条数据比例折线 (含 100% 基线) |
+| **图 4: 比例 vs MAE 折线图** | `.png`/`.pdf`/`.fig` | `checkpoints/少样本/fewshot_ratio_vs_mae.*` | 横坐标训练比例 (10%~100%)，纵坐标 MAE，4 条预测步长折线 |
 
 ---
 
@@ -31,6 +31,7 @@
 | **30%** | 0.1850 ± 0.0064<br>(0.2228 ± 0.0030) | 0.2005 ± 0.0063<br>(0.2385 ± 0.0031) | 0.2239 ± 0.0024<br>(0.2516 ± 0.0015) | 0.2324 ± 0.0125<br>(0.2563 ± 0.0049) | **0.2104** |
 | **40%** | 0.1852 ± 0.0016<br>(0.2255 ± 0.0011) | 0.2113 ± 0.0019<br>(0.2459 ± 0.0015) | 0.2237 ± 0.0081<br>(0.2585 ± 0.0021) | 0.2325 ± 0.0069<br>(0.2632 ± 0.0038) | **0.2132** |
 | **50%** | **0.1829 ± 0.0023**<br>(0.2286 ± 0.0016) | 0.2081 ± 0.0019<br>(0.2504 ± 0.0021) | 0.2366 ± 0.0073<br>(0.2731 ± 0.0018) | 0.2421 ± 0.0021<br>(0.2695 ± 0.0007) | **0.2174** |
+| **100% (全量基准)** | **0.1647 ± 0.0005**<br>(0.2193 ± 0.0005) | **0.1903 ± 0.0032**<br>(0.2419 ± 0.0024) | **0.2014 ± 0.0037**<br>(0.2479 ± 0.0006) | **0.2065 ± 0.0010**<br>(0.2512 ± 0.0005) | **0.1907 (最优上界)** |
 
 ---
 
